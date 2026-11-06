@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const view = muralAdminSource;
-const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/mural/mural-admin.css',import.meta.url),'utf8');
 
 test('collection editor opens as a full-page Publicar studio instead of a modal',()=>{
   assert.ok(view.includes('mural-publisher-workspace mural-studio-workspace'));

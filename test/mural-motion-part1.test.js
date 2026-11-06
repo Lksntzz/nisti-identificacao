@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
+const mural = fs.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/mural/mural-nisti.css', import.meta.url), 'utf8');
 
 test('motion part 1 stages the Mural title and filters on entry', () => {
   assert.ok(mural.includes('mural-title-block mural-intro mural-intro-title'));

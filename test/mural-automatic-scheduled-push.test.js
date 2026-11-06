@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { dispatchScheduledMuralNotifications } from '../src/mural-router.js';
+import { dispatchScheduledMuralNotifications } from '../src/mural/mural-router.js';
 
 const read = path => fs.readFileSync(new URL('../' + path,import.meta.url),'utf8');
 
 test('scheduled Mural push is enabled only for operator-visible content', () => {
-  const router=read('src/mural-router.js');
+  const router=read('src/mural/mural-router.js');
   assert.match(router,/const MURAL_PUBLIC_RELEASED = true;/);
   assert.match(router,/if \(!MURAL_PUBLIC_RELEASED\) \{/);
   assert.match(router,/nisti_list_mural_push_ready_v1/);
@@ -14,7 +14,7 @@ test('scheduled Mural push is enabled only for operator-visible content', () => 
 });
 
 test('automatic Mural notices cover collection, product and notice after publish', () => {
-  const router=read('src/mural-router.js') + '\n' + read('src/mural-post-routes.js') + '\n' + read('src/mural-collection-routes.js');
+  const router=read('src/mural/mural-router.js') + '\n' + read('src/mural/mural-post-routes.js') + '\n' + read('src/mural/mural-collection-routes.js');
   const worker=read('src/operator-audit-router.js');
   const push=read('src/web-push.js');
   assert.match(router,/await notifyMuralAfterPublication\(env, id\)/);
@@ -40,7 +40,7 @@ test('database jobs only include recent published, unexpired material, retry fai
   assert.match(sql,/interval '10 minutes'/);
   assert.match(sql,/TO service_role/);
   assert.match(read('wrangler.toml'),/crons = \["\*\/5 \* \* \* \*"\]/);
-  assert.match(read('src/mural-router.js'),/const MURAL_PUBLIC_RELEASED = true;/);
+  assert.match(read('src/mural/mural-router.js'),/const MURAL_PUBLIC_RELEASED = true;/);
   const release=read('supabase/migrations/20261015_mural_public_release_cutoff_v1.sql');
   assert.match(release,/CREATE TABLE IF NOT EXISTS public.mural_push_release_gate/);
   assert.match(release,/p.published_at>=GREATEST/);

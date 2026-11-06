@@ -4,8 +4,8 @@ import test from 'node:test';
 
 const publicMain=fs.readFileSync(new URL('../src/public-main.jsx',import.meta.url),'utf8');
 const scanner=fs.readFileSync(new URL('../src/scanner/gtin-scanner-overlay.jsx',import.meta.url),'utf8');
-const mural=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
-const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const mural=fs.readFileSync(new URL('../src/mural/mural-nisti.jsx',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/mural/mural-router.js',import.meta.url),'utf8');
 
 test('scanner and Mural are mutually exclusive in the public shell',()=>{
   assert.match(publicMain,/publicView === 'scanner' \? \(/);

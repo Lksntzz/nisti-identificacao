@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const css=fs.readFileSync(new URL('../src/mural-nisti.css',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/mural/mural-nisti.css',import.meta.url),'utf8');
 
 test('collection banner preserves the whole uploaded image',()=>{
   assert.ok(css.includes('/* Collection banner: preserve the complete uploaded artwork */'));

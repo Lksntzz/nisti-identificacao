@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const src=fs.readFileSync(new URL('../src/public-main.jsx',import.meta.url),'utf8');
-const css=fs.readFileSync(new URL('../src/mural-nisti.css',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/mural/mural-nisti.css',import.meta.url),'utf8');
 
 test('Scanner Mural call-to-action is colorful with a separate coming-soon marker',()=>{
   assert.match(src,/mural-nav-btn-spotlight/);

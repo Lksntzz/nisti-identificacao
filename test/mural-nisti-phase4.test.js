@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const ui=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
-const css=fs.readFileSync(new URL('../src/mural-nisti.css',import.meta.url),'utf8');
-const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('../src/mural/mural-nisti.jsx',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/mural/mural-nisti.css',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/mural/mural-router.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
-const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
+const dashboard=fs.readFileSync(new URL('../src/mural/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
 
 test('phase 4 uses cursor pagination without replacing existing feed',()=>{
   assert.ok(router.includes('next_cursor'));

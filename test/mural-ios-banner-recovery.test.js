@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
 test('iPhone cached images recover when WebKit misses load or resumes offline',()=>{
-  const jsx=read('src/mural-nisti.jsx');
+  const jsx=read('src/mural/mural-nisti.jsx');
   assert.match(jsx,/image\?\.complete && image\.naturalWidth > 0/);
   assert.match(jsx,/document\.addEventListener\('visibilitychange', recover\)/);
   assert.match(jsx,/window\.addEventListener\('online', recover\)/);
@@ -16,8 +16,8 @@ test('iPhone cached images recover when WebKit misses load or resumes offline',(
 });
 
 test('all collection banners provide visible text while images are delayed',()=>{
-  const jsx=read('src/mural-nisti.jsx');
-  const css=read('src/mural-nisti.css');
+  const jsx=read('src/mural/mural-nisti.jsx');
+  const css=read('src/mural/mural-nisti.css');
   assert.match(jsx,/className="mural-launch-banner-fallback"/);
   assert.match(jsx,/onMediaReady=\{setBannerReady\}/g);
   assert.match(jsx,/bannerReady \? ' is-image-ready' : ''/g);
@@ -28,8 +28,8 @@ test('all collection banners provide visible text while images are delayed',()=>
 });
 
 test('the fallback does not change public Mural access, push or collection interaction',()=>{
-  const jsx=read('src/mural-nisti.jsx');
-  const router=read('src/mural-router.js');
+  const jsx=read('src/mural/mural-nisti.jsx');
+  const router=read('src/mural/mural-router.js');
   assert.match(jsx,/onClick=\{\(\) => onOpen\?\.\(item\)\}/);
   assert.match(jsx,/muralApi\(\x60\/api\/mural\?/);
   assert.match(router,/const MURAL_PUBLIC_RELEASED = true/);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './app.css';
 import LOGO from './assets/logo.png';
 import GtinScannerOverlay from './scanner/gtin-scanner-overlay.jsx';
-import MuralNisti from './mural-nisti.jsx';
+import MuralNisti from './mural/mural-nisti.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
 
 class ApiError extends Error {

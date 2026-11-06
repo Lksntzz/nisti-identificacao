@@ -27,7 +27,7 @@ Monitor da expedição a cada 2 s; visão de expedição a cada 8 s; tela do Mur
 
 - Publicar faz só 2 a 4 pedidos, mais ~4 de recarga. Não estoura 600 sozinho: o balde já estava cheio por outra causa.
 - **Hipótese descartada:** o seletor de produtos carregar 500 fotos. A lista mostra no máximo 6 (publicação de produto) ou 10 (coleção) fotos.
-- **Achado:** as imagens editoriais do Mural vistas pelo admin respondem `private, no-store` (`serveEditorialImage` em `src/mural-image-routes.js`, com `isPublic:false`). Cada redesenho da lista rebaixa todas as miniaturas. É decisão deliberada, travada por teste (`test/mural-image-routes-extraction.test.js`). A URL já é versionada por `?v=`, então cacheável em tese, mas não mexer sem aprovação.
+- **Achado:** as imagens editoriais do Mural vistas pelo admin respondem `private, no-store` (`serveEditorialImage` em `src/mural/mural-image-routes.js`, com `isPublic:false`). Cada redesenho da lista rebaixa todas as miniaturas. É decisão deliberada, travada por teste (`test/mural-image-routes-extraction.test.js`). A URL já é versionada por `?v=`, então cacheável em tese, mas não mexer sem aprovação.
 - **Causa real: não confirmada.** Sem acesso aos logs da Cloudflare, não dá para saber qual escopo estourou nem o que gastou o limite.
 
 ## Se acontecer de novo

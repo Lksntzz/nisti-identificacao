@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { __muralTransparentImageInternals } from '../src/mural-transparent-image.js';
+import { __muralTransparentImageInternals } from '../src/mural/mural-transparent-image.js';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('shared product component uses the final treated PNG pipeline', () => {
   const component = read('src/product-cutout-image.jsx');
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   assert.ok(component.includes('useTreatedProductImage'));
   assert.ok(component.includes('decoding="async"'));
   assert.ok(utility.includes('async function buildTreatedProductImage('));
@@ -17,7 +17,7 @@ test('shared product component uses the final treated PNG pipeline', () => {
 });
 
 test('white and off-white covers use conservative background detection and corruption guards', () => {
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   assert.ok(utility.includes('brightness >= minimumBrightness && chroma <= 26'));
   assert.ok(utility.includes('productStats.ratio < .055'));
   assert.ok(utility.includes('productWidth < width * .25'));
@@ -74,7 +74,7 @@ test('tassel treatment keeps strong detached details and removes neutral artifac
   assert.equal(mask[12*width+6],1,'colored tassel must be preserved');
   assert.equal(mask[12*width+28],0,'neutral detached artifact must be removed');
 
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   assert.ok(utility.includes('genericDetailStrongRatio:.30'));
   assert.doesNotMatch(utility, /requestedOfficialVariant === 'withTassel'[\s\S]{0,120}buildOpaqueMask/);
 });
@@ -115,9 +115,9 @@ test('calibrated planner geometry rejects implausible wide cutouts', () => {
 });
 
 test('Mural product rendering uses the same treated image pipeline', () => {
-  const mural = read('src/mural-nisti.jsx');
-  const experience = read('src/mural-product-experience.jsx');
-  const admin = read('src/admin/MuralPublishShared.jsx');
+  const mural = read('src/mural/mural-nisti.jsx');
+  const experience = read('src/mural/mural-product-experience.jsx');
+  const admin = read('src/mural/MuralPublishShared.jsx');
   assert.ok(mural.includes('useTreatedProductImage'));
   assert.ok(experience.includes('useTreatedProductImage'));
   assert.ok(admin.includes('useTreatedProductImage'));
@@ -209,7 +209,7 @@ test('original product image upload is independent from the Mural processor vers
 });
 
 test('each product treatment persists an individual auditable mask', () => {
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
   const migration = read('supabase/migrations/20261002162500_persistent_product_masks_v1.sql');
@@ -231,7 +231,7 @@ test('each product treatment persists an individual auditable mask', () => {
 });
 
 test('mask backfill is visible and cannot destroy treatment review state', () => {
-  const admin = read('src/admin/MuralProductImageManager.jsx');
+  const admin = read('src/mural/MuralProductImageManager.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
   const core = read('src/core-router.js');
 
@@ -243,9 +243,9 @@ test('mask backfill is visible and cannot destroy treatment review state', () =>
 });
 
 test('Mural admin shows live treatment totals and the current SKU', () => {
-  const admin = read('src/admin/MuralProductImageManager.jsx');
+  const admin = read('src/mural/MuralProductImageManager.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
-  const css = read('src/mural-admin.css');
+  const css = read('src/mural/mural-admin.css');
   const core = read('src/core-router.js');
   const summarySql = read('supabase/migrations/20261001223000_product_treatment_admin_reads_v1.sql');
 
@@ -266,7 +266,7 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
 
 test('display endpoint is server-authoritative and serves explicitly approved derivatives across processor versions', () => {
   const publicImages = read('src/public-image-router.js');
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   const core = read('src/core-router.js');
   const queueSql = read('supabase/migrations/20261002173000_mkp_treatment_queue_wireo_v1.sql');
 
@@ -295,7 +295,7 @@ test('display endpoint is server-authoritative and serves explicitly approved de
 
 test('treatment queue cannot be blocked forever by one failed or oversized image', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   const core = read('src/core-router.js');
 
   assert.ok(utility.includes('const MAX_RENDER_DIMENSION = 1280'));
@@ -306,9 +306,9 @@ test('treatment queue cannot be blocked forever by one failed or oversized image
 });
 
 test('treatment supports pause, review, approval and explicit precise redo', () => {
-  const admin = read('src/admin/MuralProductImageManager.jsx');
+  const admin = read('src/mural/MuralProductImageManager.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   const core = read('src/core-router.js');
 
   assert.ok(worker.includes('TREATMENT_PAUSE_KEY'));
@@ -324,7 +324,7 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
   assert.ok(admin.includes('?products.filter(item=>item.mural_image_ready)'));
   assert.ok(admin.includes('!justApprovedIds.has(Number(item.id))'));
   assert.ok(admin.includes('setJustApprovedIds(current=>new Set(current).add(Number(product.id)))'));
-  assert.ok(read('src/admin/MuralPublishShared.jsx').includes("cache: 'no-store'"));
+  assert.ok(read('src/mural/MuralPublishShared.jsx').includes("cache: 'no-store'"));
   assert.ok(admin.includes('Aprovada e salva'));
   assert.ok(admin.includes('/approve'));
   assert.ok(admin.includes('/redo'));
@@ -352,8 +352,8 @@ test('treatment supports pause, review, approval and explicit precise redo', () 
 
 
 test('Mural review opens a large preview and exposes approve and precise-redo actions', () => {
-  const admin = read('src/admin/MuralProductImageManager.jsx');
-  const css = read('src/mural-admin.css');
+  const admin = read('src/mural/MuralProductImageManager.jsx');
+  const css = read('src/mural/mural-admin.css');
   assert.match(admin, /mural-product-image-lightbox/);
   assert.match(admin, /Aprovar e mover para Revisados/);
   assert.match(admin, /Refazer com corte preciso/);
@@ -365,7 +365,7 @@ test('Mural review opens a large preview and exposes approve and precise-redo ac
 
 test('manual image treatment stays idle until the admin explicitly starts it', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
-  const admin = read('src/admin/MuralProductImageManager.jsx');
+  const admin = read('src/mural/MuralProductImageManager.jsx');
   const main = read('src/main.jsx');
   const core = read('src/core-router.js');
 
@@ -382,8 +382,8 @@ test('manual image treatment stays idle until the admin explicitly starts it', (
 });
 test('image treatment retries after another admin tab owns the processing lock', () => {
   const worker = read('src/product-image-treatment-worker.jsx');
-  const admin = read('src/admin/MuralProductImageManager.jsx');
-  const adminCss = read('src/mural-admin.css');
+  const admin = read('src/mural/MuralProductImageManager.jsx');
+  const adminCss = read('src/mural/mural-admin.css');
 
   assert.match(worker, /const LOCK_RETRY_MS = 5 \* 1000/);
   assert.match(worker, /if \(!acquireLock\(owner\)\) \{[\s\S]*phase:'waiting'[\s\S]*setTimeout\(run, LOCK_RETRY_MS\)/);

@@ -10,5 +10,5 @@ const moduleNames = [
 ];
 
 export const muralAdminSource = moduleNames
-  .map(name => fs.readFileSync(new URL('../../src/admin/' + name, import.meta.url), 'utf8'))
+  .map(name => fs.readFileSync(new URL('../../src/mural/' + name, import.meta.url), 'utf8'))
   .join('\n');

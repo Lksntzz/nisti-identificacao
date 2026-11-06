@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const mod = readFileSync('src/mural-ean-announcement.js', 'utf8');
+const mod = readFileSync('src/mural/mural-ean-announcement.js', 'utf8');
 const sql = readFileSync('supabase/migrations/20261027170000_mural_ean_announcement_draft_v1.sql', 'utf8');
 const core = readFileSync('src/core-router.js', 'utf8');
 const gtin = readFileSync('src/scanner/gtin-router.js', 'utf8');
@@ -33,7 +33,7 @@ test('Ganchos nao bloqueiam a resposta (waitUntil) nas rotas de aprovacao e vinc
 });
 
 test('createEanAnnouncementDraft: cria rascunho, copia imagem e ignora status diferentes de created', async () => {
-  const { createEanAnnouncementDraft } = await import('../src/mural-ean-announcement.js');
+  const { createEanAnnouncementDraft } = await import('../src/mural/mural-ean-announcement.js');
   const puts = [];
   const bucket = {
     get: async key => key === 'processed/products/1/a.png' ? { arrayBuffer: async () => new ArrayBuffer(10) } : null,

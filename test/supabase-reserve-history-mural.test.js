@@ -7,7 +7,7 @@ test('Mural notification scheduling is allowed and the legacy reserve backfill i
 
   assert.match(router,/async scheduled\(_event, env, ctx\)/);
   assert.match(router,/dispatchScheduledMuralNotifications\(env\)/);
-  assert.match(fs.readFileSync('src/mural-router.js','utf8'),/const MURAL_PUBLIC_RELEASED = true/);
+  assert.match(fs.readFileSync('src/mural/mural-router.js','utf8'),/const MURAL_PUBLIC_RELEASED = true/);
   assert.doesNotMatch(router,/runReferenceReindex/);
   assert.doesNotMatch(router,/runReserveBackfill/);
   assert.doesNotMatch(router,/supabase-reserve-backfill/);
@@ -30,7 +30,7 @@ test('GTIN history mirrors new events directly and reads reserve only after back
 });
 
 test('Mural reserve feed stays gated until all Mural streams finish backfill', () => {
-  const mural = fs.readFileSync('src/mural-router.js','utf8');
+  const mural = fs.readFileSync('src/mural/mural-router.js','utf8');
   const readStore = fs.readFileSync('src/supabase-read-store.js','utf8');
   const migration = fs.readFileSync(
     'supabase/migrations/20261001173500_reserve_history_mural_backfill_v1.sql',

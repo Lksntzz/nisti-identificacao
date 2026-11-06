@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTreatedProductImage } from '../mural-transparent-image.js';
+import { useTreatedProductImage } from './mural-transparent-image.js';
 
 export const EMPTY_POST = {
   kind: 'notice', title: '', subtitle: '', body: '', badge: 'NOVO', badge_tone: 'success',

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createMuralPostHandlers } from '../src/mural-post-routes.js';
+import { createMuralPostHandlers } from '../src/mural/mural-post-routes.js';
 
-const router = fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
-const posts = fs.readFileSync(new URL('../src/mural-post-routes.js',import.meta.url),'utf8');
+const router = fs.readFileSync(new URL('../src/mural/mural-router.js',import.meta.url),'utf8');
+const posts = fs.readFileSync(new URL('../src/mural/mural-post-routes.js',import.meta.url),'utf8');
 const json = (body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
 
 function handlers({ push=async()=>{}, validate=(input)=>input }={}) {

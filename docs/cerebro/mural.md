@@ -11,7 +11,7 @@ Feed de novidades para os operadores: produtos novos, coleções e avisos. Fica 
 
 ## Caminho de um dado
 
-- **Operador:** tela (`src/mural-nisti.jsx`, `src/mural-standalone.jsx`) → `/api/mural/...` → `handleMuralRequest` (`src/mural-router.js`) → função SQL `nisti_*mural*_vN` via `supabaseRpc`.
+- **Operador:** tela (`src/mural/mural-nisti.jsx`, `src/mural/mural-standalone.jsx`) → `/api/mural/...` → `handleMuralRequest` (`src/mural/mural-router.js`) → função SQL `nisti_*mural*_vN` via `supabaseRpc`.
 - **Admin:** telas em `src/admin/Mural*.jsx` → `/api/admin/mural/...` → mesmo router, delegando para `mural-post-routes.js`, `mural-collection-routes.js` e `mural-image-routes.js`.
 - **Imagens:** o binário vai para o R2 (binding `PRODUCT_IMAGES`, chaves `mural/...`); o banco guarda só a chave. A tela lê por `/api/product-images/...?v=<chave>`.
 - A autenticação fica no `src/edge-router.js`, não no Mural. O Mural só lê o operador do cabeçalho `x-user-id` (formato `op_<uuid>`).
@@ -28,11 +28,11 @@ Produção usa o **Supabase como banco principal**: `SUPABASE_READS_ENABLED=1` e
 - **Imagem editorial:** JPEG/PNG/WebP, até 5 MB, tipo conferido pelo conteúdo (não só pelo que o navegador diz), chave aleatória no servidor. Trocar a imagem apaga a chave antiga; por isso o rascunho de EAN **copia** a imagem em vez de apontar para a do produto.
 - **Imagem pública respeita a visibilidade:** só serve se o post está publicado e na janela, ou a coleção está ativa.
 - **Erros internos não vão para o operador:** mensagem genérica na tela, detalhe só no log.
-- **Fundo transparente das fotos** (`src/mural-transparent-image.js`) é processamento pesado e calibrado por tentativa e erro (comentários de versões no arquivo). Não há máscara fixa por produto, porque produtos da mesma cor de wire-o têm silhuetas diferentes.
+- **Fundo transparente das fotos** (`src/mural/mural-transparent-image.js`) é processamento pesado e calibrado por tentativa e erro (comentários de versões no arquivo). Não há máscara fixa por produto, porque produtos da mesma cor de wire-o têm silhuetas diferentes.
 
 ## Armadilhas
 
-- **Trava de liberação:** `MURAL_PUBLIC_RELEASED` em `mural-router.js`. Hoje está `true`. Com `false`, o operador vê "em breve", o push e o cron não enviam nada (nem para admin).
+- **Trava de liberação:** `MURAL_PUBLIC_RELEASED` em `src/mural/mural-router.js`. Hoje está `true`. Com `false`, o operador vê "em breve", o push e o cron não enviam nada (nem para admin).
 - Falha no push **não** pode desfazer a publicação (já salva): o erro só vai para o log.
 - O rascunho de EAN nunca pode travar a ação que o disparou; falhas só vão para o log e para a notificação do admin.
 - Cursor inválido devolve 400, não lista vazia.
@@ -47,11 +47,11 @@ Produção usa o **Supabase como banco principal**: `SUPABASE_READS_ENABLED=1` e
 
 ## Arquivos principais
 
-- `src/mural-router.js`: entrada, feed, unread, push e cron (`dispatchScheduledMuralNotifications`).
-- `src/mural-post-routes.js`, `mural-collection-routes.js`, `mural-image-routes.js`: admin de posts, coleções e imagens.
-- `src/mural-ean-announcement.js`: rascunho automático de EAN.
-- `src/mural-transparent-image.js`: fundo transparente das fotos.
-- `src/mural-nisti.jsx` (feed), `src/admin/Mural*.jsx` (admin), `src/mural-*.css`.
+- `src/mural/mural-router.js`: entrada, feed, unread, push e cron (`dispatchScheduledMuralNotifications`).
+- `src/mural/mural-post-routes.js`, `mural-collection-routes.js`, `mural-image-routes.js`: admin de posts, coleções e imagens.
+- `src/mural/mural-ean-announcement.js`: rascunho automático de EAN.
+- `src/mural/mural-transparent-image.js`: fundo transparente das fotos.
+- `src/mural/mural-nisti.jsx` (feed), `src/admin/Mural*.jsx` (admin), `src/mural-*.css`.
 - Push em geral: `src/web-push.js`.
 
 Fluxo de publicação: [[deploy]].

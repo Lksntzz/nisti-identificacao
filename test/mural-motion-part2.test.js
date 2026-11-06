@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
+const mural = fs.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/mural/mural-nisti.css', import.meta.url), 'utf8');
 
 test('motion part 2 slides one shared indicator across the four filters', () => {
   assert.ok(mural.includes("const activeTabIndex = Math.max(0, TABS.findIndex"));

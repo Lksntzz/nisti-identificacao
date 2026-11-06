@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('Mural push is enabled exclusively for released operator content', () => {
-  const router = read('src/mural-router.js');
+  const router = read('src/mural/mural-router.js');
   const push = read('src/web-push.js');
   assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.match(router, /if \(!MURAL_PUBLIC_RELEASED\) return/);
@@ -14,7 +14,7 @@ test('Mural push is enabled exclusively for released operator content', () => {
 });
 
 test('New collections, products, and notices get their own push path after publish', () => {
-  const router = read('src/mural-router.js') + '\n' + read('src/mural-post-routes.js') + '\n' + read('src/mural-collection-routes.js');
+  const router = read('src/mural/mural-router.js') + '\n' + read('src/mural/mural-post-routes.js') + '\n' + read('src/mural/mural-collection-routes.js');
   const push = read('src/web-push.js');
   assert.match(router, /await notifyMuralAfterPublication\(env, id\)/);
   assert.match(router, /await notifyMuralAfterPublication\(env, Number\(value\.id\)\)/);
@@ -41,8 +41,8 @@ test('Database claims deduplicate Mural pushes for each operator, never leak dra
 test('Push tap opens the specific published Mural post within gated operator app', () => {
   const worker = read('public/sw.js');
   const app = read('src/public-main.jsx');
-  const mural = read('src/mural-nisti.jsx');
-  const router = read('src/mural-router.js');
+  const mural = read('src/mural/mural-nisti.jsx');
+  const router = read('src/mural/mural-router.js');
   assert.match(worker, /channel: data\.channel === 'mural'/);
   assert.match(worker, /mural-\$\{data\.mural_post_id\}/);
   assert.match(app, /hash\.startsWith\('#\/mural'\)/);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const mural=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
+const mural=fs.readFileSync(new URL('../src/mural/mural-nisti.jsx',import.meta.url),'utf8');
 
 test('collection detail reveal starts only after cinematic intro has mounted the card',()=>{
   assert.ok(mural.includes("if (!introComplete || !root || !state.data?.products?.length) return undefined;"));

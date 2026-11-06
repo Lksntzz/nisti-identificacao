@@ -1,5 +1,5 @@
-import { mirrorSupabaseRpc } from './supabase-write-store.js';
-import { recordAdminSystemNotification } from './system-notifications.js';
+import { mirrorSupabaseRpc } from '../supabase-write-store.js';
+import { recordAdminSystemNotification } from '../system-notifications.js';
 
 // Rascunho automatico no Mural: produto novo + imagem tratada aprovada + EAN valido.
 // Nunca publica sozinho e nunca bloqueia a acao que o disparou (falhas so vao para o log).

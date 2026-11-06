@@ -7,7 +7,7 @@ const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'ut
 test('treated image v18 is manual-only from UI to worker', () => {
   const main = read('src/main.jsx');
   const worker = read('src/product-image-treatment-worker.jsx');
-  const admin = read('src/admin/MuralProductImageManager.jsx');
+  const admin = read('src/mural/MuralProductImageManager.jsx');
 
   assert.equal(main.includes('TREATMENT_WAKE_EVENT'), false);
   assert.equal(worker.includes('TREATMENT_WAKE_EVENT'), false);
@@ -20,7 +20,7 @@ test('treated image v18 is manual-only from UI to worker', () => {
 });
 
 test('rendering never manufactures a treated derivative in the browser', () => {
-  const utility = read('src/mural-transparent-image.js');
+  const utility = read('src/mural/mural-transparent-image.js');
   const start = utility.indexOf('export function useTreatedProductImage');
   const end = utility.indexOf('export const __muralTransparentImageInternals');
   const hook = utility.slice(start, end);
@@ -34,7 +34,7 @@ test('rendering never manufactures a treated derivative in the browser', () => {
 test('API rejects stale treatment writes but keeps previously approved derivatives valid', () => {
   const core = read('src/core-router.js');
   const publicImages = read('src/public-image-router.js');
-  const mural = read('src/mural-router.js');
+  const mural = read('src/mural/mural-router.js');
   const version = read('src/product-image-processor-version.js');
 
   assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '25'"));

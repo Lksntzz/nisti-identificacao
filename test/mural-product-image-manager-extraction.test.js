@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const admin = fs.readFileSync(new URL('../src/admin/MuralNistiAdminView.jsx', import.meta.url), 'utf8');
-const manager = fs.readFileSync(new URL('../src/admin/MuralProductImageManager.jsx', import.meta.url), 'utf8');
-const requests = fs.readFileSync(new URL('../src/admin/MuralPublishShared.jsx', import.meta.url), 'utf8');
+const admin = fs.readFileSync(new URL('../src/mural/MuralNistiAdminView.jsx', import.meta.url), 'utf8');
+const manager = fs.readFileSync(new URL('../src/mural/MuralProductImageManager.jsx', import.meta.url), 'utf8');
+const requests = fs.readFileSync(new URL('../src/mural/MuralPublishShared.jsx', import.meta.url), 'utf8');
 
 test('Mural admin delegates treatment interface to exactly one standalone manager', () => {
   assert.match(admin, /import MuralProductImageManager from '\.\/MuralProductImageManager\.jsx'/);

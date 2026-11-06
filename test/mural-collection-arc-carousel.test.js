@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
+const mural = fs.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/mural/mural-nisti.css', import.meta.url), 'utf8');
 
 test('published collections open with a product-only cinematic reveal before the card', () => {
   assert.ok(mural.includes('function CollectionRevealIntro'));

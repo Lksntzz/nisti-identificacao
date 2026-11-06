@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
-const muralCss = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
+const mural = fs.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
+const muralCss = fs.readFileSync(new URL('../src/mural/mural-nisti.css', import.meta.url), 'utf8');
 const publicMain = fs.readFileSync(new URL('../src/public-main.jsx', import.meta.url), 'utf8');
 const appCss = fs.readFileSync(new URL('../src/app.css', import.meta.url), 'utf8');
-const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
+const router = fs.readFileSync(new URL('../src/mural/mural-router.js', import.meta.url), 'utf8');
 
 test('part 8 uses consistent SVG icons for tabs, notices and card actions', () => {
   assert.ok(mural.includes('function MuralIcon'));

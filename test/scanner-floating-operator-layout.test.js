@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const jsx=fs.readFileSync(new URL('../src/public-main.jsx',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../src/app.css',import.meta.url),'utf8');
-const muralCss=fs.readFileSync(new URL('../src/mural-nisti.css',import.meta.url),'utf8');
+const muralCss=fs.readFileSync(new URL('../src/mural/mural-nisti.css',import.meta.url),'utf8');
 
 test('scanner moves operator identity below, retaining profile editing and top notification bell',()=>{
   const header=jsx.slice(jsx.indexOf('function BrandHeader('),jsx.indexOf('function PublicIdentificationApp()'));
