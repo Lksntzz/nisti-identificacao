@@ -1,5 +1,5 @@
-import { supabaseRpc } from '../supabase-read-store.js';
-import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from '../supabase-write-store.js';
+import { supabaseRpc } from '../core/supabase-read-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from '../core/supabase-write-store.js';
 
 // Router assembly supplies its existing validation, reply and push helpers.
 // No auth checks, SQL, mutations or response contracts change in this module.

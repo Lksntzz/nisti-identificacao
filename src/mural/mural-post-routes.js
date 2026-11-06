@@ -1,6 +1,6 @@
-import { productTypeLabel } from '../product-display.js';
-import { supabaseRpc } from '../supabase-read-store.js';
-import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from '../supabase-write-store.js';
+import { productTypeLabel } from '../imagens/product-display.js';
+import { supabaseRpc } from '../core/supabase-read-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from '../core/supabase-write-store.js';
 
 // Keep auth and request dispatch in handleMuralRequest; share the original
 // response, input validation and push helpers without duplicating them.

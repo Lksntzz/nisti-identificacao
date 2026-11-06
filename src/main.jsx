@@ -4,7 +4,7 @@ import AdminSidebar from './admin/AdminSidebar.jsx';
 import AdminNotificationsModal from './admin/AdminNotificationsModal.jsx';
 import AdminTopbar from './admin/AdminTopbar.jsx';
 import CreateProductModal from './admin/ProductRegistrationModal.jsx';
-import SystemHealthView from './system-health-view.jsx';
+import SystemHealthView from './admin/system-health-view.jsx';
 import ExpeditionDashboard from './expedicao/ExpeditionDashboard.jsx';
 import CatalogView, { CatalogPlatformTags } from './admin/CatalogView.jsx';
 import BarcodeGeneratorView from './scanner/BarcodeGeneratorView.jsx';
@@ -15,8 +15,8 @@ import NotificationDispatchView from './expedicao/NotificationDispatchView.jsx';
 import MuralNisti from './mural/mural-nisti.jsx';
 import './nisti-motion.css';
 import './nisti-motion.js';
-import ProductCutoutImage from './product-cutout-image.jsx';
-import ProductImageTreatmentWorker from './product-image-treatment-worker.jsx';
+import ProductCutoutImage from './imagens/product-cutout-image.jsx';
+import ProductImageTreatmentWorker from './imagens/product-image-treatment-worker.jsx';
 import { CommerceSyncBadge, commerceSyncMeta } from './admin/CommerceSyncBadge.jsx';
 
 

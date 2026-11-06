@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleCanvaImageBridgeRequest, imageIndexForField } from '../src/canva-image-router.js';
+import { handleCanvaImageBridgeRequest, imageIndexForField } from '../src/imagens/canva-image-router.js';
 
 test('Canva artwork keeps numbered image fields in their intended order', () => {
   assert.equal(imageIndexForField('IMAGEM DO ITEM 1', 1), 0);

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard, MuralDetailContent } from './mural-nisti.jsx';
-import { productTypeLabel } from '../product-display.js';
+import { productTypeLabel } from '../imagens/product-display.js';
 import { AdminMuralIcon, request, requestBlob } from './MuralPublishShared.jsx';
 
 export function CanvaArtworkModal({ isOpen, onClose, kind, metadata, imageFiles = [], imageUrls = [], onUseImage, onStatusChange }) {

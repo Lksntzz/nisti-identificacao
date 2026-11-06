@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useTreatedProductImage } from './mural/mural-transparent-image.js';
+import { useTreatedProductImage } from '../mural/mural-transparent-image.js';
 
 export default function ProductCutoutImage({
   src,

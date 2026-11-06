@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 import edgeRouter from '../src/edge-router.js';
-import { safePushEndpoint } from '../src/web-push.js';
-import { safeCanvaDownloadUrl } from '../src/canva-product-cutout.js';
-import { safeCanvaPageUrl } from '../src/canva-image-router.js';
+import { safePushEndpoint } from '../src/core/web-push.js';
+import { safeCanvaDownloadUrl } from '../src/imagens/canva-product-cutout.js';
+import { safeCanvaPageUrl } from '../src/imagens/canva-image-router.js';
 
 async function loginFormRequest(url, env, password, headers={}) {
   const page=await edgeRouter.fetch(new Request(url),env,{});
@@ -193,7 +193,7 @@ test('public health endpoint does not disclose database topology', async () => {
 });
 
 test('original product image upload validates size MIME and file signature', () => {
-  const source=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
+  const source=fs.readFileSync(new URL('../src/core/core-router.js',import.meta.url),'utf8');
   assert.match(source,/MAX_ORIGINAL_PRODUCT_IMAGE_BYTES/);
   assert.match(source,/ORIGINAL_IMAGE_TYPES/);
   assert.match(source,/detectOriginalImageType/);

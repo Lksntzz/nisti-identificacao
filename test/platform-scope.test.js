@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizePlatform,
   supportedPlatforms
-} from '../src/platform-scope.js';
+} from '../src/core/platform-scope.js';
 
 test('normalizePlatform canonicalizes valid platforms', () => {
   assert.equal(normalizePlatform('Mercado Livre'), 'MERCADO LIVRE');

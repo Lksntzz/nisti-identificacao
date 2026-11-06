@@ -1,5 +1,5 @@
 async function notificationStore() {
-  return import('./cover-notifications.js');
+  return import('../cover-notifications.js');
 }
 
 export async function recordAdminSystemNotification(env, event) {

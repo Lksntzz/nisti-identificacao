@@ -1,4 +1,4 @@
-import { supabaseRpc } from './supabase-read-store.js';
+import { supabaseRpc } from '../core/supabase-read-store.js';
 import { canvaBackgroundRemoveToPng, canvaUploadAsset, safeCanvaDownloadUrl, CanvaCutoutError } from './canva-product-cutout.js';
 
 const CANVA_AUTHORIZE_URL = 'https://www.canva.com/api/oauth/authorize';

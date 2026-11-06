@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const router=fs.readFileSync(new URL('../src/canva-image-router.js',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/imagens/canva-image-router.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 const css=fs.readFileSync(new URL('../src/mural/mural-admin.css',import.meta.url),'utf8');
 

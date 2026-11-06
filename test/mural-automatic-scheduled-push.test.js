@@ -16,7 +16,7 @@ test('scheduled Mural push is enabled only for operator-visible content', () => 
 test('automatic Mural notices cover collection, product and notice after publish', () => {
   const router=read('src/mural/mural-router.js') + '\n' + read('src/mural/mural-post-routes.js') + '\n' + read('src/mural/mural-collection-routes.js');
   const worker=read('src/operator-audit-router.js');
-  const push=read('src/web-push.js');
+  const push=read('src/core/web-push.js');
   assert.match(router,/await notifyMuralAfterPublication\(env, id\)/);
   assert.match(router,/await notifyMuralAfterPublication\(env, Number\(value\.id\)\)/);
   assert.match(router,/await notifyMuralAfterPublication\(env, postId\)/);

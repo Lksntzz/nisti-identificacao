@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
-const reads=fs.readFileSync(new URL('../src/supabase-read-store.js',import.meta.url),'utf8');
-const mirror=fs.readFileSync(new URL('../src/supabase-mutation-mirror.js',import.meta.url),'utf8');
+const core=fs.readFileSync(new URL('../src/core/core-router.js',import.meta.url),'utf8');
+const reads=fs.readFileSync(new URL('../src/core/supabase-read-store.js',import.meta.url),'utf8');
+const mirror=fs.readFileSync(new URL('../src/core/supabase-mutation-mirror.js',import.meta.url),'utf8');
 const sql=fs.readFileSync(new URL('../supabase/migrations/20261001210000_primary_product_images_v1.sql',import.meta.url),'utf8');
 
 test('product image RPCs are invoker-only and service-role-only',()=>{

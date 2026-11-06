@@ -1,4 +1,4 @@
-import { SupabaseReadError } from './supabase-read-store.js';
+import { SupabaseReadError } from './core/supabase-read-store.js';
 import { commerceSetListingState } from './commerce-listing-state-store.js';
 
 const MATCH = /^\/api\/admin\/commerce\/listings\/(\d+)\/state$/;

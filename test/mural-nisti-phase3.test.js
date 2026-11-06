@@ -8,7 +8,7 @@ const imageRoutes=fs.readFileSync(new URL('../src/mural/mural-image-routes.js',i
 const collectionRoutes=fs.readFileSync(new URL('../src/mural/mural-collection-routes.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 const dashboard=fs.readFileSync(new URL('../src/mural/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
-const nav=fs.readFileSync(new URL('../src/admin-navigation.js',import.meta.url),'utf8');
+const nav=fs.readFileSync(new URL('../src/admin/admin-navigation.js',import.meta.url),'utf8');
 const edge=fs.readFileSync(new URL('../src/edge-router.js',import.meta.url),'utf8');
 
 test('phase 3 exposes the documented admin mural contract',()=>{

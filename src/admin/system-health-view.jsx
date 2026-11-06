@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { formatSaoPauloTimestamp } from './date-time.js';
-import { AdminState } from './admin/AdminState.jsx';
+import { formatSaoPauloTimestamp } from '../core/date-time.js';
+import { AdminState } from './AdminState.jsx';
 
 function formatBytes(bytes) {
   const value = Number(bytes || 0);

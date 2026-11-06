@@ -21,7 +21,7 @@ test('runtime has no external AI, Workers AI or Vectorize integration', () => {
 });
 
 test('Mural treatment is local and publication editor remains manual', () => {
-  const worker=fs.readFileSync('src/product-image-treatment-worker.jsx','utf8');
+  const worker=fs.readFileSync('src/imagens/product-image-treatment-worker.jsx','utf8');
   assert.doesNotMatch(worker, /\/ai\b|Gemini|Workers AI|detected_has_tassel/i);
   assert.match(worker, /tasselCode:item\.tassel_code/);
   assert.doesNotMatch(muralAdmin, /IA aplicada|gemini|preparar versões de prompt|abrir modelo externo/i);

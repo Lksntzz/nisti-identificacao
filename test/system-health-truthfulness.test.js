@@ -7,7 +7,7 @@ function read(relativePath) {
 }
 
 test('R2 metric explicitly distinguishes bucket snapshot from billing usage', () => {
-  const source = read('src/storage-metrics-router.js');
+  const source = read('src/core/storage-metrics-router.js');
   assert.equal(source.includes("measurement: complete ? 'complete_bucket_snapshot' : 'partial_bucket_snapshot'"), true);
   assert.equal(source.includes('billing_usage: null'), true);
   assert.equal(source.includes('GB-mês'), true);
@@ -49,7 +49,7 @@ test('EAN operations replace removed visual tools in the active AdminApp', () =>
 
 
 test('System health performs live checks and returns real operational issues', () => {
-  const source = read('src/system-metrics-clean-router.js');
+  const source = read('src/core/system-metrics-clean-router.js');
   assert.equal(source.includes("'/api/admin/system-health'"), true);
   assert.equal(source.includes("runHealthCheck('d1'"), false);
   assert.equal(source.includes("runHealthCheck('r2'"), true);
@@ -60,7 +60,7 @@ test('System health performs live checks and returns real operational issues', (
 });
 
 test('Health UI derives service status from backend checks instead of hardcoded active pills', () => {
-  const source = read('src/system-health-view.jsx');
+  const source = read('src/admin/system-health-view.jsx');
   assert.equal(source.includes('health?.checks'), true);
   assert.equal(source.includes('check.status'), true);
   assert.equal(source.includes('Erros e ocorrências recentes'), true);

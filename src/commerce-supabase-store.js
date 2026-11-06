@@ -1,5 +1,5 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
-import { supabaseRpc as directSupabaseRpc } from './supabase-read-store.js';
+import { supabaseRpc as directSupabaseRpc } from './core/supabase-read-store.js';
 
 function cleanText(value) {
   const text = String(value ?? '').trim();

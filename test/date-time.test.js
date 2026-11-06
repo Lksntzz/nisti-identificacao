@@ -6,7 +6,7 @@ import {
   parseNistiTimestamp,
   formatSaoPauloDateTime,
   formatSaoPauloTimestamp
-} from '../src/date-time.js';
+} from '../src/core/date-time.js';
 
 test('D1 CURRENT_TIMESTAMP is treated as UTC before formatting', () => {
   assert.equal(

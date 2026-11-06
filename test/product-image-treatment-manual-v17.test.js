@@ -6,7 +6,7 @@ const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'ut
 
 test('treated image v18 is manual-only from UI to worker', () => {
   const main = read('src/main.jsx');
-  const worker = read('src/product-image-treatment-worker.jsx');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
   const admin = read('src/mural/MuralProductImageManager.jsx');
 
   assert.equal(main.includes('TREATMENT_WAKE_EVENT'), false);
@@ -32,10 +32,10 @@ test('rendering never manufactures a treated derivative in the browser', () => {
 });
 
 test('API rejects stale treatment writes but keeps previously approved derivatives valid', () => {
-  const core = read('src/core-router.js');
-  const publicImages = read('src/public-image-router.js');
+  const core = read('src/core/core-router.js');
+  const publicImages = read('src/imagens/public-image-router.js');
   const mural = read('src/mural/mural-router.js');
-  const version = read('src/product-image-processor-version.js');
+  const version = read('src/imagens/product-image-processor-version.js');
 
   assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '25'"));
   assert.ok((core.match(/code:'stale_image_processor'/g) || []).length >= 2);

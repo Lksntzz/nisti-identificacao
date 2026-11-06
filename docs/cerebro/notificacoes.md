@@ -11,11 +11,11 @@
 
 ## Caminho de um dado
 
-- **Nova capa:** cadastro de produto (`POST /api/products`, `src/core-router.js`) → o banco registra o aviso (`nisti_record_new_cover_notification_v1`, em `src/cover-notifications.js`) → se foi a **primeira** vez que aquela capa aparece, `scheduleNewCoverPush` dispara o push em segundo plano. O cadastro não espera o push.
+- **Nova capa:** cadastro de produto (`POST /api/products`, `src/core/core-router.js`) → o banco registra o aviso (`nisti_record_new_cover_notification_v1`, em `src/cover-notifications.js`) → se foi a **primeira** vez que aquela capa aparece, `scheduleNewCoverPush` dispara o push em segundo plano. O cadastro não espera o push.
 - **Lista do operador:** `GET /api/notifications` e `/api/notifications/unread-count` (lidos por aparelho, pelo id `op_<uuid>` do cookie do operador), `POST .../<id>/read` e `.../mark-all-read`. A tela consulta as não lidas a cada 60 s (`src/public-main.jsx`).
 - **Inscrever o aparelho no push:** `POST /api/push/subscribe` grava a assinatura (`nisti_upsert_push_subscription_v1`); `/api/push/unsubscribe` remove a do próprio aparelho; `/api/push/status` diz se este aparelho está registrado; `/api/push/public-key` entrega a chave pública.
-- **Envio do push:** `src/web-push.js` (`broadcastNewCoverPush`, `broadcastMuralPush`) assina com VAPID, criptografa o conteúdo e manda para cada assinatura. O aparelho recebe pelo service worker (`public/sw.js`).
-- **Sino do admin:** `src/operator-audit-router.js` olha cada resposta da API e, para login, logout, leitura de EAN e qualquer gravação, chama `recordAdminActivityFromResponse` (`src/system-notifications.js`). A lista e o contador ficam em `/api/admin/system-notifications*`; a tela é `src/admin/AdminNotificationsModal.jsx`.
+- **Envio do push:** `src/core/web-push.js` (`broadcastNewCoverPush`, `broadcastMuralPush`) assina com VAPID, criptografa o conteúdo e manda para cada assinatura. O aparelho recebe pelo service worker (`public/sw.js`).
+- **Sino do admin:** `src/operator-audit-router.js` olha cada resposta da API e, para login, logout, leitura de EAN e qualquer gravação, chama `recordAdminActivityFromResponse` (`src/core/system-notifications.js`). A lista e o contador ficam em `/api/admin/system-notifications*`; a tela é `src/admin/AdminNotificationsModal.jsx`.
 
 ## Regras de negócio
 
@@ -45,9 +45,9 @@
 ## Arquivos principais
 
 - `src/cover-notifications.js`: aviso de nova capa e lista do operador.
-- `src/web-push.js`: VAPID, validação de endereço, criptografia e envio (capa e Mural).
-- `src/system-notifications.js`: sino do admin (o que registrar e como descrever).
-- `src/core-router.js`: rotas `/api/notifications*`, `/api/push/*` e `/api/admin/system-notifications*`.
+- `src/core/web-push.js`: VAPID, validação de endereço, criptografia e envio (capa e Mural).
+- `src/core/system-notifications.js`: sino do admin (o que registrar e como descrever).
+- `src/core/core-router.js`: rotas `/api/notifications*`, `/api/push/*` e `/api/admin/system-notifications*`.
 - `src/operator-audit-router.js`: ponto onde cada resposta é registrada.
 - `src/admin/AdminNotificationsModal.jsx`, `src/public-main.jsx`: telas.
 - `public/sw.js`: service worker que recebe o push.

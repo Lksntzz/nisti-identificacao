@@ -4,7 +4,7 @@ import { isValidGtin13 } from './gtin.js';
 import { decodeEan13LumaRow, imageDataToLumaRow } from './gtin-camera-decoder.js';
 import { normalizeGtinProduct } from './gtin-product-normalizer.js';
 import { serverUnavailable, findFreshCachedEntry, withoutGtin, cachedLookupWarning } from './gtin-scan-cache.js';
-import ProductCutoutImage from '../product-cutout-image.jsx';
+import ProductCutoutImage from '../imagens/product-cutout-image.jsx';
 import './gtin-scanner.css';
 
 const CAMERA_SCAN_INTERVAL_MS = 90;

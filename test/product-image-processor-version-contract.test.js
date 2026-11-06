@@ -3,15 +3,15 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
-const coreRouter = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
-const worker = fs.readFileSync(new URL('../src/product-image-treatment-worker.jsx', import.meta.url), 'utf8');
-const version = fs.readFileSync(new URL('../src/product-image-processor-version.js', import.meta.url), 'utf8');
+const coreRouter = fs.readFileSync(new URL('../src/core/core-router.js', import.meta.url), 'utf8');
+const worker = fs.readFileSync(new URL('../src/imagens/product-image-treatment-worker.jsx', import.meta.url), 'utf8');
+const version = fs.readFileSync(new URL('../src/imagens/product-image-processor-version.js', import.meta.url), 'utf8');
 
 test('Mural treatment uses the shared processor version without coupling original product uploads', () => {
   assert.match(version, /PRODUCT_IMAGE_PROCESSOR_VERSION\s*=\s*'\d+'/);
   assert.doesNotMatch(main, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\/product-image-processor-version\.js'/);
   assert.doesNotMatch(main, /fd\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/);
-  assert.match(coreRouter, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\/product-image-processor-version\.js'/);
+  assert.match(coreRouter, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\.\/imagens\/product-image-processor-version\.js'/);
   assert.match(worker, /import \{ PRODUCT_IMAGE_PROCESSOR_VERSION \} from '\.\/product-image-processor-version\.js'/);
   assert.match(worker, /form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/);
 });

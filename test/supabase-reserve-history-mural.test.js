@@ -31,7 +31,7 @@ test('GTIN history mirrors new events directly and reads reserve only after back
 
 test('Mural reserve feed stays gated until all Mural streams finish backfill', () => {
   const mural = fs.readFileSync('src/mural/mural-router.js','utf8');
-  const readStore = fs.readFileSync('src/supabase-read-store.js','utf8');
+  const readStore = fs.readFileSync('src/core/supabase-read-store.js','utf8');
   const migration = fs.readFileSync(
     'supabase/migrations/20261001173500_reserve_history_mural_backfill_v1.sql',
     'utf8'
@@ -54,8 +54,8 @@ test('Mural reserve feed stays gated until all Mural streams finish backfill', (
 });
 
 test('Mural mutations keep the reserve copy current after initial backfill', () => {
-  const mirror = fs.readFileSync('src/supabase-mutation-mirror.js','utf8');
-  const secondary = fs.readFileSync('src/supabase-secondary-write-store.js','utf8');
+  const mirror = fs.readFileSync('src/core/supabase-mutation-mirror.js','utf8');
+  const secondary = fs.readFileSync('src/core/supabase-secondary-write-store.js','utf8');
 
   assert.match(secondary,/mirrorMuralPostFromD1/);
   assert.match(secondary,/mirrorMuralCollectionFromD1/);

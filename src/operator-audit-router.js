@@ -1,7 +1,7 @@
-import app from './platform-runtime-router.js';
-import { mirrorSuccessfulMutation } from './supabase-mutation-mirror.js';
-import { SupabasePrimaryWriteError } from './supabase-write-store.js';
-import { recordAdminActivityFromResponse } from './system-notifications.js';
+import app from './core/platform-runtime-router.js';
+import { mirrorSuccessfulMutation } from './core/supabase-mutation-mirror.js';
+import { SupabasePrimaryWriteError } from './core/supabase-write-store.js';
+import { recordAdminActivityFromResponse } from './core/system-notifications.js';
 import { dispatchScheduledMuralNotifications } from './mural/mural-router.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

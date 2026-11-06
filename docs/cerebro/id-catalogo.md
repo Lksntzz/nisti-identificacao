@@ -15,13 +15,13 @@ O coração do sistema: o operador lê o código de barras (EAN-13) de um cadern
 
 - **Ler um EAN:** `GtinScannerOverlay` (`src/scanner/gtin-scanner-overlay.jsx`) → `GET /api/gtin/<ean>` → `lookupProductByGtin` (`src/scanner/gtin-router.js`) → leitura no Supabase. Cada leitura grava um evento em segundo plano, sem atrasar a resposta.
 - **Vincular EAN:** `POST /api/products/<id>/gtins` → `bindGtinToProduct` → função SQL `nisti_bind_product_gtin_primary_v1`. Depois dispara o rascunho automático do Mural (ver [[mural]]).
-- **Cadastrar produto:** `POST /api/products` (`src/core-router.js`, `upsertCatalogProduct`) → `nisti_upsert_product_primary_v1` → sincroniza com o GA (`src/nisti-commerce-sync.js`).
-- **Acabamento:** `PATCH /api/products/<id>/finish` (`src/product-finish-router.js`) → `nisti_finish_product_primary_v1`.
+- **Cadastrar produto:** `POST /api/products` (`src/core/core-router.js`, `upsertCatalogProduct`) → `nisti_upsert_product_primary_v1` → sincroniza com o GA (`src/nisti-commerce-sync.js`).
+- **Acabamento:** `PATCH /api/products/<id>/finish` (`src/imagens/product-finish-router.js`) → `nisti_finish_product_primary_v1`.
 - A leitura da câmera usa `BarcodeDetector` do navegador quando existe; senão cai no decodificador próprio (`src/scanner/gtin-camera-decoder.js`).
 
 ## Regras de negócio
 
-- **SKU tem formato fixo `MIOLO_CAPA_ACABAMENTO`** (`src/sku.js`). O acabamento tem 3 letras: wire-o (P preto, B branco, R rose gold), tassel e elástico (cores, ou `X` = sem). Fora desse formato o cadastro é recusado.
+- **SKU tem formato fixo `MIOLO_CAPA_ACABAMENTO`** (`src/core/sku.js`). O acabamento tem 3 letras: wire-o (P preto, B branco, R rose gold), tassel e elástico (cores, ou `X` = sem). Fora desse formato o cadastro é recusado.
 - **EAN precisa ser EAN-13 com dígito verificador correto** (`src/scanner/gtin.js`); senão erro 400.
 - **Um EAN ativo pertence a um produto só.** Vincular um EAN que já é de outro produto dá erro 409 (`gtin_conflict`). Apagar um vínculo é só desativar (`active=false`); o registro fica. Se o EAN pode ser religado a outro produto depois depende da função SQL `nisti_bind_product_gtin_primary_v1`, que não conferi (no caminho D1 antigo podia).
 - **Fonte do EAN:** `GS1` (oficial) ou `NISTI` (gerado por nós); qualquer outro valor vira `NISTI`.
@@ -48,9 +48,9 @@ O coração do sistema: o operador lê o código de barras (EAN-13) de um cadern
 ## Arquivos principais
 
 - `src/scanner/gtin-router.js`: consulta, vínculo, desvínculo e eventos de leitura.
-- `src/core-router.js`: cadastro e exclusão de produto, sincronização com o GA.
-- `src/product-finish-router.js`: acabamento.
-- `src/scanner/gtin.js`, `src/sku.js`, `src/scanner/gtin-product-normalizer.js`: regras de EAN e SKU.
+- `src/core/core-router.js`: cadastro e exclusão de produto, sincronização com o GA.
+- `src/imagens/product-finish-router.js`: acabamento.
+- `src/scanner/gtin.js`, `src/core/sku.js`, `src/scanner/gtin-product-normalizer.js`: regras de EAN e SKU.
 - `src/scanner/gtin-scanner-overlay.jsx`, `src/scanner/gtin-camera-decoder.js`, `src/scanner/gtin-scan-cache.js`: tela, leitura e cache do scanner.
 - `src/scanner/ean-barcode.js`, `src/scanner/ean-collections.js`, `src/scanner/BarcodeGeneratorView.jsx`: gerador de código de barras.
 - `src/admin/CatalogView.jsx`, `src/admin/ProductRegistrationModal.jsx`, `src/admin/catalog-xlsx.js`: catálogo e cadastro no admin.

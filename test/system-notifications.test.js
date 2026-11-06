@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { describeAdminSystemActivity } from '../src/system-notifications.js';
+import { describeAdminSystemActivity } from '../src/core/system-notifications.js';
 
 test('descreve cadastro de produto para o painel administrativo', () => {
   const event = describeAdminSystemActivity({

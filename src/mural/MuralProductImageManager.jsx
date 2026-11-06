@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { TREATMENT_CONTROL_EVENT, TREATMENT_PAUSE_KEY } from '../product-image-treatment-worker.jsx';
+import { TREATMENT_CONTROL_EVENT, TREATMENT_PAUSE_KEY } from '../imagens/product-image-treatment-worker.jsx';
 
 function TreatedImageLightbox({ product, busy, onClose, onApprove, onRedo }) {
   const [imageError,setImageError]=useState(false);

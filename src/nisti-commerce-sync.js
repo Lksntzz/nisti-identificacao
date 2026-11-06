@@ -1,4 +1,4 @@
-import { supabaseReadsRequested, supabaseReserveProducts, supabaseRpc } from './supabase-read-store.js';
+import { supabaseReadsRequested, supabaseReserveProducts, supabaseRpc } from './core/supabase-read-store.js';
 
 const COMMERCE_SYNC_TIMEOUT_MS = 8000;
 const COMMERCE_RECONCILE_TIMEOUT_MS = 15000;
