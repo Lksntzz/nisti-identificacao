@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ProductCutoutImage from '../product-cutout-image.jsx';
 import { CommerceSyncBadge } from './CommerceSyncBadge.jsx';
-import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../ean-barcode.js';
+import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../scanner/ean-barcode.js';
 
 export function RegistrationBarcodeResult({ items, errors = [], onReset, onClose, title = 'Produtos cadastrados' }) {
   const [downloadBusy, setDownloadBusy] = useState(false);

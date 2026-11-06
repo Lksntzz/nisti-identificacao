@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { productFinishLabels } from '../src/gtin-router.js';
-import { normalizeGtinProduct } from '../src/gtin-product-normalizer.js';
+import { productFinishLabels } from '../src/scanner/gtin-router.js';
+import { normalizeGtinProduct } from '../src/scanner/gtin-product-normalizer.js';
 import fs from 'node:fs';
 
 test('translates stored finish codes for the EAN product response', () => {

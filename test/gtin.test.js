@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gtin13CheckDigit, isValidGtin13, normalizeGtin, requireValidGtin13 } from '../src/gtin.js';
+import { gtin13CheckDigit, isValidGtin13, normalizeGtin, requireValidGtin13 } from '../src/scanner/gtin.js';
 
 test('validates known NISTI GTIN-13 values', () => {
   const values = [

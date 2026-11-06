@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './app.css';
 import LOGO from './assets/logo.png';
-import GtinScannerOverlay from './gtin-scanner-overlay.jsx';
+import GtinScannerOverlay from './scanner/gtin-scanner-overlay.jsx';
 import MuralNisti from './mural-nisti.jsx';
 import ProductCutoutImage from './product-cutout-image.jsx';
 

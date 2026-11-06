@@ -1,4 +1,4 @@
-import { ACCESSORY_COLORS, WIREO_COLORS, parseSku } from './sku.js';
+import { ACCESSORY_COLORS, WIREO_COLORS, parseSku } from '../sku.js';
 
 function normalizedCode(value) {
   return String(value || '').trim().toUpperCase();

@@ -32,7 +32,7 @@ configuration above is enabled.
 | `src/recognition-metrics.js` | historical telemetry/read compatibility | Supabase |
 | `src/system-metrics-clean-router.js` | legacy D1 metrics/health branch | Supabase |
 | `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | Supabase |
-| `src/gtin-router.js` | GTIN event/link/admin compatibility SQL | Supabase |
+| `src/scanner/gtin-router.js` | GTIN event/link/admin compatibility SQL | Supabase |
 | `src/geometric-shadow-confirmation-router.js` | legacy confirmation SQL | Supabase |
 
 ## A2 invariants

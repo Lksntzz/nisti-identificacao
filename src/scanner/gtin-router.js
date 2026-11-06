@@ -1,8 +1,8 @@
-import app from './product-finish-router.js';
+import app from '../product-finish-router.js';
 import { requireValidGtin13 } from './gtin.js';
-import { scheduleEanAnnouncementDraft } from './mural-ean-announcement.js';
-import { ACCESSORY_COLORS, WIREO_COLORS } from './sku.js';
-import { explicitUtcTimestamp } from './date-time.js';
+import { scheduleEanAnnouncementDraft } from '../mural-ean-announcement.js';
+import { ACCESSORY_COLORS, WIREO_COLORS } from '../sku.js';
+import { explicitUtcTimestamp } from '../date-time.js';
 import {
   preferSupabaseRead,
   supabaseReadsRequested,
@@ -12,12 +12,12 @@ import {
   supabaseReserveGtinEvents,
   supabaseReserveGtinLookup,
   supabaseReserveProductGtins
-} from './supabase-read-store.js';
+} from '../supabase-read-store.js';
 import {
   mirrorSupabaseRpc,
   supabaseMirrorWritesRequested,
   supabasePrimaryWritesRequested
-} from './supabase-write-store.js';
+} from '../supabase-write-store.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {

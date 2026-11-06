@@ -4,12 +4,12 @@ import fs from 'node:fs';
 
 const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const registration = fs.readFileSync(new URL('../src/admin/ProductRegistrationModal.jsx', import.meta.url), 'utf8');
-const router = fs.readFileSync(new URL('../src/gtin-router.js', import.meta.url), 'utf8');
-const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const router = fs.readFileSync(new URL('../src/scanner/gtin-router.js', import.meta.url), 'utf8');
+const scanner = fs.readFileSync(new URL('../src/scanner/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 const coreRouter = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
 const migration = fs.readFileSync(new URL('../migrations/0017_gtin_scan_events.sql', import.meta.url), 'utf8');
-const gtinEvents = fs.readFileSync(new URL('../src/admin/GtinEventsView.jsx', import.meta.url), 'utf8');
-const barcodeGen = fs.readFileSync(new URL('../src/admin/BarcodeGeneratorView.jsx', import.meta.url), 'utf8');
+const gtinEvents = fs.readFileSync(new URL('../src/scanner/GtinEventsView.jsx', import.meta.url), 'utf8');
+const barcodeGen = fs.readFileSync(new URL('../src/scanner/BarcodeGeneratorView.jsx', import.meta.url), 'utf8');
 const expeditionDashboard = fs.readFileSync(new URL('../src/expedicao/ExpeditionDashboard.jsx', import.meta.url), 'utf8');
 const productsWithoutGtinView = fs.readFileSync(new URL('../src/admin/ProductsWithoutGtinView.jsx', import.meta.url), 'utf8');
 const catalogView = fs.readFileSync(new URL('../src/admin/CatalogView.jsx', import.meta.url), 'utf8');

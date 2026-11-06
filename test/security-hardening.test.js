@@ -115,7 +115,7 @@ test('public operator route cannot load admin panels from hash shortcuts', () =>
 
 test('public clients no longer call Supabase Edge Functions directly', () => {
   const publicMain=fs.readFileSync(new URL('../src/public-main.jsx',import.meta.url),'utf8');
-  const scanner=fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx',import.meta.url),'utf8');
+  const scanner=fs.readFileSync(new URL('../src/scanner/gtin-scanner-overlay.jsx',import.meta.url),'utf8');
   assert.doesNotMatch(publicMain,/supabase\.co\/functions\/v1|operator-direct-read|directOperatorRead/);
   assert.doesNotMatch(scanner,/supabase\.co\/functions\/v1|lookupGtinDirect/);
   assert.equal(fs.existsSync(new URL('../src/operator-direct-read.js',import.meta.url)),false);
