@@ -15,6 +15,7 @@ Dono: Lucas, leigo em programação. Fala português. O sistema é o NISTI ID e 
 - Testes: `npm test` (todos devem passar antes de abrir PR).
 - Notas curtas por assunto: comece por `docs/cerebro/INDEX.md` e leia só a nota da área em que for mexer (GA, deploy, limites de requisição). Mudou o código de uma área? Atualize a nota dela no mesmo PR.
 - A nota é ponto de partida, não prova. Se a mudança grava, apaga ou migra dados (gatilhos, funções SQL, importação), confira o código ou o SQL ATUAL antes de agir; as migrações mais novas podem ter redefinido a função.
+- Arquivos enormes (CSS de milhares de linhas, `docs/MAPA-GA.md`): não leia inteiros. Busque o trecho (grep) e leia só ele.
 - Trabalhando numa cópia local (Obsidian, Claude Code no PC)? Rode `git pull` antes de começar; nota velha é repetida como se fosse verdade.
 
 ## Publicar (sempre assim)
