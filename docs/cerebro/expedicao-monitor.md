@@ -16,15 +16,15 @@ Como cada acesso funciona por dentro: [[login-seguranca]].
 
 ## Caminho de um dado
 
-- **Enviar:** painel (`src/expedition-dispatch-standalone.jsx`, `src/admin/NotificationDispatchView.jsx`) → `POST /api/expedition-panel/batch` → o `expedition-dispatch-sender-router.js` confere o cookie e **traduz** para `/api/admin/dispatch/batch` → `handleNotificationDispatchRequest` (`src/notification-dispatch-router.js`) → função SQL `nisti_dispatch_enqueue_batch_v4`.
-- **Exibir:** monitor (`src/notification-monitor.jsx`) → `POST /api/dispatch/view` a cada 2 s → `nisti_dispatch_public_next_v8`. O servidor decide qual chamada está no ar; o monitor só mostra.
+- **Enviar:** painel (`src/expedicao/expedition-dispatch-standalone.jsx`, `src/expedicao/NotificationDispatchView.jsx`) → `POST /api/expedition-panel/batch` → o `expedition-dispatch-sender-router.js` confere o cookie e **traduz** para `/api/admin/dispatch/batch` → `handleNotificationDispatchRequest` (`src/expedicao/notification-dispatch-router.js`) → função SQL `nisti_dispatch_enqueue_batch_v4`.
+- **Exibir:** monitor (`src/expedicao/notification-monitor.jsx`) → `POST /api/dispatch/view` a cada 2 s → `nisti_dispatch_public_next_v8`. O servidor decide qual chamada está no ar; o monitor só mostra.
 - **Reconectar:** botão "Conectar" do painel → `nisti_dispatch_request_reconnect_v7` grava um sinal; o monitor percebe a mudança e recarrega a página sozinho.
 - **Opções por plataforma:** lidas e salvas por `nisti_dispatch_options_v4` / `nisti_dispatch_save_options_v4`.
 - A fila fica no Supabase, não no notebook.
 
 ## Regras de negócio
 
-- **10 plataformas fixas** (`DISPATCH_PLATFORMS` em `src/notification-dispatch-options.js`): Shopee, Mercado Livre Antigo, Mercado Livre Novo, Mercado Livre, Amazon, Shein, TikTok, Magalu, Kwai, Loja Integrada. Plataforma nova exige mexer no código, não só na tela.
+- **10 plataformas fixas** (`DISPATCH_PLATFORMS` em `src/expedicao/notification-dispatch-options.js`): Shopee, Mercado Livre Antigo, Mercado Livre Novo, Mercado Livre, Amazon, Shein, TikTok, Magalu, Kwai, Loja Integrada. Plataforma nova exige mexer no código, não só na tela.
 - **Um aviso por plataforma por envio**; lote de 1 a 10. Duplicar a plataforma no mesmo lote é recusado.
 - **"RETIRAR CAPA" sempre existe** e não pode ser apagada. As outras modalidades (Full, Flex etc.) são configuráveis por plataforma: até 16 por plataforma, 60 caracteres cada, sem repetição.
 - **Texto exibido:** a modalidade "Full..." vira `<PLATAFORMA> RETIRAR CAPA FULL`; as demais, `<PLATAFORMA> RETIRAR CAPA <MODALIDADE>` (`formatDispatchText`).
@@ -55,10 +55,12 @@ Como cada acesso funciona por dentro: [[login-seguranca]].
 
 ## Arquivos principais
 
-- `src/notification-dispatch-router.js`: rotas e validação do envio, opções e exibição.
-- `src/notification-dispatch-options.js`, `notification-dispatch-send.js`: plataformas, modalidades, texto e envio com chave de idempotência.
-- `src/expedition-dispatch-sender-router.js`: link privado e cookie do painel de envio.
-- `src/notification-monitor.jsx`, `notification-monitor-data.js`, `notification-monitor-updates.js`: tela do monitor, validação do que chega e atualização automática.
-- `src/notification-platform-sounds.js`, `notification-platform-logos.js`: som e logo por plataforma.
-- `src/admin/NotificationDispatchView.jsx`, `src/expedition-dispatch-standalone.jsx`: telas de envio.
+Tudo isto fica em `src/expedicao/` (pasta criada na reorganização do PR #874); os nomes abaixo sem prefixo estão lá.
+
+- `src/expedicao/notification-dispatch-router.js`: rotas e validação do envio, opções e exibição.
+- `src/expedicao/notification-dispatch-options.js`, `notification-dispatch-send.js`: plataformas, modalidades, texto e envio com chave de idempotência.
+- `src/expedicao/expedition-dispatch-sender-router.js`: link privado e cookie do painel de envio.
+- `src/expedicao/notification-monitor.jsx`, `notification-monitor-data.js`, `notification-monitor-updates.js`: tela do monitor, validação do que chega e atualização automática.
+- `src/expedicao/notification-platform-sounds.js`, `notification-platform-logos.js`: som e logo por plataforma.
+- `src/expedicao/NotificationDispatchView.jsx`, `src/expedicao/expedition-dispatch-standalone.jsx`: telas de envio.
 - `scripts/abrir-monitor-nisti.cmd`, `instalar-monitor-nisti.cmd`, `remover-inicializacao-monitor-nisti.cmd`: inicializador do notebook.
