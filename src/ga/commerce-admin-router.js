@@ -89,7 +89,7 @@ import {
   commerceAppendShopeeDailySku,
   commerceAppendShopeeFinanceDaily,
   commerceAppendShopeeFinanceMonth,
-  commerceShopeeListingFinance,
+  commerceShopeeListingFinance,commerceShopeeListingSheet,
   commerceShopeeFinanceBackfillSource,
   commerceShopeeFinanceBackfillActivate,
   commerceAppendSalesImportRows,
@@ -431,6 +431,15 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(ids.some(id=>!Number.isSafeInteger(id))||new Set(ids).size!==ids.length)
         return json({error:'IDs de anúncios repetidos ou inválidos.'},400);
       return json(await commerceShopeeAdsCoverage(env,ids));
+    }
+    const sheetListing=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/sheet$/);
+    if(method==='GET'&&sheetListing){
+      const listingId=positiveId(sheetListing[1]);
+      const weeks=Number(query(url,'weeks')??26);
+      if(!listingId||!Number.isInteger(weeks)||weeks<4||weeks>52)
+        return json({error:'Filtros da ficha do anúncio inválidos.'},400);
+      const sheet=await commerceShopeeListingSheet(env,listingId,{weeks});
+      return sheet?json(sheet):json({error:'Anúncio não encontrado.'},404);
     }
     const adsListing=pathname.match(/^\/api\/admin\/commerce\/listings\/manager\/([0-9]+)\/shopee-ads$/);
     if(method==='GET'&&adsListing)

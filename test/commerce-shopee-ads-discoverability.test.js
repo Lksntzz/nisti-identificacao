@@ -11,10 +11,9 @@ const migration=fs.readFileSync('supabase/migrations/20261020174500_commerce_sho
 const detail=listing.slice(listing.indexOf('function ListingDetail('),
   listing.indexOf('export default function CommerceCommercialDashboard'));
 
-test('Shopee Ads is a conditional fifth tab placed after Pós-venda',()=>{
+test('Shopee Ads is a conditional tab placed after Pós-venda and Histórico',()=>{
   assert.match(listing,/const DETAIL_TABS=\[\['summary','Resumo'\],\['finance','Financeiro'\],\['variations','Variações'\],\['aftercare','Pós-venda'\]\]/);
-  assert.match(detail,/hasShopeeAds&&item.source==='SHOPEE'/);
-  assert.match(detail,/\[\.\.\.DETAIL_TABS,\['shopee_ads','Shopee Ads'\]\]/);
+  assert.match(detail,/\[\.\.\.DETAIL_TABS,\['sheet','Histórico'\],\.\.\.\(hasShopeeAds\?\[\['shopee_ads','Shopee Ads'\]\]:\[\]\)\]/);
   assert.match(detail,/\{detailTabs.map\(\(\[code,label\]\)/);
   assert.match(detail,/activeTab==='shopee_ads'&&hasShopeeAds&&item.source==='SHOPEE'/);
   assert.match(detail,/CommerceShopeeAdsSummary listingId=\{item.id\}/);

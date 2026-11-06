@@ -48,7 +48,7 @@ test('histórico mensal continua funcional, mas fica fechado inicialmente',()=>{
 });
 
 test('abas de detalhes seguem separadas, sem alteração nos dados de vendas',()=>{
-  assert.match(detail,/const detailTabs=hasShopeeAds&&item\.source==='SHOPEE'/);
+  assert.match(detail,/const detailTabs=item\.source==='SHOPEE'/);
   assert.match(detail,/activeTab==='finance'/);
   assert.match(detail,/activeTab==='variations'/);
   assert.match(detail,/activeTab==='aftercare'/);

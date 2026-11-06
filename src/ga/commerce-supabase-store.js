@@ -1204,6 +1204,16 @@ export async function commerceShopeeListingFinance(env,listingId,{days=30,month=
   },{timeoutMs:10000});
 }
 
+// Ficha do anúncio (Shopee): histórico semanal, preço praticado, funil e Ads. Só leitura.
+export async function commerceShopeeListingSheet(env,listingId,{weeks=26}={}) {
+  const id=cleanId(listingId);
+  if(!id)throw new Error('ID do anúncio inválido.');
+  const n=Number(weeks);
+  if(!Number.isInteger(n)||n<4||n>52)throw new Error('Número de semanas inválido.');
+  const result=await supabaseRpc(env,'commerce_shopee_listing_sheet_v1',{p_listing_id:id,p_weeks:n},{timeoutMs:10000});
+  return result&&typeof result==='object'&&!Array.isArray(result)?result:null;
+}
+
 export async function commerceAppendSalesImportSummary(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id de vendas inválido.');
