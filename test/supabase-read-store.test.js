@@ -234,7 +234,7 @@ test('critical reserve RPCs keep scanner and notification compatibility while oc
     'utf8'
   );
   const gtinRouter = fs.readFileSync('src/scanner/gtin-router.js', 'utf8');
-  const notifications = fs.readFileSync('src/cover-notifications.js', 'utf8');
+  const notifications = fs.readFileSync('src/ga/cover-notifications.js', 'utf8');
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
 
   assert.match(migration, /nisti_reserve_gtin_lookup_v1/);

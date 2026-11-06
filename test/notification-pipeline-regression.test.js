@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { recordAdminActivityFromResponse } from '../src/core/system-notifications.js';
 
 const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
-const cover = read('../src/cover-notifications.js');
+const cover = read('../src/ga/cover-notifications.js');
 const scoped = read('../supabase/migrations/20261009153500_notification_feed_scope_v1.sql');
 const core = read('../src/core/core-router.js');
 const sw = read('../public/sw.js');

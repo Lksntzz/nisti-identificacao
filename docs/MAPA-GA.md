@@ -6,7 +6,7 @@ Documento de orientação. **Não altera o sistema.** Gerado em 27/10/2026 (seç
 
 | Item | Quantidade |
 |---|---|
-| Arquivos em `src/` (NISTI ID + GA) | 146, dos quais 71 são do GA (`commerce-*`) |
+| Arquivos em `src/` (NISTI ID + GA) | 146, dos quais 71 são do GA (`commerce-*`, hoje em `src/ga/`) |
 | Migrações | 320 |
 | Arquivos de teste | 272 |
 | Tabelas no banco | 94 (69 do GA `commerce_*`, sendo 20 `commerce_preview_*`) |
@@ -21,17 +21,17 @@ Regra do banco: toda função do GA termina em `_vN` (versão) e só o servidor 
 
 ## 2. Caminho de um dado
 
-`Tela (src/*.jsx)` → chama `/api/admin/commerce/...` → `router (src/*-router.js)` → função do `store` (`src/commerce-supabase-store.js`, via `supabaseRpc`) → função SQL `commerce_..._vN` → tabelas.
+`Tela (src/ga/*.jsx)` → chama `/api/admin/commerce/...` → `router (src/ga/*-router.js)` → função do `store` (`src/ga/commerce-supabase-store.js`, via `supabaseRpc`) → função SQL `commerce_..._vN` → tabelas.
 
 Arquivos centrais:
 
 | Papel | Arquivo |
 |---|---|
-| Entrada do GA (hostname próprio, login próprio) | `src/ga-access.js`, `src/commerce-admin-app-v2.jsx` |
-| Chamadas HTTP da tela | `src/commerce-admin-api.js`, `src/commerce-manager-fetch.js` |
-| Rotas principais | `src/commerce-admin-router.js` |
+| Entrada do GA (hostname próprio, login próprio) | `src/ga/ga-access.js`, `src/ga/commerce-admin-app-v2.jsx` |
+| Chamadas HTTP da tela | `src/ga/commerce-admin-api.js`, `src/ga/commerce-manager-fetch.js` |
+| Rotas principais | `src/ga/commerce-admin-router.js` |
 | Rotas de edição / estado de anúncio / produto / campanhas de atualização | `commerce-listing-editor-router.js`, `commerce-listing-state-router.js`, `commerce-product-state-router.js`, `commerce-update-admin-router.js` |
-| Chamadas ao banco | `src/commerce-supabase-store.js` (+ `commerce-listing-state-store.js`, `commerce-product-state-store.js`, `commerce-update-store.js`, `commerce-rpc.js`) |
+| Chamadas ao banco | `src/ga/commerce-supabase-store.js` (+ `commerce-listing-state-store.js`, `commerce-product-state-store.js`, `commerce-update-store.js`, `commerce-rpc.js`) |
 
 ## 3. Telas do GA
 
@@ -48,7 +48,7 @@ Observação: a antiga aba "Evolução de vendas" do Painel Comercial foi removi
 
 ## 4. Importação (menu "Importar arquivo")
 
-Registro único das opções: `src/commerce-import-options.js`. Janela: `commerce-import-modal.jsx` → `commerce-import-center.jsx`.
+Registro único das opções: `src/ga/commerce-import-options.js`. Janela: `commerce-import-modal.jsx` → `commerce-import-center.jsx`.
 
 | Tipo | Leitor do arquivo | Tela | Gravação (função SQL) | Tabelas principais |
 |---|---|---|---|---|
@@ -137,7 +137,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Lacuna conhecida: dia em que todas as vendas foram canceladas não é substituído.
 
 **Velocidade**
-- Cache de leitura de 5 min (era 60 s até 05/11/2026; gravações zeram, "Atualizar dados" ignora) (`src/commerce-read-cache.js`) para GET em `/sales-dashboard*` e `/sales-compare/*`. Qualquer gravação (POST/PUT/PATCH/DELETE) zera o cache. `?fresh=1` ignora o cache; o botão de atualizar da tela usa isso por 15 s. Resposta em cache vem com o cabeçalho `x-ga-cache: HIT`.
+- Cache de leitura de 5 min (era 60 s até 05/11/2026; gravações zeram, "Atualizar dados" ignora) (`src/ga/commerce-read-cache.js`) para GET em `/sales-dashboard*` e `/sales-compare/*`. Qualquer gravação (POST/PUT/PATCH/DELETE) zera o cache. `?fresh=1` ignora o cache; o botão de atualizar da tela usa isso por 15 s. Resposta em cache vem com o cabeçalho `x-ga-cache: HIT`.
 - `commerce_dashboard_abc_v2` foi reescrita (mesmo resultado, 3 a 7 vezes mais rápida). Índice `commerce_listings_external_listing_idx`.
 - Maior custo restante: a view `commerce_current_sales_listing_daily_v1`, usada por todas as telas de vendas (~700 ms por chamada). Reescrever é arriscado: só com testes de antes/depois.
 
@@ -186,7 +186,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - Também aplicado (04/11): `PNJPROFLZBB`→`PNJPROFLZBXB` (migração `20261104200000_commerce_sku_alias_pnjproflz_bb.sql`). Backup das 2 linhas extras removidas do catálogo: tabela `bak_product_skus_confin_alias_20261104`.
 - Categorias: variações da coleção agora aparecem em tabela compacta (Variação, ano base, ano atual, Diferença, Var.).
 
-**Categorias: tela mais enxuta (04/11/2026)** — `src/commerce-categories-panel.jsx`
+**Categorias: tela mais enxuta (04/11/2026)** — `src/ga/commerce-categories-panel.jsx`
 - Listas de categorias, coleções e variações paginadas (10 por página, componente `Pager`).
 - Resumo da categoria: clicar em 2026/2025 abre o melhor mês e a melhor semana (do mês em destaque) daquele ano. Novos blocos "Quem explica a variação" (2 coleções com maior diferença) e "Peso dos lançamentos" (% das unidades vindas de coleções sem vendas no ano-base). Calculados no navegador a partir das coleções já carregadas; sem rota ou SQL novos.
 - Tabela mensal mostra só o mês em destaque; link "Ver todos os meses" abre os 12.
@@ -210,16 +210,16 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 
 **Categorias: meses que mais venderam no painel lateral (04/11/2026)** — o painel lateral mostra, no topo, os 5 meses de maior venda da categoria e da coleção (ano atual × anterior, mesmas datas), calculados no navegador a partir de `category_months` e `collection_months`. Sem rota ou SQL novos.
 
-**Categorias: meses no painel lateral, 3 visões (05/11/2026)** — o bloco de meses (categoria e coleção) virou `MonthInsights` em `src/commerce-categories-panel.jsx`, com regras puras em `src/commerce-categories-months-logic.js`: **Ganhos e perdas** (`gainLoss`: meses com maior diferença contra o ano anterior, mesmas datas), **Não repetiram** (`notRepeated`: meses que venderam no ano anterior e caíram mais da metade) e **Peso no ano** (`yearShare`: participação de cada mês no acumulado até hoje, atual × anterior). O mês corrente é parcial (mesma data de corte nos dois anos). Sem rota ou SQL novos.
+**Categorias: meses no painel lateral, 3 visões (05/11/2026)** — o bloco de meses (categoria e coleção) virou `MonthInsights` em `src/ga/commerce-categories-panel.jsx`, com regras puras em `src/ga/commerce-categories-months-logic.js`: **Ganhos e perdas** (`gainLoss`: meses com maior diferença contra o ano anterior, mesmas datas), **Não repetiram** (`notRepeated`: meses que venderam no ano anterior e caíram mais da metade) e **Peso no ano** (`yearShare`: participação de cada mês no acumulado até hoje, atual × anterior). O mês corrente é parcial (mesma data de corte nos dois anos). Sem rota ou SQL novos.
 
-**Painel Comercial · Desempenho: filtro Situação (04/11/2026)** — `src/commerce-dashboard.jsx` (modo `explorer`). Ordem dos filtros: Plataforma → Situação → Período → busca. "Situação" (Melhores produtos, Em queda, Pararam, Sem vendas, com contagem) substitui as abas Em queda/Pararam/Sem vendas; a barra de abas ficou só com Curva ABC e Cadastros por mês. Em queda e Pararam seguem bloqueados no período "todo o histórico". O modo Dashboard (`overview`) não mudou. Sem rota ou SQL novos.
+**Painel Comercial · Desempenho: filtro Situação (04/11/2026)** — `src/ga/commerce-dashboard.jsx` (modo `explorer`). Ordem dos filtros: Plataforma → Situação → Período → busca. "Situação" (Melhores produtos, Em queda, Pararam, Sem vendas, com contagem) substitui as abas Em queda/Pararam/Sem vendas; a barra de abas ficou só com Curva ABC e Cadastros por mês. Em queda e Pararam seguem bloqueados no período "todo o histórico". O modo Dashboard (`overview`) não mudou. Sem rota ou SQL novos.
 
-**Painel Comercial · Curva ABC: colunas opcionais (05/11/2026)** — `src/commerce-dashboard.jsx` + `.css`. Botão "+ Colunas" na barra do período abre checkboxes: **Criado em** (padrão ligado), **Visitas** e **Conversão** (padrão desligadas). A escolha fica no navegador (`localStorage`, chave `ndb-best-cols`). A data vem da mesma rota de "Cadastros por mês" (`/sales-dashboard/cohorts`, campo `created_on`, casando por `listing_id`/`listing_ids`); anúncio sem data cadastrada mostra "—". Sem rota ou SQL novos.
+**Painel Comercial · Curva ABC: colunas opcionais (05/11/2026)** — `src/ga/commerce-dashboard.jsx` + `.css`. Botão "+ Colunas" na barra do período abre checkboxes: **Criado em** (padrão ligado), **Visitas** e **Conversão** (padrão desligadas). A escolha fica no navegador (`localStorage`, chave `ndb-best-cols`). A data vem da mesma rota de "Cadastros por mês" (`/sales-dashboard/cohorts`, campo `created_on`, casando por `listing_id`/`listing_ids`); anúncio sem data cadastrada mostra "—". Sem rota ou SQL novos.
 
-**Dashboard: resumo de Categorias (04/11/2026)** — painel "Categorias" no Dashboard (modo `overview`), abaixo de "Faturamento por produto": top 5 categorias (unidades, barras ano atual × anterior, variação %), total e "mais cresceu / mais caiu". Componente `src/commerce-dashboard-categories.jsx` (regras puras em `commerce-dashboard-categories-logic.js`). Usa as rotas já existentes `/sales-compare/annual-coverage` e `/sales-compare/categories?mode=ytd`, só depois que o Dashboard carregou; segue a Plataforma do Dashboard, mas o período é sempre "ano até hoje × mesmo período do ano anterior" (não segue o filtro de dias). Botão "Abrir Categorias" leva à tela. Sem SQL novo.
+**Dashboard: resumo de Categorias (04/11/2026)** — painel "Categorias" no Dashboard (modo `overview`), abaixo de "Faturamento por produto": top 5 categorias (unidades, barras ano atual × anterior, variação %), total e "mais cresceu / mais caiu". Componente `src/ga/commerce-dashboard-categories.jsx` (regras puras em `commerce-dashboard-categories-logic.js`). Usa as rotas já existentes `/sales-compare/annual-coverage` e `/sales-compare/categories?mode=ytd`, só depois que o Dashboard carregou; segue a Plataforma do Dashboard, mas o período é sempre "ano até hoje × mesmo período do ano anterior" (não segue o filtro de dias). Botão "Abrir Categorias" leva à tela. Sem SQL novo.
 
 ## Relatório de anúncios sem vendas (Dashboard)
-- Botão "Relatório de anúncios sem vendas" no cabeçalho do Dashboard (modo visão geral). Abre página em tela cheia (`src/commerce-sales-report.jsx`, `.css`, lógica pura em `commerce-sales-report-logic.js`), com "Imprimir / salvar PDF" (`@media print` esconde o app, A4, orientação escolhida na janela de impressão (retrato por padrão)).
+- Botão "Relatório de anúncios sem vendas" no cabeçalho do Dashboard (modo visão geral). Abre página em tela cheia (`src/ga/commerce-sales-report.jsx`, `.css`, lógica pura em `commerce-sales-report-logic.js`), com "Imprimir / salvar PDF" (`@media print` esconde o app, A4, orientação escolhida na janela de impressão (retrato por padrão)).
 - Segue os filtros do Dashboard (plataforma e período). Só anúncios ativos. Seções por plataforma; cada linha tem selo "ANÚNCIO TODO" ou "VARIAÇÃO".
 - Situações: **Sem vendas** (menos de 3 un. no histórico) e **Vendia e parou** (3+ un. no histórico, nenhuma no período). VARIAÇÃO = anúncio que vende, mas uma variação cadastrada (anúncio com mais de uma) não vendeu.
 - Rota: `GET /api/admin/commerce/sales-dashboard/report-no-sales?platform&days&month` → `commerceSalesReportNoSalesV1` → função SQL `commerce_sales_report_no_sales_v1(p_platform,p_days,p_month)` (migração `20261104210000`). Limite de 3000 linhas. Totais de ANÚNCIO batem com os cards "Vendia e parou"/"Sem vendas" do Dashboard.
@@ -248,6 +248,6 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - (05/11/2026) Relatório de anúncios sem vendas: nova coluna **SKU** (lista e impressão) e impressão mais limpa (esconde texto explicativo, caixa "Mostrar todos…", avisos "Mostrando os 10…" e rodapé; links sem sublinhado; letras menores). Migração `20261105140000_commerce_sales_report_no_sales_sku_v1.sql` (aplicada): `commerce_sales_report_no_sales_v1` passa a preencher `sku` também nas linhas ANUNCIO (até 3 SKUs cadastrados do anúncio; vazio se não houver SKU cadastrado).
 - (05/11/2026) Impressão do relatório: colunas Tipo/ID alargadas (o selo "ANÚNCIO TODO" não cobre mais o ID).
 
-**Dashboard: aviso de erro mostra o código técnico (05/11/2026)** — `src/commerce-manager-fetch.js` guarda `status` e `technicalCode` (campo `technical_error` da API) no erro; `src/commerce-dashboard.jsx` acrescenta "(código: 408 · supabase_read_timeout)" ao aviso vermelho. Serve para descobrir a causa de "Não foi possível acessar o Catálogo Comercial". Sem rota ou SQL novos.
+**Dashboard: aviso de erro mostra o código técnico (05/11/2026)** — `src/ga/commerce-manager-fetch.js` guarda `status` e `technicalCode` (campo `technical_error` da API) no erro; `src/ga/commerce-dashboard.jsx` acrescenta "(código: 408 · supabase_read_timeout)" ao aviso vermelho. Serve para descobrir a causa de "Não foi possível acessar o Catálogo Comercial". Sem rota ou SQL novos.
 
-**Dashboard: aviso de erro mostra também a função que falhou (05/11/2026)** — `errorResponse` em `src/commerce-admin-router.js` devolve `technical_detail` (nome da função SQL e até 200 caracteres da mensagem do banco) nos erros do Supabase; o aviso do Dashboard o exibe. Sem SQL novo.
+**Dashboard: aviso de erro mostra também a função que falhou (05/11/2026)** — `errorResponse` em `src/ga/commerce-admin-router.js` devolve `technical_detail` (nome da função SQL e até 200 caracteres da mensagem do banco) nos erros do Supabase; o aviso do Dashboard o exibe. Sem SQL novo.

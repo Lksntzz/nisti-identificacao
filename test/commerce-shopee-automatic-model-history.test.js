@@ -4,9 +4,9 @@ import fs from 'node:fs';
 
 const model=fs.readFileSync('supabase/migrations/20261019145000_commerce_shopee_model_history_versioned_only.sql','utf8');
 const raw=fs.readFileSync('supabase/migrations/20261019144500_commerce_shopee_unlinked_history_v1.sql','utf8');
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const panel=fs.readFileSync('src/commerce-shopee-unlinked-sales.jsx','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const panel=fs.readFileSync('src/ga/commerce-shopee-unlinked-sales.jsx','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 
 test('junta histórico antigo e atual por modelo sem sobrescrever pedidos ou SKUs',()=>{
   assert.match(model,/commerce_shopee_model_sales_history_v1/);

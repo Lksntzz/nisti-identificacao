@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GA_HOST, handleGaHostRequest, createGaSession, validGaSession, isGaApiPath } from '../src/ga-access.js';
+import { GA_HOST, handleGaHostRequest, createGaSession, validGaSession, isGaApiPath } from '../src/ga/ga-access.js';
 
 const env = {
   GA_PASSWORD: 'senha-ga', GA_SESSION_SECRET: 'segredo',

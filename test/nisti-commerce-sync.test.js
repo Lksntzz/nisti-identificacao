@@ -21,7 +21,7 @@ test('ponte NISTI ID -> Catálogo usa vínculo permanente e SKU exato', () => {
 });
 
 test('sincronização preserva dados específicos do NISTI ID no payload e atualiza campos compatíveis', () => {
-  const helper = read('src/nisti-commerce-sync.js');
+  const helper = read('src/ga/nisti-commerce-sync.js');
   const sql = read('supabase/migrations/20260928162216_nisti_id_commerce_product_sync_v1.sql');
 
   for (const field of ['miolo_code', 'capa_code', 'acabamento_code', 'wireo_code', 'tassel_code', 'elastico_code', 'gtin']) {
@@ -43,7 +43,7 @@ test('cadastro, edição e imagem do NISTI ID acionam a sincronização', () => 
 });
 
 test('Scanner mantém os dados próprios, mas não recria o Catálogo vazio ao abrir o admin', () => {
-  const helper = read('src/nisti-commerce-sync.js');
+  const helper = read('src/ga/nisti-commerce-sync.js');
   const main = read('src/main.jsx');
 
   assert.equal(helper.includes("FROM products p"), true);
@@ -55,7 +55,7 @@ test('Scanner mantém os dados próprios, mas não recria o Catálogo vazio ao a
 });
 
 test('preview não escreve no catálogo live', () => {
-  const helper = read('src/nisti-commerce-sync.js');
+  const helper = read('src/ga/nisti-commerce-sync.js');
 
   assert.equal(helper.includes("COMMERCE_DATA_SCOPE"), true);
   assert.equal(helper.includes("preview_scope"), true);
@@ -156,7 +156,7 @@ test('Banco expõe sincronizado versus sem NISTI', () => {
 
 
 test('Catálogo principal usa a leitura rápida em vez de reconstruir o catálogo inteiro', () => {
-  const store = read('src/commerce-supabase-store.js');
+  const store = read('src/ga/commerce-supabase-store.js');
   const sql = read('supabase/migrations/20260928183545_commerce_catalog_fast_read_v7.sql');
 
   assert.equal(store.includes("'commerce_management_products_fast_v1'"), true);
@@ -180,7 +180,7 @@ test('Resumo do Catálogo não pagina o catálogo inteiro para calcular indicado
 
 test('status da sincronização fica disponível por produto no NISTI ID', () => {
   const sql = read('supabase/migrations/20260928185936_nisti_sync_visibility_v1.sql');
-  const helper = read('src/nisti-commerce-sync.js');
+  const helper = read('src/ga/nisti-commerce-sync.js');
   const router = read('src/core/core-router.js');
 
   assert.equal(sql.includes('commerce_nisti_product_statuses_v1'), true);
@@ -220,7 +220,7 @@ test('sincronização principal não executa reconciliação histórica dentro d
 
 test('RPC de escrita pode usar timeout maior e a sincronização faz retry temporário', () => {
   const readStore = read('src/core/supabase-read-store.js');
-  const sync = read('src/nisti-commerce-sync.js');
+  const sync = read('src/ga/nisti-commerce-sync.js');
 
   assert.equal(readStore.includes('MAX_CUSTOM_TIMEOUT_MS = 30000'), true);
   assert.equal(readStore.includes('options?.timeoutMs'), true);
@@ -244,7 +244,7 @@ test('reconciliação histórica roda em segundo plano no cadastro e edição', 
 test('reconciliação histórica usa índices de SKU e família', () => {
   const sourceSql = read('supabase/migrations/20260928194037_commerce_source_sku_indexes_and_fast_reconcile_v9.sql');
   const linkSql = read('supabase/migrations/20260928194239_commerce_nisti_link_indexes_and_fast_reconcile_v10.sql');
-  const sync = read('src/nisti-commerce-sync.js');
+  const sync = read('src/ga/nisti-commerce-sync.js');
 
   assert.equal(sourceSql.includes('commerce_source_rows_nisti_sku_norm_idx'), true);
   assert.equal(sourceSql.includes('commerce_source_rows_nisti_family_idx'), true);

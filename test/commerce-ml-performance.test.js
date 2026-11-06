@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseMlPerformanceSheets, mlPeriodFromFilename } from '../src/commerce-ml-performance-reader.js';
+import { parseMlPerformanceSheets, mlPeriodFromFilename } from '../src/ga/commerce-ml-performance-reader.js';
 const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
 const header=['ID do anúncio','Anúncio','Status atual','Variação','SKU','Qualidade do anúncio','Experiência de compra','Visitas únicas','Quantidade de vendas','Compradores únicos','Unidades vendidas','Vendas brutas (BRL)','% de participação','Total de opiniões','Opiniões ruins','Opiniões boas'];
 const sheet=data=>[{sheet:'Relatório',data:[['Métricas'],[],header,...data]}];
@@ -32,19 +32,19 @@ test('rejeita conta ausente e planilha de outro tipo, e ignora linha vazia de ro
 });
 test('migracao e rotas: dados isolados, somente service_role, protecao de conta errada',()=>{
   const m=read('supabase/migrations/20261027130000_commerce_ml_performance_v1.sql');
-  const router=read('src/commerce-admin-router.js');
+  const router=read('src/ga/commerce-admin-router.js');
   assert.match(m,/revoke all on function public\.commerce_ml_performance_import_v1/);
   assert.match(m,/grant execute on function public\.commerce_ml_performance_latest_v1\(\) to service_role/);
   assert.match(m,/< 0\.40/);
   assert.doesNotMatch(m,/(update|delete from) public\.commerce_(listings|products|current_sales)/i);
   assert.ok(router.includes("/ml/performance/reports"));
   assert.ok(router.includes("/ml/performance/latest"));
-  assert.ok(read('src/commerce-dashboard.jsx').includes('/shopee/performance/latest'));
-  assert.ok(read('src/commerce-dashboard.jsx').includes('perfItems[r.external_id]'));
+  assert.ok(read('src/ga/commerce-dashboard.jsx').includes('/shopee/performance/latest'));
+  assert.ok(read('src/ga/commerce-dashboard.jsx').includes('perfItems[r.external_id]'));
   const sp=read('supabase/migrations/20261027140000_commerce_shopee_performance_latest_v1.sql');
   assert.match(sp,/grant execute on function public\.commerce_shopee_performance_latest_v1\(\) to service_role/);
   assert.match(sp,/order by period_end desc,id desc limit 1/);
   assert.doesNotMatch(sp,/\b(insert into|update public|delete from|drop )\b/i);
   assert.ok(router.includes('/shopee/performance/latest'));
-  assert.ok(read('src/commerce-performance-import.jsx').includes('CommerceMlPerformanceImport'));
+  assert.ok(read('src/ga/commerce-performance-import.jsx').includes('CommerceMlPerformanceImport'));
 });

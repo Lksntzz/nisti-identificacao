@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261019231000_commerce_manager_search_variation_sku.sql','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 
 test('Gestor de Anúncios e mês Shopee pesquisam pelo SKU da variação',()=>{
   assert.match(sql,/CREATE OR REPLACE FUNCTION public\.commerce_listing_manager_v1/);

@@ -2,16 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const center=fs.readFileSync('src/commerce-import-center.jsx','utf8');
-const css=fs.readFileSync('src/commerce-import-center.css','utf8');
-const client=fs.readFileSync('src/commerce-import-client.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const reader=fs.readFileSync('src/commerce-sales-import-reader.js','utf8');
+const center=fs.readFileSync('src/ga/commerce-import-center.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-import-center.css','utf8');
+const client=fs.readFileSync('src/ga/commerce-import-client.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const reader=fs.readFileSync('src/ga/commerce-sales-import-reader.js','utf8');
 
 test('finance-only recovery is visible on the real import center used by the manager',()=>{
-  const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
   assert.match(manager,/import CommerceImportModal from '\.\/commerce-import-modal\.jsx'/);
-  const modal=fs.readFileSync('src/commerce-import-modal.jsx','utf8');
+  const modal=fs.readFileSync('src/ga/commerce-import-modal.jsx','utf8');
   assert.match(modal,/CommerceImportCenter key=\{mode\} embedded initialMode=\{mode\} hideModeSelector/);
   assert.match(center,/salesPlatform==='SHOPEE'&&<div className="import-center-finance-recovery">/);
   assert.match(center,/Recuperar só taxas/);

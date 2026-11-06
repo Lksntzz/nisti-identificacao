@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { syncNistiProductsToCommerce } from '../src/nisti-commerce-sync.js';
+import { syncNistiProductsToCommerce } from '../src/ga/nisti-commerce-sync.js';
 
 const read=file=>fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');
 
@@ -44,7 +44,7 @@ test('Scanner panel list and details reuse badges only from linked imported Comm
 
 test('backend bridge gate checks actual imports, not legacy Scanner platform assignments',()=>{
   const sql=read('supabase/migrations/20261015_commerce_scanner_import_gate_v1.sql');
-  const src=read('src/nisti-commerce-sync.js');
+  const src=read('src/ga/nisti-commerce-sync.js');
   assert.match(sql,/FROM public\.commerce_source_files sf/);
   assert.match(sql,/JOIN public\.commerce_source_rows sr/);
   assert.match(sql,/FROM public\.commerce_listings/);

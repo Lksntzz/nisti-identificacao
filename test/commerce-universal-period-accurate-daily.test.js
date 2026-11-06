@@ -5,8 +5,8 @@ const read=p=>fs.readFileSync(p,'utf8');
 const sql=read('supabase/migrations/20261016073000_commerce_sales_velocity_v2_active_zero_only.sql');
 const abcSql=read('supabase/migrations/20261016071000_commerce_sales_abc_window_v1.sql');
 const adSql=read('supabase/migrations/20261016072000_commerce_sales_abc_ads_window_v1.sql');
-const store=read('src/commerce-supabase-store.js');
-const router=read('src/commerce-admin-router.js');
+const store=read('src/ga/commerce-supabase-store.js');
+const router=read('src/ga/commerce-admin-router.js');
 test('sales 7/30/60/90-day facts come from committed listing records, not monthly snapshots',()=>{
   assert.match(sql,/commerce_current_sales_listing_daily_v1/);
   assert.match(sql,/commerce_sales_import_stage_summary/);

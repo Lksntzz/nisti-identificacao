@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 
 const read = f => readFileSync(new URL('../'+f, import.meta.url), 'utf8');
 const sql = read('supabase/migrations/20261026140000_commerce_listing_price_signal_v1.sql');
-const router = read('src/commerce-admin-router.js');
-const store = read('src/commerce-supabase-store.js');
-const ui = read('src/commerce-ad-manager.jsx');
-const cell = read('src/commerce-price-signal.jsx');
+const router = read('src/ga/commerce-admin-router.js');
+const store = read('src/ga/commerce-supabase-store.js');
+const ui = read('src/ga/commerce-ad-manager.jsx');
+const cell = read('src/ga/commerce-price-signal.jsx');
 
 test('price signal SQL is read-only and service_role only', () => {
   assert.match(sql, /language sql stable/);

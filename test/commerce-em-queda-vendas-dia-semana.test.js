@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { deltaPct } from '../src/commerce-sales-breakdown-helpers.js';
+import { deltaPct } from '../src/ga/commerce-sales-breakdown-helpers.js';
 
-const dash = readFileSync('src/commerce-dashboard.jsx', 'utf8');
-const router = readFileSync('src/commerce-admin-router.js', 'utf8');
-const store = readFileSync('src/commerce-supabase-store.js', 'utf8');
+const dash = readFileSync('src/ga/commerce-dashboard.jsx', 'utf8');
+const router = readFileSync('src/ga/commerce-admin-router.js', 'utf8');
+const store = readFileSync('src/ga/commerce-supabase-store.js', 'utf8');
 const sql = readFileSync('supabase/migrations/20261028100000_commerce_listing_sales_breakdown_v2.sql', 'utf8');
 
 test('variacao percentual entre periodos', () => {
@@ -14,7 +14,7 @@ test('variacao percentual entre periodos', () => {
   assert.equal(deltaPct(5, 0), null);
 });
 
-const manager = readFileSync('src/commerce-ad-manager.jsx', 'utf8');
+const manager = readFileSync('src/ga/commerce-ad-manager.jsx', 'utf8');
 
 test('listas do Painel Comercial mostram historico de vendas por semana, dia e mes', () => {
   assert.doesNotMatch(dash, /<th>Por que caiu<\/th>/);
@@ -51,9 +51,9 @@ test('Dashboard: grafico mostra faturamento por produto conforme o filtro', () =
   assert.doesNotMatch(dash, /<DailyChart|<MonthlyChart|segment-series/);
 });
 
-const panel = readFileSync('src/commerce-commercial-panel.jsx', 'utf8');
+const panel = readFileSync('src/ga/commerce-commercial-panel.jsx', 'utf8');
 test('Painel Comercial e so o desempenho (explorer) mais o menu Importar', () => {
-  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  const app = readFileSync('src/ga/commerce-admin-app-v2.jsx', 'utf8');
   assert.match(panel, /<CommerceDashboard key=\{[^}]*\} mode="explorer"/);
   assert.match(panel, /COMMERCE_IMPORT_OPTIONS/);
   assert.match(panel, /Importar arquivo/);
@@ -66,7 +66,7 @@ test('Painel Comercial e so o desempenho (explorer) mais o menu Importar', () =>
 });
 
 test('topo do GA: titulo da tela, bolinha de conexao real e atualizar em icone, sem Sair', () => {
-  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  const app = readFileSync('src/ga/commerce-admin-app-v2.jsx', 'utf8');
   assert.doesNotMatch(app, /\{IS_GA \? 'GA - Gestor de Anúncio' :/);
   assert.match(app, /VIEW_TITLES\[activeItem\.id\]/);
   assert.match(app, /\/api\/admin\/commerce\/health/);
@@ -92,7 +92,7 @@ test('indicador de conexao usa consulta leve e sem ambiguidade de funcao', () =>
 });
 
 test('indicador de conexao tenta duas vezes e mostra o motivo da falha', () => {
-  const app = readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  const app = readFileSync('src/ga/commerce-admin-app-v2.jsx', 'utf8');
   assert.match(app, /attempt < 2/);
   assert.match(app, /status\.detail/);
   assert.match(store, /supabase_rpc|error\?\.code/);
@@ -107,7 +107,7 @@ test('coluna Plataforma so aparece em Todas as plataformas; health usa chamada d
 });
 
 test('Painel Comercial tem blocos Em alta, Muita visita pouca venda e Vendas por mês (só no explorer)',()=>{
-  const src=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  const src=readFileSync(new URL('../src/ga/commerce-dashboard.jsx',import.meta.url),'utf8');
   assert.match(src,/<Panel title="Em alta"/);
   assert.match(src,/mode==='explorer'&&<Panel title="Muita visita, pouca venda"/);
   assert.match(src,/mode==='explorer'&&<Panel title="Vendas por mês \(unidades\)"/);
@@ -116,8 +116,8 @@ test('Painel Comercial tem blocos Em alta, Muita visita pouca venda e Vendas por
 });
 
 test('Painel Comercial: Importar fica ao lado dos filtros e há busca por produto, SKU ou código',()=>{
-  const dash=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
-  const panel=readFileSync(new URL('../src/commerce-commercial-panel.jsx',import.meta.url),'utf8');
+  const dash=readFileSync(new URL('../src/ga/commerce-dashboard.jsx',import.meta.url),'utf8');
+  const panel=readFileSync(new URL('../src/ga/commerce-commercial-panel.jsx',import.meta.url),'utf8');
   assert.match(dash,/aria-label="Buscar produto, SKU ou código do anúncio"/);
   assert.match(dash,/\{actions\}/);
   assert.match(panel,/actions=\{importMenu\}/);
@@ -126,8 +126,8 @@ test('Painel Comercial: Importar fica ao lado dos filtros e há busca por produt
 
 test('aba Cadastros por mês: rota, consulta no banco e tela estão ligadas',()=>{
   const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
-  const router=r('src/commerce-admin-router.js'),store=r('src/commerce-supabase-store.js');
-  const dash=r('src/commerce-dashboard.jsx'),tab=r('src/commerce-cohorts.jsx');
+  const router=r('src/ga/commerce-admin-router.js'),store=r('src/ga/commerce-supabase-store.js');
+  const dash=r('src/ga/commerce-dashboard.jsx'),tab=r('src/ga/commerce-cohorts.jsx');
   const mig=r('supabase/migrations/20261028150100_commerce_listing_cohorts_v1.sql');
   assert.match(router,/sales-dashboard\/cohorts/);
   assert.match(router,/platform\.startsWith\('ML_'\)\?'ML':platform/);
@@ -142,7 +142,7 @@ test('aba Cadastros por mês: rota, consulta no banco e tela estão ligadas',()=
 
 test('Cadastros por mês: detalhe por variação, melhor mês e links',()=>{
   const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
-  const router=r('src/commerce-admin-router.js'),store=r('src/commerce-supabase-store.js'),tab=r('src/commerce-cohorts.jsx');
+  const router=r('src/ga/commerce-admin-router.js'),store=r('src/ga/commerce-supabase-store.js'),tab=r('src/ga/commerce-cohorts.jsx');
   const mig=r('supabase/migrations/20261028160000_commerce_listing_cohorts_v2.sql');
   assert.match(router,/sales-dashboard\/cohorts\/detail/);
   assert.match(router,/Filtro do detalhe inválido/);
@@ -156,8 +156,8 @@ test('Cadastros por mês: detalhe por variação, melhor mês e links',()=>{
 });
 
 test('Dashboard (visão geral): resumo, gráfico de vendas por dia, plataforma e resumo do período',()=>{
-  const dash=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
-  const ch=readFileSync(new URL('../src/commerce-dashboard-charts.jsx',import.meta.url),'utf8');
+  const dash=readFileSync(new URL('../src/ga/commerce-dashboard.jsx',import.meta.url),'utf8');
+  const ch=readFileSync(new URL('../src/ga/commerce-dashboard-charts.jsx',import.meta.url),'utf8');
   assert.match(dash,/sales-dashboard\/series\?platform=/);
   assert.match(dash,/<SalesTrend daily=\{series\.daily\}/);
   assert.match(dash,/title="Faturamento por plataforma"/);
@@ -169,7 +169,7 @@ test('Dashboard (visão geral): resumo, gráfico de vendas por dia, plataforma e
 
 test('Dashboard: filtro por mês específico e histórico de todos os meses',()=>{
   const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
-  const dash=r('src/commerce-dashboard.jsx'),router=r('src/commerce-admin-router.js'),store=r('src/commerce-supabase-store.js');
+  const dash=r('src/ga/commerce-dashboard.jsx'),router=r('src/ga/commerce-admin-router.js'),store=r('src/ga/commerce-supabase-store.js');
   const mig=r('supabase/migrations/20261028150000_commerce_dashboard_month_filter_v1.sql');
   const ser=r('supabase/migrations/20261028170000_commerce_dashboard_month_series_v1.sql');
   assert.match(dash,/<MonthsTrend months=\{yearMonths\}/);
@@ -184,7 +184,7 @@ test('Dashboard: filtro por mês específico e histórico de todos os meses',()=
 });
 
 test('Ícones de informação explicam a origem dos dados de cada bloco do Dashboard',()=>{
-  const d=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  const d=readFileSync(new URL('../src/ga/commerce-dashboard.jsx',import.meta.url),'utf8');
   for(const k of ['period','kpiRevenue','kpiUnits','kpiTicket','kpiDaily','daily','history','platform','monthly','summary','top','growing','lowconv','cohorts','abc','alerts'])
     assert.match(d,new RegExp('\\n  '+k+":'"));
   assert.match(d,/Importar arquivo/);
@@ -193,8 +193,8 @@ test('Ícones de informação explicam a origem dos dados de cada bloco do Dashb
 });
 
 test('Período: opção Personalizado abre calendário por ano com os meses que têm vendas',()=>{
-  const pk=readFileSync(new URL('../src/commerce-period-picker.jsx',import.meta.url),'utf8');
-  const d=readFileSync(new URL('../src/commerce-dashboard.jsx',import.meta.url),'utf8');
+  const pk=readFileSync(new URL('../src/ga/commerce-period-picker.jsx',import.meta.url),'utf8');
+  const d=readFileSync(new URL('../src/ga/commerce-dashboard.jsx',import.meta.url),'utf8');
   assert.match(pk,/Personalizado…/);
   assert.match(pk,/Ano anterior/);assert.match(pk,/Próximo ano/);
   assert.match(pk,/Meses sem vendas importadas ficam desativados/);
@@ -203,52 +203,52 @@ test('Período: opção Personalizado abre calendário por ano com os meses que 
 
 test('Modo privacidade: botão no topo e todos os formatadores de reais passam pela máscara',()=>{
   const r=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
-  const priv=r('src/commerce-privacy.js'),app=r('src/commerce-admin-app-v2.jsx');
+  const priv=r('src/ga/commerce-privacy.js'),app=r('src/ga/commerce-admin-app-v2.jsx');
   assert.match(priv,/ga\.privacy/);assert.match(priv,/useSyncExternalStore/);
   assert.match(app,/Ocultar valores/);assert.match(app,/setPrivate\(!privacy\)/);
   for(const f of ['commerce-dashboard.jsx','commerce-dashboard-charts.jsx','commerce-cohorts.jsx','commerce-ad-manager.jsx','commerce-import-history.jsx','commerce-import-center.jsx','commerce-sales-breakdown.jsx','commerce-price-signal.jsx','commerce-shopee-ads-summary.jsx','commerce-shopee-ads-import.jsx','commerce-shopee-aftercare.jsx','commerce-shopee-unlinked-sales.jsx','commerce-shopee-performance-import.jsx','commerce-ml-performance-import.jsx'])
-    assert.match(r('src/'+f),/maskMoney/,f);
-  assert.doesNotMatch(r('src/commerce-dashboard.jsx'),/const money=v=>/);
+    assert.match(r('src/ga/'+f),/maskMoney/,f);
+  assert.doesNotMatch(r('src/ga/commerce-dashboard.jsx'),/const money=v=>/);
 });
 
 test('Dashboard: separa Shopee, ML Antigo e ML Novo', () => {
-  const c=readFileSync('src/commerce-dashboard-charts.jsx','utf8');
-  const d=readFileSync('src/commerce-dashboard.jsx','utf8');
+  const c=readFileSync('src/ga/commerce-dashboard-charts.jsx','utf8');
+  const d=readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(c,/ML Antigo/);assert.match(c,/ML Novo/);
   assert.match(c,/export function PlatformTable/);assert.match(c,/export function MonthMatrix/);
   assert.match(d,/title="Plataformas"/);assert.match(d,/>Comparativo</);assert.match(d,/>Mês a mês</);assert.match(d,/<PlatformTable/);assert.match(d,/<MonthMatrix/);
 });
 
 test('Dashboard: o filtro acompanha o clique até o Painel Comercial', () => {
-  assert.match(readFileSync('src/commerce-dashboard.jsx','utf8'),/onOpenTab\(k,\{platform,days,month\}\)/);
-  assert.match(readFileSync('src/commerce-commercial-panel.jsx','utf8'),/initialFilter=\{perfOpen\?perfOpen\.filter:null\}/);
+  assert.match(readFileSync('src/ga/commerce-dashboard.jsx','utf8'),/onOpenTab\(k,\{platform,days,month\}\)/);
+  assert.match(readFileSync('src/ga/commerce-commercial-panel.jsx','utf8'),/initialFilter=\{perfOpen\?perfOpen\.filter:null\}/);
 });
 
 test('GA: modo noturno com botão e escolha guardada', () => {
-  assert.match(readFileSync('src/commerce-theme.js','utf8'),/ga\.theme/);
-  assert.match(readFileSync('src/commerce-admin-app-v2.jsx','utf8'),/commerce-theme-btn/);
-  assert.match(readFileSync('src/commerce-dark.css','utf8'),/html\.ga-dark/);
+  assert.match(readFileSync('src/ga/commerce-theme.js','utf8'),/ga\.theme/);
+  assert.match(readFileSync('src/ga/commerce-admin-app-v2.jsx','utf8'),/commerce-theme-btn/);
+  assert.match(readFileSync('src/ga/commerce-dark.css','utf8'),/html\.ga-dark/);
 });
 
 test('Ícones de informação: texto organizado e atalho para o Histórico de importações', () => {
-  const d=readFileSync('src/commerce-dashboard.jsx','utf8');
+  const d=readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(d,/ndb-info-link/);assert.match(d,/ga:navigate/);
-  assert.match(readFileSync('src/commerce-admin-app-v2.jsx','utf8'),/ga:navigate/);
+  assert.match(readFileSync('src/ga/commerce-admin-app-v2.jsx','utf8'),/ga:navigate/);
 });
 
 test('GA: o conteúdo ocupa a largura do monitor (sem faixa vazia nas laterais)', () => {
-  assert.match(readFileSync('src/commerce-admin.css','utf8'),/commerce-admin-page-content:has\(\.ndb-root\)\{max-width:none\}/);
+  assert.match(readFileSync('src/ga/commerce-admin.css','utf8'),/commerce-admin-page-content:has\(\.ndb-root\)\{max-width:none\}/);
 });
 
 test('Curva ABC no Painel Comercial tem altura própria', () => {
-  assert.match(readFileSync('src/commerce-dashboard.css','utf8'),/is-explorer \.ndb-chartbox\.fill\{[^}]*height:clamp/);
+  assert.match(readFileSync('src/ga/commerce-dashboard.css','utf8'),/is-explorer \.ndb-chartbox\.fill\{[^}]*height:clamp/);
 });
 
 test('Detalhe do produto separa os dados de cada anúncio', () => {
   const m=readFileSync('supabase/migrations/20261028190000_commerce_listing_cohort_detail_v2.sql','utf8');
   assert.match(m,/grant execute on function public\.commerce_listing_cohort_detail_v2\(text,text\) to service_role/);
   assert.doesNotMatch(m,/\b(insert into|update public|delete from|drop )\b/i);
-  assert.match(readFileSync('src/commerce-cohorts.jsx','utf8'),/ndb-coh-ltabs/);
+  assert.match(readFileSync('src/ga/commerce-cohorts.jsx','utf8'),/ndb-coh-ltabs/);
 });
 
 test('Cadastros por mês: uma linha por anúncio, sem misturar vendas nem variações', () => {
@@ -256,7 +256,7 @@ test('Cadastros por mês: uma linha por anúncio, sem misturar vendas nem varia�
   assert.match(m,/left join sales s on s\.external_listing_id=pr\.lid/);
   assert.doesNotMatch(m,/group by c\.platform, c\.product_ref/);
   assert.match(m,/grant execute on function public\.commerce_listing_cohort_detail_v3\(text,text\) to service_role/);
-  assert.match(readFileSync('src/commerce-cohorts.jsx','utf8'),/&listing='\+encodeURIComponent\(item\.listing_id\)/);
+  assert.match(readFileSync('src/ga/commerce-cohorts.jsx','utf8'),/&listing='\+encodeURIComponent\(item\.listing_id\)/);
 });
 
 test('Cadastros por mês: anúncio por linha e variações dentro (Shopee por anúncio, ML por produto)', () => {
@@ -267,7 +267,7 @@ test('Cadastros por mês: anúncio por linha e variações dentro (Shopee por an
 });
 
 test('Cadastros por mês: ML Antigo e ML Novo são filtrados por conta, nunca juntos', () => {
-  const r=readFileSync('src/commerce-admin-router.js','utf8');
+  const r=readFileSync('src/ga/commerce-admin-router.js','utf8');
   assert.match(r,/account:platform==='ML_ANTIGO'\?'ANTIGO'/);
   assert.doesNotMatch(r,/ML Antigo e ML Novo viram "ML"/);
   const m=readFileSync('supabase/migrations/20261028220000_commerce_cohorts_por_conta_ml_v4.sql','utf8');

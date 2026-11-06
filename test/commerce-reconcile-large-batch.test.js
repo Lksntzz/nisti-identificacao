@@ -19,9 +19,9 @@ test('Large workbook reconciling bypasses costly per-product name pass without a
 });
 
 test('Importing UI recovers a saved failed batch without re-upload and displays real progress', () => {
-  const client = read('src/commerce-import-client.js');
-  const view = read('src/commerce-import-center.jsx');
-  const store = read('src/commerce-supabase-store.js');
+  const client = read('src/ga/commerce-import-client.js');
+  const view = read('src/ga/commerce-import-center.jsx');
+  const store = read('src/ga/commerce-supabase-store.js');
   assert.match(client, /retryCommerceImportReconciliation/);
   assert.match(client, /error\.batchId = batchId/);
   assert.match(view, /Retomar comparação/);

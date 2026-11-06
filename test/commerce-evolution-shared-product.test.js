@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261019224000_commerce_evolution_shared_product_listing_ids.sql','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
 
 test('uma chave SKU agrupa todos os IDs de anúncios ativos sem contar vendas duas vezes',()=>{
   assert.match(sql,/array_agg\(distinct a\.external_listing_id order by a\.external_listing_id\)/);

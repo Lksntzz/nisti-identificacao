@@ -2,7 +2,7 @@ import React,{useEffect,useRef} from 'react';
 import {createPortal} from 'react-dom';
 import CommerceImportCenter from './commerce-import-center.jsx';
 import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
-import CommercialIcon from './vendor/CommercialIcon.jsx';
+import CommercialIcon from '../vendor/CommercialIcon.jsx';
 import './commerce-import-modal.css';
 
 // Shared import workspace. Only the input/validation flow changes by report type.

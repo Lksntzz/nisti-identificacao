@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const reader=fs.readFileSync('src/commerce-sales-import-reader.js','utf8');
-const client=fs.readFileSync('src/commerce-import-client.js','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const reader=fs.readFileSync('src/ga/commerce-sales-import-reader.js','utf8');
+const client=fs.readFileSync('src/ga/commerce-import-client.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 const db=fs.readFileSync('supabase/migrations/20261016182500_commerce_shopee_daily_sku_source.sql','utf8');
 const manager=fs.readFileSync('supabase/migrations/20261016183000_commerce_listing_manager_identified_daily.sql','utf8');
 const history=fs.readFileSync('supabase/migrations/20261016183500_commerce_shopee_history_partial_flag.sql','utf8');

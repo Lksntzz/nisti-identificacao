@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const catalog=fs.readFileSync(new URL('../src/admin/CatalogView.jsx',import.meta.url),'utf8');
-const router=fs.readFileSync(new URL('../src/commerce-admin-router.js',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/ga/commerce-admin-router.js',import.meta.url),'utf8');
 const sql=fs.readFileSync(new URL('../supabase/migrations/20261013150000_nisti_products_sales_planning_v1.sql',import.meta.url),'utf8');
 test('real NISTI products panel renders planning metrics rather than hidden commercial view',()=>{
   assert.match(catalog,/products\/nisti-sales-planning/);
@@ -23,8 +23,8 @@ test('NISTI product ids use explicit commerce links and server-authenticated end
   assert.match(sql,/grant execute.*to service_role/i);
 });
 test('NISTI planning uses the direct Supabase RPC instead of the commerce-only prefix validator',()=>{
-  const store=fs.readFileSync(new URL('../src/commerce-supabase-store.js',import.meta.url),'utf8');
-  assert.match(store,/import \{ supabaseRpc as directSupabaseRpc \} from '\.\/core\/supabase-read-store\.js'/);
+  const store=fs.readFileSync(new URL('../src/ga/commerce-supabase-store.js',import.meta.url),'utf8');
+  assert.match(store,/import \{ supabaseRpc as directSupabaseRpc \} from '\.\.\/core\/supabase-read-store\.js'/);
   assert.match(store,/directSupabaseRpc\(env,'nisti_products_sales_planning_v1'/);
   assert.doesNotMatch(store,/return await supabaseRpc\(env,'nisti_products_sales_planning_v1'/);
 });

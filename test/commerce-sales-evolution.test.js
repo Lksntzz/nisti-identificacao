@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261019211000_commerce_sales_evolution_alias_names_v1.sql','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const app=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const app=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
 
 test('painel comercial mantem a lista de anuncios (evolucao saiu para o Dashboard)',()=>{
   assert.doesNotMatch(app,/commercialView==='EVOLUTION'/);

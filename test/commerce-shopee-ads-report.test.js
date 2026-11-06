@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {parseShopeeAdsCsv,parseShopeeCsvGrid} from '../src/commerce-shopee-ads-csv-reader.js';
+import {parseShopeeAdsCsv,parseShopeeCsvGrid} from '../src/ga/commerce-shopee-ads-csv-reader.js';
 const migration=fs.readFileSync('supabase/migrations/20261020160000_commerce_shopee_ads_reporting_v1.sql','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const imports=fs.readFileSync('src/commerce-import-center.jsx','utf8');
-const importPanel=fs.readFileSync('src/commerce-shopee-ads-import.jsx','utf8');
-const summary=fs.readFileSync('src/commerce-shopee-ads-summary.jsx','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const imports=fs.readFileSync('src/ga/commerce-import-center.jsx','utf8');
+const importPanel=fs.readFileSync('src/ga/commerce-shopee-ads-import.jsx','utf8');
+const summary=fs.readFileSync('src/ga/commerce-shopee-ads-summary.jsx','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 const demo=(targeting=false)=>[
 'Relatório de Todos os Anúncios CPC - Shopee Brasil',
 'Nome de Usuário,example','Nome da loja,Loja Exemplo','ID da Loja,376221706',

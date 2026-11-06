@@ -1,4 +1,4 @@
-import { SupabaseReadError } from './core/supabase-read-store.js';
+import { SupabaseReadError } from '../core/supabase-read-store.js';
 import {
   commerceListingEditor,
   commerceEditListing,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { commerceSalesImportInternals } from '../src/commerce-sales-import-reader.js';
+import { commerceSalesImportInternals } from '../src/ga/commerce-sales-import-reader.js';
 
 test('Shopee product subtotal and variation SKU beat generic aliases', () => {
   const heading = ['ID do pedido','Status do pedido','Nº de referência do SKU principal',

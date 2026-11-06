@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { shopeeSalesTotals } from '../src/commerce-ad-evidence.js';
+import { shopeeSalesTotals } from '../src/ga/commerce-ad-evidence.js';
 
 const managerSql=fs.readFileSync('supabase/migrations/20261019190000_commerce_listing_manager_shared_window_v1.sql','utf8');
 const ordersSql=fs.readFileSync('supabase/migrations/20261019191000_commerce_order_metrics_shared_window_v1.sql','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 
 test('TODAS combina ML por ID com Shopee por SKU sem esconder o resultado por falta de cobertura Shopee',()=>{
   const data={source_kind:'MIXED_LISTING_SKU_PARTIAL',

@@ -5,11 +5,11 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('Mercado Livre import requires explicit seller account at every boundary', () => {
-  const ui = read('src/commerce-import-center.jsx');
-  const reader = read('src/commerce-xlsx-reader.js');
-  const client = read('src/commerce-import-client.js');
-  const api = read('src/commerce-admin-router.js');
-  const store = read('src/commerce-supabase-store.js');
+  const ui = read('src/ga/commerce-import-center.jsx');
+  const reader = read('src/ga/commerce-xlsx-reader.js');
+  const client = read('src/ga/commerce-import-client.js');
+  const api = read('src/ga/commerce-admin-router.js');
+  const store = read('src/ga/commerce-supabase-store.js');
   assert.match(ui, /setCatalogAccount/);
   assert.match(ui, /Mercado Livre — Conta Antiga/);
   assert.match(ui, /Mercado Livre — Conta Nova/);
@@ -44,7 +44,7 @@ test('Account-safe commits reject ambiguity before product writes', () => {
 
 test('Account-aware status and history never silently claim unassigned listing', () => {
   const sql = read('supabase/migrations/20261014_ml_account_status_history.sql');
-  const store = read('src/commerce-supabase-store.js');
+  const store = read('src/ga/commerce-supabase-store.js');
   assert.match(sql, /ambiguous_unassigned/);
   assert.match(sql, /l.account_code is null/);
   assert.match(sql, /l.account_code=v_batch.account_code/);

@@ -1,15 +1,15 @@
 import app from './scanner/gtin-router.js';
-import { handleCommerceAdminRequest } from './commerce-admin-router.js';
-import { bumpReadCacheGeneration } from './commerce-read-cache.js';
-import { handleCommerceUpdateAdminRequest } from './commerce-update-admin-router.js';
-import { handleCommerceListingStateRequest } from './commerce-listing-state-router.js';
-import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
-import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
+import { handleCommerceAdminRequest } from './ga/commerce-admin-router.js';
+import { bumpReadCacheGeneration } from './ga/commerce-read-cache.js';
+import { handleCommerceUpdateAdminRequest } from './ga/commerce-update-admin-router.js';
+import { handleCommerceListingStateRequest } from './ga/commerce-listing-state-router.js';
+import { handleCommerceProductStateRequest } from './ga/commerce-product-state-router.js';
+import { handleCommerceListingEditorRequest } from './ga/commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural/mural-router.js';
 import { handleNotificationDispatchRequest } from './expedicao/notification-dispatch-router.js';
 import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedicao/expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './imagens/canva-bridge-entry.js';
-import { GA_HOST, handleGaHostRequest } from './ga-access.js';
+import { GA_HOST, handleGaHostRequest } from './ga/ga-access.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const LOGIN_CSRF_COOKIE = '__Host-nisti_login_csrf';

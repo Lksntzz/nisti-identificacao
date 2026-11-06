@@ -32,7 +32,7 @@ test('rota de estado do Produto Mestre passa pela proteção administrativa', ()
 });
 
 test('UI de Produtos Mestre permite revisão manual sem exclusão de histórico', () => {
-  const view = read('src/commerce-products-view.jsx');
+  const view = read('src/ga/commerce-products-view.jsx');
   assert.equal(view.includes('Salvar revisão'), true);
   assert.equal(view.includes('/products/${productId}/state'), true);
   assert.equal(view.includes('DISCONTINUED'), true);
@@ -40,7 +40,7 @@ test('UI de Produtos Mestre permite revisão manual sem exclusão de histórico'
 });
 
 test('store de status usa RPC comercial com escopo live/preview', () => {
-  const store = read('src/commerce-product-state-store.js');
+  const store = read('src/ga/commerce-product-state-store.js');
   assert.equal(store.includes('commerce_set_product_state_v1'), true);
   assert.equal(store.includes('p_internal_status'), true);
   assert.equal(store.includes('p_checked_by'), true);

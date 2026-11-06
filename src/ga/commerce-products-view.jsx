@@ -9,7 +9,7 @@ import {
   commerceFormatNumber,
   commerceStatusLabel
 } from './commerce-admin-shared.jsx';
-import ProductCutoutImage from './imagens/product-cutout-image.jsx';
+import ProductCutoutImage from '../imagens/product-cutout-image.jsx';
 import './commerce-planning-layout.css';
 import './commerce-listing-state.css';
 

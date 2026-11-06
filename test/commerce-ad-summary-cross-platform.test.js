@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { listingPlatformSalesBreakdown } from '../src/commerce-ad-evidence.js';
+import { listingPlatformSalesBreakdown } from '../src/ga/commerce-ad-evidence.js';
 
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 
 test('TODAS 30 dias: soma Shopee e Mercado Livre sem confundir venda ausente com sem vínculo',()=>{
   const r=listingPlatformSalesBreakdown({

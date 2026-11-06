@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261020232000_commerce_listing_manager_strict_zero_windows_v1.sql','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
 
 test('Sem vendas exige anúncio de zero unidades e cobertura completa por todo período',()=>{
   assert.match(sql,/b\.selected_status='ZERO' and c\.ready and c\.units=0/);

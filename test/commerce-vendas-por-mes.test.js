@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { bestMonth, monthLabel } from '../src/commerce-sales-breakdown-helpers.js';
+import { bestMonth, monthLabel } from '../src/ga/commerce-sales-breakdown-helpers.js';
 
 test('monthLabel formata mes/ano', () => {
   assert.equal(monthLabel('2026-09'), 'set/26');
@@ -23,14 +23,14 @@ test('rota e SQL de vendas por mes sao somente leitura e restritos ao service_ro
   assert.match(sql, /stable/i);
   assert.match(sql, /revoke all on function[^;]*from public,\s*anon,\s*authenticated/i);
   assert.doesNotMatch(sql, /\b(insert into|update public|delete from)\b/i);
-  const router = fs.readFileSync('src/commerce-admin-router.js', 'utf8');
+  const router = fs.readFileSync('src/ga/commerce-admin-router.js', 'utf8');
   assert.match(router, /listings\/manager\/sales-months/);
 });
 
 test('Painel Comercial mostra selo de mes mais vendido e painel de meses', () => {
-  const dash = fs.readFileSync('src/commerce-ad-manager.jsx', 'utf8');
+  const dash = fs.readFileSync('src/ga/commerce-ad-manager.jsx', 'utf8');
   assert.match(dash, /MonthsPanelRow/);
   assert.match(dash, /useSalesMonths/);
-  const comp = fs.readFileSync('src/commerce-sales-breakdown.jsx', 'utf8');
+  const comp = fs.readFileSync('src/ga/commerce-sales-breakdown.jsx', 'utf8');
   assert.match(comp, /Mais vendido/);
 });

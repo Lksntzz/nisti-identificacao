@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const commerce=fs.readFileSync('src/nisti-commerce-sync.js','utf8');
+const commerce=fs.readFileSync('src/ga/nisti-commerce-sync.js','utf8');
 const cleanup=fs.readFileSync('supabase/migrations/20261002115500_remove_ai_recognition_legacy.sql','utf8');
 
 test('commerce synchronization sources NISTI products from Supabase when reads are enabled',()=>{

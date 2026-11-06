@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cachedRead, bumpReadCacheGeneration, isCacheableReadPath } from '../src/commerce-read-cache.js';
+import { cachedRead, bumpReadCacheGeneration, isCacheableReadPath } from '../src/ga/commerce-read-cache.js';
 
 function fakeCache() {
   const store = new Map();

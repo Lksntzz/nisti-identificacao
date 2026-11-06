@@ -4,9 +4,9 @@ import fs from 'node:fs';
 
 const migration=fs.readFileSync('supabase/migrations/20261016191000_commerce_shopee_sales_sku_reconciliation_review_v1.sql','utf8');
 const attribution=fs.readFileSync('supabase/migrations/20261016191100_commerce_shopee_reviewed_alias_sale_views_v1.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 
 test('fonte e destino de SKU têm validação dupla, sem alterar produtos',()=>{
   assert.match(migration,/create table if not exists public\.commerce_shopee_sales_sku_alias_reviews_v1/);

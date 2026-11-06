@@ -4,8 +4,8 @@ import fs from 'node:fs';
 
 const link=fs.readFileSync('supabase/migrations/20261019195500_commerce_shopee_same_listing_owner.sql','utf8');
 const candidate=fs.readFileSync('supabase/migrations/20261019203000_commerce_shopee_unlinked_candidate_variation.sql','utf8');
-const panel=fs.readFileSync('src/commerce-shopee-unlinked-sales.jsx','utf8');
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const panel=fs.readFileSync('src/ga/commerce-shopee-unlinked-sales.jsx','utf8');
+const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 
 test('SKU duplicado pode reconhecer UM anúncio, sem atribuir à variação arbitrária',()=>{
   assert.match(link,/having count\(\*\)>1 and count\(distinct listing_id\)=1/);

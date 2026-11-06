@@ -8,8 +8,8 @@ function read(path) {
 
 test('Worker expõe editor individual, edição em massa e fila de sincronização', () => {
   const edge = read('src/edge-router.js');
-  const router = read('src/commerce-listing-editor-router.js');
-  const store = read('src/commerce-listing-editor-store.js');
+  const router = read('src/ga/commerce-listing-editor-router.js');
+  const store = read('src/ga/commerce-listing-editor-store.js');
 
   assert.equal(edge.includes('handleCommerceListingEditorRequest'), true);
   assert.equal(router.includes('/bulk-edit'), true);
@@ -23,7 +23,7 @@ test('Worker expõe editor individual, edição em massa e fila de sincronizaç�
 });
 
 test('Catálogo usa cards enriquecidos com listing_id', () => {
-  const store = read('src/commerce-supabase-store.js');
+  const store = read('src/ga/commerce-supabase-store.js');
   const sql = read('supabase/migrations/20260928141121_catalog_listing_editor_listing_resolution_fix.sql');
 
   assert.equal(store.includes("'commerce_management_products_v3'"), true);

@@ -34,8 +34,8 @@ test('RPCs v2 expõem miniaturas sem mudar contrato de identidade Produto Mestre
 });
 
 test('store e router expõem snapshot Shopee protegido', () => {
-  const store = read('src/commerce-supabase-store.js');
-  const router = read('src/commerce-admin-router.js');
+  const store = read('src/ga/commerce-supabase-store.js');
+  const router = read('src/ga/commerce-admin-router.js');
   assert.equal(store.includes("'commerce_list_products_v3'"), true);
   assert.equal(store.includes("'commerce_list_listings_v4'"), true);
   assert.equal(store.includes("'commerce_list_shopee_snapshot_v1'"), true);

@@ -1,4 +1,4 @@
-import { supabaseRpc } from './core/supabase-read-store.js';
+import { supabaseRpc } from '../core/supabase-read-store.js';
 
 export function commerceDataScope(env) {
   const raw = String(env?.COMMERCE_DATA_SCOPE || '').trim().toLowerCase();

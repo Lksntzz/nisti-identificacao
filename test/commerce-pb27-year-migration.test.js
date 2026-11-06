@@ -12,7 +12,7 @@ test('PB27 migration requires existing exact SKU and identical product identity'
   assert.match(sql,/CONFIRMED_MANUALLY/);
 });
 test('Catalog review distinguishes internal target from manual marketplace updates',()=>{
-  const view=read('src/commerce-import-center.jsx');
+  const view=read('src/ga/commerce-import-center.jsx');
   assert.match(view,/NISTI 2027:/);
   assert.match(view,/Aguardando alteração manual na plataforma/);
   assert.match(view,/Confirmei na plataforma/);

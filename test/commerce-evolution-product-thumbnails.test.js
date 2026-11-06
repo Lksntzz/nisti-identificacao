@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
 const sql=fs.readFileSync('supabase/migrations/20261020190000_commerce_evolution_product_images_v1.sql','utf8');
-const css=fs.readFileSync('src/commerce-reactbits-lucide.css','utf8');
+const css=fs.readFileSync('src/ga/commerce-reactbits-lucide.css','utf8');
 
 test('image resolution is page-scoped and limited to unique exact SKU matches',()=>{
   assert.match(sql,/images_for_page as \(/i);

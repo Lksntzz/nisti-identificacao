@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const source=fs.readFileSync('supabase/migrations/20261019195000_commerce_imported_sales_ml_daily_history.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 
 test('totais diários somam pedidos importados ML e todos SKUs Shopee sem filtrar anúncios ativos',()=>{
   assert.match(source,/commerce_shopee_sales_sku_daily_v1 d/);

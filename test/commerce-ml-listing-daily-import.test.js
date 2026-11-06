@@ -4,10 +4,10 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(path,'utf8');
 const sql = read('supabase/migrations/20261016050000_commerce_sales_listing_daily_v1.sql');
 const abc = read('supabase/migrations/20261016051000_commerce_abc_listing_import_performance.sql');
-const store = read('src/commerce-supabase-store.js');
-const router = read('src/commerce-admin-router.js');
-const importer = read('src/commerce-import-client.js');
-const reader = read('src/commerce-ml-native-sales-reader.js');
+const store = read('src/ga/commerce-supabase-store.js');
+const router = read('src/ga/commerce-admin-router.js');
+const importer = read('src/ga/commerce-import-client.js');
+const reader = read('src/ga/commerce-ml-native-sales-reader.js');
 
 test('daily sales by ID persist only aggregate fields and are readable only by service role',()=>{
   assert.match(sql,/commerce_sales_listing_daily_v1/);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {parseShopeeAftercareSheets} from '../src/commerce-shopee-aftercare-reader.js';
+import {parseShopeeAftercareSheets} from '../src/ga/commerce-shopee-aftercare-reader.js';
 
 const headings=['ID da Devolução','ID do pedido','Data de criação do pedido','Nome de usuário (Comprador)',
   'Nome do Produto','SKU principal','Nome da variação','SKU da Variação',
@@ -15,11 +15,11 @@ function row(id,sku,status='Aprovada',tracking='Devolução concluída') {
     'Produto errado','Texto privado','R$29,90',tracking,'Rua privada','99999999999'];
 }
 const sql=fs.readFileSync('supabase/migrations/20261020185500_commerce_shopee_aftercare_v1.sql','utf8');
-const importUi=fs.readFileSync('src/commerce-shopee-aftercare-import.jsx','utf8');
-const side=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const ui=fs.readFileSync('src/commerce-shopee-aftercare.jsx','utf8');
+const importUi=fs.readFileSync('src/ga/commerce-shopee-aftercare-import.jsx','utf8');
+const side=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-shopee-aftercare.jsx','utf8');
 
 test('group multiple product lines under one return id; refund cannot be multiplied',()=>{
   const source=parseShopeeAftercareSheets([{data:[headings,row('2607010HRS4R0MC','PLAN1_BBB'),row('2607010HRS4R0MC','PLAN2_BBB')]}]);
@@ -50,7 +50,7 @@ test('never send buyer contact data, freeform observations or shipment tracking 
   const json=JSON.stringify(source);
   for(const sensitive of ['comprador','Rua privada','99999999999','Texto privado'])
     assert.ok(!json.includes(sensitive),sensitive);
-  assert.match(fs.readFileSync('src/commerce-shopee-aftercare-reader.js','utf8'),/Dados pessoais, endereços e observações livres/);
+  assert.match(fs.readFileSync('src/ga/commerce-shopee-aftercare-reader.js','utf8'),/Dados pessoais, endereços e observações livres/);
 });
 test('isolated service-only tables and non-duplicating reports',()=>{
   assert.match(sql,/enable row level security/g);

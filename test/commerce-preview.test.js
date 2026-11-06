@@ -8,8 +8,8 @@ function read(path) {
 
 test('preview do Worker habilita commit somente no sandbox comercial isolado', () => {
   const config = read('wrangler.preview.toml');
-  const router = read('src/commerce-admin-router.js');
-  const rpc = read('src/commerce-rpc.js');
+  const router = read('src/ga/commerce-admin-router.js');
+  const rpc = read('src/ga/commerce-rpc.js');
 
   assert.equal(config.includes('preview_urls = true'), true);
   assert.equal(config.includes('APP_ENV = "preview"'), true);

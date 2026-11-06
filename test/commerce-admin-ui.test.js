@@ -19,7 +19,7 @@ test('/admin-commerce não existe mais no NISTI ID e o GA monta o Painel Comerci
   const entry = read('src/entry.jsx');
   assert.equal(entry.includes("window.location.pathname === '/admin-commerce'"), false);
   assert.equal(entry.includes("if (IS_GA_HOST) return 'commerce'"), true);
-  assert.equal(entry.includes("import('./commerce-admin-app-v2.jsx')"), true);
+  assert.equal(entry.includes("import('./ga/commerce-admin-app-v2.jsx')"), true);
 });
 
 test('rota antiga /admin-commerce responde 404 no NISTI ID', () => {
@@ -30,7 +30,7 @@ test('rota antiga /admin-commerce responde 404 no NISTI ID', () => {
 });
 
 test('cliente comercial confirma estado antes de tratar timeout de mutação como falha', () => {
-  const client = read('src/commerce-import-client.js');
+  const client = read('src/ga/commerce-import-client.js');
   assert.equal(client.includes('recoverBatchAfterRetryableError'), true);
   assert.equal(client.includes("['PARSED', 'REVIEW', 'COMMITTED']"), true);
   assert.equal(client.includes("['REVIEW', 'COMMITTED']"), true);

@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const listing=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const summary=fs.readFileSync('src/commerce-shopee-ads-summary.jsx','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
+const listing=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const summary=fs.readFileSync('src/ga/commerce-shopee-ads-summary.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261020174500_commerce_shopee_ads_coverage_v1.sql','utf8');
 const detail=listing.slice(listing.indexOf('function ListingDetail('),
   listing.indexOf('export default function CommerceCommercialDashboard'));

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('importador de vendas reconhece cabeçalhos, período parcial e agrega por SKU', () => {
-  const reader = read('src/commerce-sales-import-reader.js');
+  const reader = read('src/ga/commerce-sales-import-reader.js');
 
   assert.equal(reader.includes("'id do pedido'"), true);
   assert.equal(reader.includes("'quantidade'"), true);
@@ -36,9 +36,9 @@ test('pipeline de vendas mantém snapshot versionado e substitui somente platafo
 });
 
 test('API de importação de vendas envia dados em lotes e usa timeout próprio no commit', () => {
-  const router = read('src/commerce-admin-router.js');
-  const client = read('src/commerce-import-client.js');
-  const store = read('src/commerce-supabase-store.js');
+  const router = read('src/ga/commerce-admin-router.js');
+  const client = read('src/ga/commerce-import-client.js');
+  const store = read('src/ga/commerce-supabase-store.js');
 
   assert.equal(router.includes('/sales/imports'), true);
   assert.equal(router.includes('salesImportRowsMatch'), true);

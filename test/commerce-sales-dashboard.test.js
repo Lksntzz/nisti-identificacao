@@ -5,8 +5,8 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('API e banco usam a base normalizada de vendas', () => {
-  const router = read('src/commerce-admin-router.js');
-  const store = read('src/commerce-supabase-store.js');
+  const router = read('src/ga/commerce-admin-router.js');
+  const store = read('src/ga/commerce-supabase-store.js');
   const schema = read('supabase/migrations/20260928203447_commerce_sales_tables_v1.sql');
   const rpc = read('supabase/migrations/20260928203528_commerce_sales_dashboard_rpc_v1.sql');
 

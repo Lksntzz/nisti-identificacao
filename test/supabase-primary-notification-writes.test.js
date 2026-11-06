@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const source=fs.readFileSync(new URL('../src/cover-notifications.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('../src/ga/cover-notifications.js',import.meta.url),'utf8');
 const sql=fs.readFileSync(new URL('../supabase/migrations/20261001203000_primary_notification_writes_v1.sql',import.meta.url),'utf8');
 
 test('notification writers are Supabase-only after the D1 runtime removal',()=>{

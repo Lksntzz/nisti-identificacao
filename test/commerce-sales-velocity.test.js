@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=f=>fs.readFileSync(f,'utf8');
 const sql=read('supabase/migrations/20261016073000_commerce_sales_velocity_v2_active_zero_only.sql');
-const store=read('src/commerce-supabase-store.js');
-const router=read('src/commerce-admin-router.js');
+const store=read('src/ga/commerce-supabase-store.js');
+const router=read('src/ga/commerce-admin-router.js');
 
 test('daily results come from committed listing-day sales, not monthly snapshot rows',()=>{
   assert.match(sql,/commerce_current_sales_listing_daily_v1/);

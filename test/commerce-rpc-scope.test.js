@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { commerceDataScope, commerceRpcName } from '../src/commerce-rpc.js';
+import { commerceDataScope, commerceRpcName } from '../src/ga/commerce-rpc.js';
 
 test('preview roteia RPC comercial para namespace commerce_preview_', () => {
   const env = { APP_ENV: 'preview', COMMERCE_DATA_SCOPE: 'preview' };
