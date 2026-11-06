@@ -6,6 +6,7 @@ import CommerceTrafficMetrics from './commerce-traffic-metrics.jsx';
 import CommerceShopeeAdsSummary from './commerce-shopee-ads-summary.jsx';
 import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport} from './commerce-shopee-ads-period.js';
 import CommerceShopeeAftercare from './commerce-shopee-aftercare.jsx';
+import CommerceListingSheet from './commerce-listing-sheet.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
 import '../nisti-reactbits-adaptations.css';
@@ -254,8 +255,8 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
     (Number(trendPct)>0?'+':'')+num(Number(trendPct))+'%';
   const latestAds=preferredShopeeAdsReport(shopeeAdsRowsForPeriod(
     adsOverview.items,periodStart,periodEnd,adsOnlySelectedPeriod));
-  const detailTabs=hasShopeeAds&&item.source==='SHOPEE'
-    ?[...DETAIL_TABS,['shopee_ads','Shopee Ads']]:DETAIL_TABS;
+  const detailTabs=item.source==='SHOPEE'
+    ?[...DETAIL_TABS,['sheet','Histórico'],...(hasShopeeAds?[['shopee_ads','Shopee Ads']]:[])]:DETAIL_TABS;
   return <aside className="nim-detail" aria-label={'Detalhes do anúncio '+item.external_listing_id}>
     <header className="nim-detail-header">
       <div className="nim-detail-title"><h3>{item.title}</h3>
@@ -270,7 +271,8 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
       <div><small>{item.curve_partial?'Curva ABC · indicativa':'Curva ABC'}</small>
         <strong>{item.curve||'—'}</strong></div>
     </div>
-    <div className={'nim-detail-tab-list'+(hasShopeeAds&&item.source==='SHOPEE'?' has-shopee-ads':'')}
+    <div className={'nim-detail-tab-list'+(detailTabs.length>4?' has-shopee-ads':'')}
+      style={detailTabs.length>5?{gridTemplateColumns:'repeat('+detailTabs.length+',minmax(0,1fr))'}:undefined}
       role="tablist" aria-label="Informações do anúncio">
       {detailTabs.map(([code,label])=><button
         key={code} id={'nim-detail-tab-'+code} type="button" role="tab"
@@ -279,6 +281,7 @@ function ListingDetail({item,days,month,periodStart,periodEnd,importedThrough,ze
     </div>
     <section className="nim-detail-tab-panel" role="tabpanel" id={'nim-detail-panel-'+activeTab}
       aria-labelledby={'nim-detail-tab-'+activeTab}>
+      {activeTab==='sheet'&&item.source==='SHOPEE'&&<CommerceListingSheet listingId={item.id} source={item.source}/>}
       {activeTab==='shopee_ads'&&hasShopeeAds&&item.source==='SHOPEE'&&<>
         <CommerceShopeeAdsSummary listingId={item.id}
           periodStart={periodStart} periodEnd={periodEnd}

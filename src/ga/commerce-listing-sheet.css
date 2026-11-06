@@ -1,0 +1,31 @@
+.nim-sheet{display:grid;gap:16px;font-size:12px;color:#182641}
+.nim-sheet h4{margin:0;font-size:13px;font-weight:700}
+.nim-sheet section{min-width:0}
+.nim-sheet-source{margin:0;color:#667793;font-size:11.5px}
+.nim-sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.nim-sheet-legend{display:flex;gap:10px;align-items:center;color:#667793;font-size:11px}
+.nim-sheet-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.nim-sheet-legend i.is-bar{background:#2369e8}
+.nim-sheet-legend i.is-price{background:#ba7517;height:3px;border-radius:2px;vertical-align:2px}
+.nim-sheet-chart{display:block;max-width:100%}
+.nim-sheet-chart .is-bar{fill:#2369e8}
+.nim-sheet-chart .is-partial{fill:#b4b2a9}
+.nim-sheet-chart .nim-sheet-price{fill:none;stroke:#ba7517;stroke-width:2}
+.nim-sheet-chart .nim-sheet-change{stroke:#ba7517;stroke-width:1;stroke-dasharray:3 3}
+.nim-sheet-chart .nim-sheet-tick{font-size:10.5px;fill:#667793}
+.nim-sheet-note{margin:6px 0 0;color:#667793;font-size:11px}
+.nim-sheet-scroll{overflow-x:auto}
+.nim-sheet-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.nim-sheet-table th{font-size:10.5px;color:#667793;font-weight:700;text-align:right;padding:5px 6px;border-bottom:1px solid #e5eaf2;white-space:nowrap}
+.nim-sheet-table td{padding:6px;text-align:right;border-bottom:1px solid #eef2f7;white-space:nowrap}
+.nim-sheet-table th:first-child,.nim-sheet-table td:first-child{text-align:left}
+.nim-sheet-econ td{white-space:normal}
+.nim-sheet-econ tr.is-total td{font-weight:700;border-top:1px solid #cfd9e6}
+.nim-sheet-muted{color:#8a97ad}
+.nim-sheet-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.nim-sheet-big{margin:2px 0 6px;font-size:22px;font-weight:700}
+.nim-sheet-big small{font-size:11px;font-weight:400;color:#667793}
+.nim-sheet-list{list-style:none;margin:0;padding:0}
+.nim-sheet-list li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #eef2f7}
+.nim-sheet-error{padding:10px;border-radius:8px;background:#fdecec;color:#a32d2d}
+.nim-sheet-error button{margin-left:8px}

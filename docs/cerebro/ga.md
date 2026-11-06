@@ -15,6 +15,7 @@ O navegador nunca fala com o banco. Toda função SQL do GA termina em `_vN` e s
 - **Painel Comercial** (`commerce-ad-manager.jsx`): lista de anúncios, vínculo por SKU, botão "Importar arquivo".
 - **Planejamento de Produtos** (`commerce-products-view.jsx`): ativo, rascunho, desativado.
 - **Histórico de importações** (`commerce-import-history.jsx`).
+- **Histórico do anúncio** (aba no detalhe de anúncio Shopee, `commerce-listing-sheet.jsx`): vendas por semana, preço praticado, funil, o que sobra por unidade, cancelamentos, Ads. Lê `commerce_shopee_listing_sheet_v1`. Dados de pedido vêm de `commerce_shopee_order_extras_daily_v1` (ver [[importacao]]).
 - **Categorias** (`commerce-categories-panel.jsx`, `commerce-dashboard-categories.jsx`): vendas por categoria; usa a comparação entre anos (`annual-coverage`).
 
 A tela **Comparação anual** foi removida em 05/11/2026 (PR #839) e o back-end sem uso foi apagado depois. Ver o fim do [[MAPA-GA]].
