@@ -332,6 +332,15 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
     }
   }
 
+  // Preço praticado, cancelamento, frete, cashback e UF por dia/SKU (sem pedidos nem compradores).
+  if(parsedWorkbook.platform_code==='SHOPEE'&&Array.isArray(parsedWorkbook.order_extras_daily_rows)&&parsedWorkbook.order_extras_daily_rows.length){
+    for(const chunk of chunks(parsedWorkbook.order_extras_daily_rows)){
+      await requestJson(`${API_BASE}/sales/imports/${batchId}/shopee-extras`,{
+        method:'POST',body:JSON.stringify({rows:chunk}),retryRateLimit:true
+      });
+    }
+  }
+
   onProgress({ phase: 'commit', completed, total: rows.length, batchId });
   let result;
   try {

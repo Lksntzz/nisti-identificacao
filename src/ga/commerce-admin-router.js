@@ -48,7 +48,7 @@ import {
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceSalesDashboardV1,
-  commerceDashboardAbcV2,commerceDashboardShippingSplitV1,commerceAppendShopeeFullDailyV1,
+  commerceDashboardAbcV2,commerceDashboardShippingSplitV1,commerceAppendShopeeFullDailyV1,commerceAppendShopeeOrderExtrasV1,
   commerceSalesDashboardSeriesV1,
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
@@ -912,6 +912,14 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
         return json({error:'Lote Full Shopee inválido.'},400);
       return json({accepted_rows:await commerceAppendShopeeFullDailyV1(env,id,body.rows)});
+    }
+    const shopeeExtrasMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/shopee-extras$/);
+    if(method==='POST'&&shopeeExtrasMatch){
+      const id=positiveId(shopeeExtrasMatch[1]);
+      const body=await bodyJson(request);
+      if(!id||!Array.isArray(body?.rows)||body.rows.length<1||body.rows.length>100)
+        return json({error:'Lote de extras de pedidos Shopee inválido.'},400);
+      return json({accepted_rows:await commerceAppendShopeeOrderExtrasV1(env,id,body.rows)});
     }
     const financeMonthMatch=pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/finance-month$/);
     if(method==='POST'&&financeMonthMatch){

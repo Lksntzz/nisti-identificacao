@@ -24,6 +24,7 @@ Registro único em `src/ga/commerce-import-options.js` (alimenta o menu e a tela
 - **Receita do item = "Subtotal do produto"**, nunca o valor total do pedido. O SKU vem de "Número de referência SKU" (o SKU principal é "Nº de referência do SKU principal").
 - **Full** = coluna "Pedido FBS" = Yes **ou** "Opção de envio" = Full. Guardado por dia e SKU (`commerce_shopee_full_daily_v1`) e usado no card Full x envio próprio do Dashboard.
 - O financeiro (desconto do vendedor, taxa de transação, comissão, serviço) é somado por dia e por mês.
+- **Extras do pedido** (06/11/2026): `commerce-shopee-order-extras.js` resume por dia e SKU o preço original e o acordado (média ponderada, mínimo e máximo), cancelados com motivo (só estatística; continuam fora das vendas), frete estimado e pago pelo comprador, cashback do vendedor e unidades por UF. Frete e cashback são do pedido inteiro, então só entram em pedido de um único SKU. Vai em `shopee-extras` para `commerce_shopee_order_extras_daily_v1`; um lote de snapshot mais novo substitui os mesmos dias (gatilho `commerce_shopee_supersede_old_days_v1`). Ainda não há tela que leia esses dados.
 
 ## Regras do Mercado Livre
 

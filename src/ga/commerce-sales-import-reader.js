@@ -1,5 +1,6 @@
 import readExcelFile from 'read-excel-file/browser';
 import {aggregateShopeeFinance,shopeeFinanceColumns} from './commerce-shopee-finance-aggregation.js';
+import {aggregateShopeeExtras,shopeeExtrasColumns} from './commerce-shopee-order-extras.js';
 import { detectMercadoLivreVendasBrHeader, parseMercadoLivreVendasBr } from './commerce-ml-native-sales-reader.js';
 import { sha256Hex, COMMERCE_XLSX_MAX_BYTES, COMMERCE_XLSX_MAX_ROWS } from './commerce-xlsx-reader.js';
 
@@ -218,6 +219,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
   }
 
   const raw = [];
+  const rawCancelled = [];
   const sheetInfo = [];
   let physicalRows = 0;
 
@@ -242,6 +244,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     const foldHead=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
     const headNames=(data[header.rowIndex]||[]).map(foldHead);
     const fbsCol=headNames.indexOf('pedido fbs'),shipCol=headNames.indexOf('opcao de envio');
+    const extraCols=platformCode==='SHOPEE'?shopeeExtrasColumns(data[header.rowIndex]):null;
 
     let accepted = 0;
     let ignored = 0;
@@ -254,6 +257,18 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         }
         if (!isConfirmedShopeeOrder(cell(row, header.columns.status), cell(row, header.columns.paid_at))) {
           ignored += 1;
+          // Só para estatística de cancelamento (por dia e SKU); não entra nas vendas.
+          if (extraCols && isCancelled(fold(cell(row, header.columns.status)))) {
+            const cSku = text(cell(row, header.columns.sku)) || text(cell(row, header.columns.sku_primary));
+            const cDate = parseDateValue(cell(row, header.columns.date));
+            const cBounds = boundsForDate(cDate, fallbackPeriod);
+            if (cSku && cDate && cBounds) rawCancelled.push({
+              order_id: text(cell(row, header.columns.order_id)) || `ROW:${rowIndex + 1}`,
+              sale_date: cBounds.sale_date, sku_norm: normalizeSku(cSku),
+              units: header.columns.units >= 0 ? Math.max(1, integerValue(cell(row, header.columns.units), 1)) : 1,
+              reason: text(cell(row, extraCols.reason))
+            });
+          }
           continue;
         }
       } else if (header.columns.status >= 0 && isCancelled(cell(row, header.columns.status))) {
@@ -290,6 +305,14 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         product_revenue: Math.max(0, numberValue(cell(row, header.columns.revenue))),
         is_full:platformCode==='SHOPEE'&&(
           (fbsCol>=0&&foldHead(cell(row,fbsCol))==='yes')||(shipCol>=0&&foldHead(cell(row,shipCol))==='full')),
+        extras:extraCols?{
+          price_orig:numberValue(cell(row,extraCols.price_orig)),
+          price_paid:numberValue(cell(row,extraCols.price_paid)),
+          ship_est:numberValue(cell(row,extraCols.ship_est)),
+          ship_paid:numberValue(cell(row,extraCols.ship_paid)),
+          cashback:numberValue(cell(row,extraCols.cashback)),
+          uf:text(cell(row,extraCols.uf))
+        }:null,
         finance:financeColumns?{
           seller_discount:!text(cell(row,financeColumns.seller_discount))?NaN:
             numberValue(cell(row,financeColumns.seller_discount)),
@@ -451,6 +474,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     finance_daily_rows:finance.finance_daily_rows,
     finance_month_rows:finance.finance_month_rows,
     finance_summary:finance.finance_summary,
+    order_extras_daily_rows:platformCode==='SHOPEE'?aggregateShopeeExtras(raw,rawCancelled).order_extras_daily_rows:[],
     sheets: sheetInfo,
     data_through: maxDate(summaries.map(item => item.period_end)),
     summary: {
