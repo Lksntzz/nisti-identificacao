@@ -14,6 +14,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 | ID / scanner e catálogo | [[id-catalogo]] | Scanner de EAN, cadastro de produto, SKU, vínculo de EAN, gerador de código de barras |
 | Login e segurança | [[login-seguranca]] | Senha do admin, sessões, link da expedição, CSRF, cabeçalhos, rotas protegidas |
 | Expedição e monitor | [[expedicao-monitor]] | Painel de envio, monitor do notebook, fila de chamadas, som, link privado |
+| Notificações | [[notificacoes]] | Aviso de nova capa, push no celular, sino do admin |
 | Backup do banco e imagens | [[backup]] | Fazer, conferir ou planejar backup (hoje sem backup confirmado) |
 | Erro "Muitas requisições" | [[limites-requisicoes]] | Erro 429, painel travando, telas que consultam o servidor sem parar |
 
@@ -25,10 +26,9 @@ Abra **só a nota do assunto** em que for trabalhar.
 
 Etapa 1 feita: tudo da **expedição e monitor** (notificação para a expedição) está em `src/expedicao/` (rotas `notification-dispatch-*`, `expedition-dispatch-*`, monitor, telas `ExpeditionDashboard` e `NotificationDispatchView`, `notification-ui/`). As entradas (`src/operator-audit-router.js`, `src/edge-router.js`, `src/entry.jsx`, `src/main.jsx`) continuam em `src/`. Etapa 2 feita: tudo do **escâner** (`gtin*`, `ean-*`, overlay e CSS do escâner, `BarcodeGeneratorView`, `GtinEventsView`) está em `src/scanner/`. Próximas etapas previstas: Mural, painel admin e core; GA por último.
 
-## Notas que ainda não existem (a fazer, uma por vez)
+## Notas que ainda não existem
 
-notificações (novas capas, atividade do admin, push).
-Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[monitor-notificacoes-expedicao]]).
+Todas as áreas principais têm nota. Para assunto sem nota, a fonte é o código e os arquivos de `docs/` (ex.: [[monitor-notificacoes-expedicao]]). Escreva a nota quando for mexer na área.
 
 ## Pendências conhecidas (resolver e apagar daqui)
 
