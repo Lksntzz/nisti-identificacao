@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createMuralImageHandlers } from '../src/mural-image-routes.js';
+import { createMuralImageHandlers } from '../src/mural/mural-image-routes.js';
 
-const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
-const images=fs.readFileSync(new URL('../src/mural-image-routes.js',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/mural/mural-router.js',import.meta.url),'utf8');
+const images=fs.readFileSync(new URL('../src/mural/mural-image-routes.js',import.meta.url),'utf8');
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
 const handlers=createMuralImageHandlers({json});
 

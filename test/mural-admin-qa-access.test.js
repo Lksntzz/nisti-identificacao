@@ -7,7 +7,7 @@ test('Mural QA opens within protected admin route instead of public scanner',()=
  const admin = muralAdminSource;
  const main=read('src/main.jsx');
  const entry=read('src/entry.jsx');
- const mural=read('src/mural-nisti.jsx');
+ const mural=read('src/mural/mural-nisti.jsx');
  assert.match(admin,/\/admin\?mural=qa#admin\/mural-nisti/);
  assert.doesNotMatch(admin,/window\.location\.assign\('\/\?mural=qa'\)/);
  assert.match(main,/muralQaMode \? \(/);

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const read = name => fs.readFileSync(new URL('../src/admin/' + name, import.meta.url), 'utf8');
+const read = name => fs.readFileSync(new URL('../src/mural/' + name, import.meta.url), 'utf8');
 const main = read('MuralNistiAdminView.jsx');
 const shared = read('MuralPublishShared.jsx');
 const components = read('MuralPublishComponents.jsx');
@@ -39,7 +39,7 @@ test('publish controls preserve Canva, attachment and responsive preview compone
   assert.match(components, /export function PublishImageField/);
   assert.match(components, /export function PublishPreviewCard/);
   assert.match(components, /from '\.\/MuralPublishShared\.jsx'/);
-  assert.match(components, /from '\.\.\/mural-nisti\.jsx'/);
+  assert.match(components, /from '\.\/mural-nisti\.jsx'/);
   assert.match(components, /Arte da publicação · Canva/);
   assert.match(components, /Prévia 100% interativa/);
   assert.match(components, /fetch\(src, \{ credentials: 'same-origin', cache: 'no-store' \}\)/);

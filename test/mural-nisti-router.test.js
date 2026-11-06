@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 
-const source = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
-const postRoutes = fs.readFileSync(new URL('../src/mural-post-routes.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/mural/mural-router.js', import.meta.url), 'utf8');
+const postRoutes = fs.readFileSync(new URL('../src/mural/mural-post-routes.js', import.meta.url), 'utf8');
 const edgeRouter = fs.readFileSync(new URL('../src/edge-router.js', import.meta.url), 'utf8');
 const migration = fs.readFileSync(new URL('../migrations/0019_mural_nisti.sql', import.meta.url), 'utf8');
 

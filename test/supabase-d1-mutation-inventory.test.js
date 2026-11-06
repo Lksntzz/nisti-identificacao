@@ -12,10 +12,10 @@ function jsFiles(dir) {
 
 const reviewed = new Set([
   'src/scanner/gtin-router.js',
-  'src/mural-collection-routes.js',
-  'src/mural-image-routes.js',
-  'src/mural-post-routes.js',
-  'src/mural-router.js'
+  'src/mural/mural-collection-routes.js',
+  'src/mural/mural-image-routes.js',
+  'src/mural/mural-post-routes.js',
+  'src/mural/mural-router.js'
 ]);
 
 test('every JavaScript module containing a SQL D1 mutation is explicitly inventoried for A2',()=>{

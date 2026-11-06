@@ -19,7 +19,7 @@ test('descricaoDe usa o comentário do topo ou, sem ele, os exports', () => {
 test('gerar lista os arquivos reais de src/ sem escrever nada', () => {
   const md = gerar();
   assert.match(md, /Índice de arquivos de `src\/`/);
-  assert.match(md, /`src\/mural-router\.js`/);
+  assert.match(md, /`src\/mural\/mural-router\.js`/);
   assert.match(md, /`src\/commerce-supabase-store\.js`/);
   assert.match(md, /## GA \(Gestor de Anúncios\)/);
 });

@@ -23,7 +23,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 
 ## Pastas de código por módulo (reorganização em andamento)
 
-Etapa 1 feita: tudo da **expedição e monitor** (notificação para a expedição) está em `src/expedicao/` (rotas `notification-dispatch-*`, `expedition-dispatch-*`, monitor, telas `ExpeditionDashboard` e `NotificationDispatchView`, `notification-ui/`). As entradas (`src/operator-audit-router.js`, `src/edge-router.js`, `src/entry.jsx`, `src/main.jsx`) continuam em `src/`. Etapa 2 feita: tudo do **escâner** (`gtin*`, `ean-*`, overlay e CSS do escâner, `BarcodeGeneratorView`, `GtinEventsView`) está em `src/scanner/`. Próximas etapas previstas: Mural, painel admin e core; GA por último.
+Etapa 1 feita: tudo da **expedição e monitor** (notificação para a expedição) está em `src/expedicao/` (rotas `notification-dispatch-*`, `expedition-dispatch-*`, monitor, telas `ExpeditionDashboard` e `NotificationDispatchView`, `notification-ui/`). As entradas (`src/operator-audit-router.js`, `src/edge-router.js`, `src/entry.jsx`, `src/main.jsx`) continuam em `src/`. Etapa 2 feita: tudo do **escâner** (`gtin*`, `ean-*`, overlay e CSS do escâner, `BarcodeGeneratorView`, `GtinEventsView`) está em `src/scanner/`. Etapa 3 feita: tudo do **Mural** (`mural-*` e as telas `Mural*` do painel) está em `src/mural/`. Próximas etapas previstas: painel admin e core; GA por último.
 
 ## Notas que ainda não existem (a fazer, uma por vez)
 

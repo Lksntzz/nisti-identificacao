@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const admin = muralAdminSource;
-const css = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/mural/mural-admin.css', import.meta.url), 'utf8');
 
 test('Publicar uses a full-page studio instead of a modal', () => {
   assert.ok(admin.includes('mural-publisher-workspace mural-studio-workspace'));
@@ -80,7 +80,7 @@ test('studio is responsive without a duplicate mobile implementation', () => {
 
 test('trocar o tipo de publicacao nao copia dados entre Produto, Informacao e Colecao', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync('src/admin/MuralPublishWorkspace.jsx', 'utf8');
+  const src = readFileSync('src/mural/MuralPublishWorkspace.jsx', 'utf8');
   assert.match(src, /draftsRef\.current\[activeKind\] = \{ form, image, selectedProduct, productQuery \}/);
   assert.match(src, /setForm\(saved\?\.form \|\| freshPostForm\(nextKind\)\)/);
   assert.match(src, /setImage\(saved\?\.image \|\| null\)/);

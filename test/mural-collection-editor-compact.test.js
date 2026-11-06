@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const view = muralAdminSource;
-const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/mural/mural-admin.css',import.meta.url),'utf8');
 
 test('collection image picker follows the shared Publicar image component',()=>{
   assert.ok(view.includes('title="Arte da coleção (banner 2:1 recomendado)"'));

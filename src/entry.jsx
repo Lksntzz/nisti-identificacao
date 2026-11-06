@@ -112,7 +112,7 @@ function RootApp() {
         setAdminComponent(() => mod.default || mod.AdminApp);
       });
     } else if (route === 'mural' && !MuralComponent) {
-      import('./mural-standalone.jsx').then(mod => {
+      import('./mural/mural-standalone.jsx').then(mod => {
         setMuralComponent(() => mod.default);
       });
     } else if (route === 'dispatch' && !DispatchComponent) {

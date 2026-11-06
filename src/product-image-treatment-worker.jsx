@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { productImageMaskBlob } from './mural-transparent-image.js';
+import { productImageMaskBlob } from './mural/mural-transparent-image.js';
 import { canvaAlphaOutlineArtifactsBlob } from './canva-alpha-outline.js';
 import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
 

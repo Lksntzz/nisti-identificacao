@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import '../mural-admin.css';
+import './mural-admin.css';
 import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx';
 import MuralProductImageManager from './MuralProductImageManager.jsx';
 import { AdminMuralIcon, request } from './MuralPublishShared.jsx';

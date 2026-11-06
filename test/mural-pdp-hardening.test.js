@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const router=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
-const postRoutes=fs.readFileSync(new URL('../src/mural-post-routes.js',import.meta.url),'utf8');
-const imageRoutes=fs.readFileSync(new URL('../src/mural-image-routes.js',import.meta.url),'utf8');
-const collectionRoutes=fs.readFileSync(new URL('../src/mural-collection-routes.js',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/mural/mural-router.js',import.meta.url),'utf8');
+const postRoutes=fs.readFileSync(new URL('../src/mural/mural-post-routes.js',import.meta.url),'utf8');
+const imageRoutes=fs.readFileSync(new URL('../src/mural/mural-image-routes.js',import.meta.url),'utf8');
+const collectionRoutes=fs.readFileSync(new URL('../src/mural/mural-collection-routes.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
-const dashboard=fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
+const dashboard=fs.readFileSync(new URL('../src/mural/MuralPublicationsDashboard.jsx',import.meta.url),'utf8');
 
 test('public editorial images follow post and collection visibility',()=>{
   assert.match(router,/status='published'.*published_at IS NOT NULL.*datetime\(published_at\)<=CURRENT_TIMESTAMP.*expires_at/s);
@@ -38,7 +38,7 @@ test('PDP observability exposes per-publication visualizations',()=>{
 test('admin product preview uses current image and resolved finishes',()=>{
   assert.match(router,/const labels=finishLabels\(row\)/);
   assert.match(admin,/product\?\.image_url/);
-  const publicUi=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
+  const publicUi=fs.readFileSync(new URL('../src/mural/mural-nisti.jsx',import.meta.url),'utf8');
   assert.match(admin,/wireo: product\.wireo/);
   assert.match(admin,/tassel: product\.tassel/);
   assert.match(admin,/elastico: product\.elastico/);
@@ -59,7 +59,7 @@ test('unexpected backend failures do not expose internal error messages',()=>{
 });
 
 test('last successful feed survives Mural component remounts during the browser session',()=>{
-  assert.match(fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8'),/const muralSessionCache = new Map\(\)/);
+  assert.match(fs.readFileSync(new URL('../src/mural/mural-nisti.jsx',import.meta.url),'utf8'),/const muralSessionCache = new Map\(\)/);
 });
 
 test('public image URLs are versioned when their backing image key changes',()=>{
@@ -85,9 +85,9 @@ test('editorial badge follows the PDP 18 character maximum',()=>{
 });
 
 test('admin preview reuses the exact operator Mural card component',()=>{
-  const publicUi=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
+  const publicUi=fs.readFileSync(new URL('../src/mural/mural-nisti.jsx',import.meta.url),'utf8');
   assert.match(publicUi,/export function MuralCard/);
-  assert.match(admin,/import \{ MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard, MuralDetailContent \} from '\.\.\/mural-nisti\.jsx'/);
+  assert.match(admin,/import \{ MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard, MuralDetailContent \} from '\.\/mural-nisti\.jsx'/);
   assert.match(admin,/<MuralCard item=\{previewItem\}/);
   // o detalhe da previa tambem e o componente real do Mural (nao uma imitacao)
   assert.match(publicUi,/export function MuralDetailContent/);

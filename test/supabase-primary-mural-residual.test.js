@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const mural=fs.readFileSync('src/mural-router.js','utf8');
-const postRoutes=fs.readFileSync('src/mural-post-routes.js','utf8');
-const imageRoutes=fs.readFileSync('src/mural-image-routes.js','utf8');
+const mural=fs.readFileSync('src/mural/mural-router.js','utf8');
+const postRoutes=fs.readFileSync('src/mural/mural-post-routes.js','utf8');
+const imageRoutes=fs.readFileSync('src/mural/mural-image-routes.js','utf8');
 const mirror=fs.readFileSync('src/supabase-mutation-mirror.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261001245000_primary_mural_residual_v2.sql','utf8');
 const cleanupSql=fs.readFileSync('supabase/migrations/20261006194000_mural_publications_metrics_v1.sql','utf8');

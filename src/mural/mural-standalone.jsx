@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import './app.css';
+import '../app.css';
 import './mural-standalone.css';
-import LOGO from './assets/logo.png';
+import LOGO from '../assets/logo.png';
 import MuralNisti from './mural-nisti.jsx';
 
 // The dedicated Mural hostname never mounts the Scanner or admin interface.

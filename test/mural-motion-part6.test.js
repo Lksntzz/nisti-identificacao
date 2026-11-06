@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const mural = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
-const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
+const mural = fs.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/mural/mural-nisti.css', import.meta.url), 'utf8');
+const router = fs.readFileSync(new URL('../src/mural/mural-router.js', import.meta.url), 'utf8');
 const publicMain = fs.readFileSync(new URL('../src/public-main.jsx', import.meta.url), 'utf8');
 
 test('motion part 6 removes a broken collection cover instead of reserving empty media space', () => {

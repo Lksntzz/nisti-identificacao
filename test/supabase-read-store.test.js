@@ -280,7 +280,7 @@ test('primary operational writes bypass D1 for scanner events and mural reads', 
     'utf8'
   );
   const gtin = fs.readFileSync('src/scanner/gtin-router.js', 'utf8');
-  const mural = fs.readFileSync('src/mural-router.js', 'utf8');
+  const mural = fs.readFileSync('src/mural/mural-router.js', 'utf8');
 
   for (const name of [
     'nisti_record_gtin_scan_event_v1',

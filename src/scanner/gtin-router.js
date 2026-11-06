@@ -1,6 +1,6 @@
 import app from '../product-finish-router.js';
 import { requireValidGtin13 } from './gtin.js';
-import { scheduleEanAnnouncementDraft } from '../mural-ean-announcement.js';
+import { scheduleEanAnnouncementDraft } from '../mural/mural-ean-announcement.js';
 import { ACCESSORY_COLORS, WIREO_COLORS } from '../sku.js';
 import { explicitUtcTimestamp } from '../date-time.js';
 import {

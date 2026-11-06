@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { createMuralCollectionHandlers } from '../src/mural-collection-routes.js';
+import { createMuralCollectionHandlers } from '../src/mural/mural-collection-routes.js';
 
-const routerSource = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
-const collectionSource = fs.readFileSync(new URL('../src/mural-collection-routes.js', import.meta.url), 'utf8');
+const routerSource = fs.readFileSync(new URL('../src/mural/mural-router.js', import.meta.url), 'utf8');
+const collectionSource = fs.readFileSync(new URL('../src/mural/mural-collection-routes.js', import.meta.url), 'utf8');
 
 const response = (data, status = 200) => new Response(JSON.stringify(data), {
   status, headers: { 'content-type': 'application/json' }

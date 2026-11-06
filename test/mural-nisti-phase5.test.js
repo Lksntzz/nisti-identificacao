@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const mural=fs.readFileSync(new URL('../src/mural-router.js',import.meta.url),'utf8');
-const postRoutes=fs.readFileSync(new URL('../src/mural-post-routes.js',import.meta.url),'utf8');
+const mural=fs.readFileSync(new URL('../src/mural/mural-router.js',import.meta.url),'utf8');
+const postRoutes=fs.readFileSync(new URL('../src/mural/mural-post-routes.js',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
 const push=fs.readFileSync(new URL('../src/web-push.js',import.meta.url),'utf8');
 const admin = muralAdminSource;

@@ -1,7 +1,7 @@
-import { WIREO_COLORS, ACCESSORY_COLORS } from './sku.js';
-import { productTypeLabel } from './product-display.js';
-import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
-import { broadcastMuralPush } from './web-push.js';
+import { WIREO_COLORS, ACCESSORY_COLORS } from '../sku.js';
+import { productTypeLabel } from '../product-display.js';
+import { PRODUCT_IMAGE_PROCESSOR_VERSION } from '../product-image-processor-version.js';
+import { broadcastMuralPush } from '../web-push.js';
 import { createMuralCollectionHandlers } from './mural-collection-routes.js';
 import { createMuralPostHandlers } from './mural-post-routes.js';
 import { createMuralImageHandlers } from './mural-image-routes.js';
@@ -13,8 +13,8 @@ import {
   supabaseReserveMuralFeed,
   supabaseReserveMuralPostImage,
   supabaseReserveMuralUnread
-} from './supabase-read-store.js';
-import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from './supabase-write-store.js';
+} from '../supabase-read-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from '../supabase-write-store.js';
 
 const MURAL_PUBLIC_RELEASED = true;
 

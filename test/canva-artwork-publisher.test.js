@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const router=fs.readFileSync(new URL('../src/canva-image-router.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
-const css=fs.readFileSync(new URL('../src/mural-admin.css',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/mural/mural-admin.css',import.meta.url),'utf8');
 
 test('Canva artwork API exposes templates create and export routes',()=>{
   assert.ok(router.includes("'/api/admin/canva/templates'"));

@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const admin = muralAdminSource;
-const router=fs.readFileSync(new URL('../src/mural-collection-routes.js',import.meta.url),'utf8');
-const mural=fs.readFileSync(new URL('../src/mural-nisti.jsx',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/mural/mural-collection-routes.js',import.meta.url),'utf8');
+const mural=fs.readFileSync(new URL('../src/mural/mural-nisti.jsx',import.meta.url),'utf8');
 const migration=fs.readFileSync(new URL('../supabase/migrations/20261006145000_mural_collection_hero_v1.sql',import.meta.url),'utf8');
 
 test('collection editor exposes optional year and hero banner metadata',()=>{
@@ -38,8 +38,8 @@ test('Supabase publish title respects show_year',()=>{
 
 test('collection opening animation choice reaches the operator intro', () => {
   const fs2 = fs;
-  const nisti = fs2.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
-  const routes = fs2.readFileSync(new URL('../src/mural-collection-routes.js', import.meta.url), 'utf8');
+  const nisti = fs2.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
+  const routes = fs2.readFileSync(new URL('../src/mural/mural-collection-routes.js', import.meta.url), 'utf8');
   assert.ok(routes.includes("'fireworks'"));
   assert.ok(nisti.includes("introStyle={collection.visual_direction === 'fireworks' ? 'fireworks' : 'confetti'}"));
   assert.ok(nisti.includes('className="mural-showcase"'));

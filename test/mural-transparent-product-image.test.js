@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { __muralTransparentImageInternals } from '../src/mural-transparent-image.js';
+import { __muralTransparentImageInternals } from '../src/mural/mural-transparent-image.js';
 
-const source = fs.readFileSync(new URL('../src/mural-transparent-image.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/mural/mural-transparent-image.js', import.meta.url), 'utf8');
 
 test('runtime cutout never applies a shared MKP mold to an individual product', () => {
   assert.equal(source.includes('MKP_PRODUCT_MASKS'), false);

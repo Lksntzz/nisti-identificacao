@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const dashboard = fs.readFileSync(new URL('../src/admin/MuralPublicationsDashboard.jsx', import.meta.url), 'utf8');
+const dashboard = fs.readFileSync(new URL('../src/mural/MuralPublicationsDashboard.jsx', import.meta.url), 'utf8');
 const admin = muralAdminSource;
-const css = fs.readFileSync(new URL('../src/mural-admin.css', import.meta.url), 'utf8');
-const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
-const postRoutes = fs.readFileSync(new URL('../src/mural-post-routes.js', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/mural/mural-admin.css', import.meta.url), 'utf8');
+const router = fs.readFileSync(new URL('../src/mural/mural-router.js', import.meta.url), 'utf8');
+const postRoutes = fs.readFileSync(new URL('../src/mural/mural-post-routes.js', import.meta.url), 'utf8');
 
 test('Mural admin uses the approved publication dashboard layout', () => {
   assert.ok(admin.includes("import MuralPublicationsDashboard from './MuralPublicationsDashboard.jsx'"));

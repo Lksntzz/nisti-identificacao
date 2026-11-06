@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard, MuralDetailContent } from '../mural-nisti.jsx';
+import { MuralCard, Hero, CollectionLaunchHero, CollectionLaunchCard, MuralDetailContent } from './mural-nisti.jsx';
 import { productTypeLabel } from '../product-display.js';
 import { AdminMuralIcon, request, requestBlob } from './MuralPublishShared.jsx';
 

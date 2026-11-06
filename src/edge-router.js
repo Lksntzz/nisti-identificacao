@@ -5,7 +5,7 @@ import { handleCommerceUpdateAdminRequest } from './commerce-update-admin-router
 import { handleCommerceListingStateRequest } from './commerce-listing-state-router.js';
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
-import { handleMuralRequest } from './mural-router.js';
+import { handleMuralRequest } from './mural/mural-router.js';
 import { handleNotificationDispatchRequest } from './expedicao/notification-dispatch-router.js';
 import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedicao/expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';

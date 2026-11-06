@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const source = file => fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');
 
 test('Mural is released to the operator app and links open only published posts',()=>{
-  const router=source('src/mural-router.js');
+  const router=source('src/mural/mural-router.js');
   const app=source('src/public-main.jsx');
   assert.match(router,/const MURAL_PUBLIC_RELEASED = true;/);
   assert.match(router,/released: MURAL_PUBLIC_RELEASED/);
@@ -18,8 +18,8 @@ test('Mural is released to the operator app and links open only published posts'
 
 test('all real Mural push infrastructure remains while every test action was removed',()=>{
   const app=source('src/public-main.jsx');
-  const admin=source('src/admin/MuralNistiAdminView.jsx');
-  const router=source('src/mural-router.js');
+  const admin=source('src/mural/MuralNistiAdminView.jsx');
+  const router=source('src/mural/mural-router.js');
   const core=source('src/core-router.js');
   const sender=source('src/web-push.js');
   const sw=source('public/sw.js');

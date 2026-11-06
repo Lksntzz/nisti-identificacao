@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const jsx = fs.readFileSync(new URL('../src/mural-nisti.jsx', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../src/mural-nisti.css', import.meta.url), 'utf8');
+const jsx = fs.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/mural/mural-nisti.css', import.meta.url), 'utf8');
 
 test('Mural notice card uses isolated purple-and-gold megaphone emblem', () => {
   const start = jsx.indexOf('export function MuralCard(');
@@ -32,6 +32,6 @@ test('Notice-only CSS preserves editorial contrast and separate important-alert 
 });
 
 test('Notice changes never change the operator Mural release gate', () => {
-  const router = fs.readFileSync(new URL('../src/mural-router.js', import.meta.url), 'utf8');
+  const router = fs.readFileSync(new URL('../src/mural/mural-router.js', import.meta.url), 'utf8');
   assert.match(router, /const MURAL_PUBLIC_RELEASED = true;/);
 });
