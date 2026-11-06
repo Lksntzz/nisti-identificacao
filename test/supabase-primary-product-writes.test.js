@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 'utf8');
-const finish = fs.readFileSync(new URL('../src/product-finish-router.js', import.meta.url), 'utf8');
+const core = fs.readFileSync(new URL('../src/core/core-router.js', import.meta.url), 'utf8');
+const finish = fs.readFileSync(new URL('../src/imagens/product-finish-router.js', import.meta.url), 'utf8');
 const gtin = fs.readFileSync(new URL('../src/scanner/gtin-router.js', import.meta.url), 'utf8');
-const mirror = fs.readFileSync(new URL('../src/supabase-mutation-mirror.js', import.meta.url), 'utf8');
+const mirror = fs.readFileSync(new URL('../src/core/supabase-mutation-mirror.js', import.meta.url), 'utf8');
 const migration = fs.readFileSync(
   new URL('../supabase/migrations/20261001200000_primary_product_writes_v1.sql', import.meta.url),
   'utf8'

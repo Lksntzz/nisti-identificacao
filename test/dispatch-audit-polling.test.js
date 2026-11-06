@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isSuccessfulDispatchPolling, recordAdminActivityFromResponse } from '../src/system-notifications.js';
+import { isSuccessfulDispatchPolling, recordAdminActivityFromResponse } from '../src/core/system-notifications.js';
 
 test('successful dispatch polling is ignored by admin audit', async () => {
   for (const path of ['/api/dispatch/view', '/api/dispatch/next', '/api/dispatch/pair/status']) {

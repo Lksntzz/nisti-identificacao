@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createCatalogXlsx } from './catalog-xlsx.js';
 import { CommerceSyncBadge } from './CommerceSyncBadge.jsx';
 import { AdminState } from './AdminState.jsx';
-import ProductCutoutImage from '../product-cutout-image.jsx';
+import ProductCutoutImage from '../imagens/product-cutout-image.jsx';
 
 const PAGE_SIZE = 10;
 

@@ -7,7 +7,7 @@ function read(path) {
 }
 
 test('menu administrativo do NISTI ID não tem mais o Painel Comercial', () => {
-  const nav = read('src/admin-navigation.js');
+  const nav = read('src/admin/admin-navigation.js');
   assert.equal(nav.includes("title: 'COMERCIAL'"), false);
   assert.equal(nav.includes("label: 'Painel Comercial'"), false);
   const main = read('src/main.jsx');

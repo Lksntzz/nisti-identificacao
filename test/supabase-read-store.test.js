@@ -5,11 +5,11 @@ import {
   SupabaseReadError,
   preferSupabaseRead,
   supabaseRpc
-} from '../src/supabase-read-store.js';
+} from '../src/core/supabase-read-store.js';
 import {
   listPlatforms,
   platformExists
-} from '../src/platform-scope.js';
+} from '../src/core/platform-scope.js';
 
 const configuredEnv = {
   SUPABASE_READS_ENABLED: '1',
@@ -206,7 +206,7 @@ test('RPC migration is service-role only and never SECURITY DEFINER', () => {
 
 test('retired automatic visual fastpath stays removed', () => {
   assert.equal(fs.existsSync('src/retrieval-fastpath.js'), false);
-  const images = fs.readFileSync('src/public-image-router.js', 'utf8');
+  const images = fs.readFileSync('src/imagens/public-image-router.js', 'utf8');
   assert.match(images, /supabaseImageKey/);
 });
 
@@ -222,7 +222,7 @@ test('reserve catalog RPC is service-role only', () => {
 });
 
 test('public product images use preferred store for treated and original keys', () => {
-  const images = fs.readFileSync('src/public-image-router.js', 'utf8');
+  const images = fs.readFileSync('src/imagens/public-image-router.js', 'utf8');
   assert.match(images, /imageKey\(env, 'mural-product'/);
   assert.match(images, /imageKey\(env, 'product'/);
 });
@@ -263,7 +263,7 @@ test('GTIN dashboard uses the Supabase reserve without touching D1 when reads ar
     'utf8'
   );
   const router = fs.readFileSync('src/scanner/gtin-router.js', 'utf8');
-  const store = fs.readFileSync('src/supabase-read-store.js', 'utf8');
+  const store = fs.readFileSync('src/core/supabase-read-store.js', 'utf8');
 
   assert.match(migration, /nisti_reserve_gtin_dashboard_v1/);
   assert.match(migration, /SECURITY INVOKER/i);

@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = p => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
-const view = read('src/system-health-view.jsx');
+const view = read('src/admin/system-health-view.jsx');
 const main = read('src/main.jsx');
-const router = read('src/system-metrics-clean-router.js');
+const router = read('src/core/system-metrics-clean-router.js');
 
 test('painel identifica o banco real (Supabase), não o D1 antigo', () => {
   assert.match(view, /<span>Banco \(Supabase\)<\/span>/);

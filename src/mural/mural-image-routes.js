@@ -1,5 +1,5 @@
-import { supabaseRpc } from '../supabase-read-store.js';
-import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from '../supabase-write-store.js';
+import { supabaseRpc } from '../core/supabase-read-store.js';
+import { mirrorSupabaseRpc, supabasePrimaryWritesRequested } from '../core/supabase-write-store.js';
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_EDITORIAL_IMAGE_BYTES = 5 * 1024 * 1024;

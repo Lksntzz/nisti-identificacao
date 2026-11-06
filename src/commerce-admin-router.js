@@ -1,5 +1,5 @@
 import { cachedRead, isCacheableReadPath } from './commerce-read-cache.js';
-import { SupabaseReadError } from './supabase-read-store.js';
+import { SupabaseReadError } from './core/supabase-read-store.js';
 import {
   commerceAppendImportRows,
   commerceApproveNewRows,

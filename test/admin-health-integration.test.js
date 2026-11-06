@@ -15,7 +15,7 @@ test('Saúde & Logs não usa painel legado com quotas inventadas', () => {
 });
 
 test('Painel de saúde mostra diagnóstico e logs operacionais reais', () => {
-  const source = read('src/system-health-view.jsx');
+  const source = read('src/admin/system-health-view.jsx');
   assert.equal(source.includes('Saúde & Logs'), true);
   assert.equal(source.includes('Diagnóstico real da API, bancos, imagens, sincronização e bipagens'), true);
   assert.equal(source.includes('Erros e ocorrências recentes'), true);

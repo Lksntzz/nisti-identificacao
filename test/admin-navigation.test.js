@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   ADMIN_MENU_SECTIONS,
   REMOVED_ADMIN_NAV_IDS
-} from '../src/admin-navigation.js';
+} from '../src/admin/admin-navigation.js';
 
 function flattenedItems() {
   return ADMIN_MENU_SECTIONS.flatMap(section => section.items || []);
@@ -80,7 +80,7 @@ test('Admin source has no legacy duplicate navigation or dead PlatformsView', ()
 
   const sidebar = fs.readFileSync(new URL('../src/admin/AdminSidebar.jsx', import.meta.url), 'utf8');
   assert.equal(source.includes("import AdminSidebar from './admin/AdminSidebar.jsx';"), true);
-  assert.equal(sidebar.includes("import { ADMIN_MENU_SECTIONS } from '../admin-navigation.js';"), true);
+  assert.equal(sidebar.includes("import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';"), true);
   assert.equal(source.includes('Abrir NISTI ID'), false);
   assert.equal(source.includes('Voltar ao Scanner de Expedição'), false);
   assert.equal(source.includes('<span>Scanner</span>'), false);

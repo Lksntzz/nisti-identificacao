@@ -4,7 +4,7 @@ import test from 'node:test';
 import { __muralTransparentImageInternals } from '../src/mural/mural-transparent-image.js';
 
 const source = fs.readFileSync(new URL('../src/mural/mural-transparent-image.js', import.meta.url), 'utf8');
-const worker = fs.readFileSync(new URL('../src/product-image-treatment-worker.jsx', import.meta.url), 'utf8');
+const worker = fs.readFileSync(new URL('../src/imagens/product-image-treatment-worker.jsx', import.meta.url), 'utf8');
 
 function fixture(width = 160, height = 160) {
   const data = new Uint8ClampedArray(width * height * 4);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSku, WIREO_COLORS, ACCESSORY_COLORS } from '../src/sku.js';
+import { parseSku, WIREO_COLORS, ACCESSORY_COLORS } from '../src/core/sku.js';
 
 test('parseSku parses valid SKU correctly with tassel', () => {
   const result = parseSku('CAD_A5_PBA');

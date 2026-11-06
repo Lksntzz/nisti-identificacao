@@ -1,7 +1,7 @@
 import {
   preferSupabaseRead,
   supabaseImageKey
-} from './supabase-read-store.js';
+} from '../core/supabase-read-store.js';
 
 function notFound() {
   return new Response('Not found', {

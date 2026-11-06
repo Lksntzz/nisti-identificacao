@@ -3,7 +3,7 @@ import './app.css';
 import LOGO from './assets/logo.png';
 import GtinScannerOverlay from './scanner/gtin-scanner-overlay.jsx';
 import MuralNisti from './mural/mural-nisti.jsx';
-import ProductCutoutImage from './product-cutout-image.jsx';
+import ProductCutoutImage from './imagens/product-cutout-image.jsx';
 
 class ApiError extends Error {
   constructor(message, status, data) {

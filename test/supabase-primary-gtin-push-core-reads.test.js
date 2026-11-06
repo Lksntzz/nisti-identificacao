@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core=fs.readFileSync('src/core-router.js','utf8');
+const core=fs.readFileSync('src/core/core-router.js','utf8');
 const gtin=fs.readFileSync('src/scanner/gtin-router.js','utf8');
-const mirror=fs.readFileSync('src/supabase-mutation-mirror.js','utf8');
+const mirror=fs.readFileSync('src/core/supabase-mutation-mirror.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261001260000_primary_gtin_registry_reads_v1.sql','utf8');
 
 test('GTIN registry and product GTIN reads use Supabase when enabled',()=>{

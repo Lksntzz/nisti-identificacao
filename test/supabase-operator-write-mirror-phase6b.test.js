@@ -6,7 +6,7 @@ import {
   supabaseMirrorWritesRequested,
   supabasePrimaryWritesRequested,
   supabaseWriteMode
-} from '../src/supabase-write-store.js';
+} from '../src/core/supabase-write-store.js';
 
 const configuredEnv = {
   SUPABASE_URL: 'https://example.supabase.co',

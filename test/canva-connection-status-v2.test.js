@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const bridge=fs.readFileSync(new URL('../src/canva-bridge-entry.js',import.meta.url),'utf8');
+const bridge=fs.readFileSync(new URL('../src/imagens/canva-bridge-entry.js',import.meta.url),'utf8');
 const edge=fs.readFileSync(new URL('../src/edge-router.js',import.meta.url),'utf8');
 
 test('Canva status does not downgrade a stored session on auxiliary API failure',()=>{
@@ -14,5 +14,5 @@ test('Canva status does not downgrade a stored session on auxiliary API failure'
 
 test('edge router uses resilient Canva bridge entrypoint',()=>{
   assert.ok(edge.includes("handleCanvaBridgeRequest"));
-  assert.ok(edge.includes("./canva-bridge-entry.js"));
+  assert.ok(edge.includes("./imagens/canva-bridge-entry.js"));
 });

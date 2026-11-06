@@ -12,12 +12,12 @@ test('admin background metrics refresh is five minutes and only runs while visib
 });
 
 test('system health cache matches the reduced five-minute cadence', () => {
-  const metrics=read('src/system-metrics-clean-router.js');
+  const metrics=read('src/core/system-metrics-clean-router.js');
   assert.match(metrics,/SYSTEM_HEALTH_CACHE_TTL_MS = 60 \* 1000/);
 });
 
 test('catalog list no longer executes D1 SQL after the Supabase runtime cutover', () => {
-  const core=read('src/core-router.js');
+  const core=read('src/core/core-router.js');
   assert.match(core,/supabaseReserveProducts\(env\)/);
   assert.doesNotMatch(core,/WITH first_platform_id AS/);
   assert.doesNotMatch(core,/env\.DB/);
@@ -25,7 +25,7 @@ test('catalog list no longer executes D1 SQL after the Supabase runtime cutover'
 
 test('product mutations do not wake the manual treatment worker', () => {
   const main=read('src/main.jsx');
-  const worker=read('src/product-image-treatment-worker.jsx');
+  const worker=read('src/imagens/product-image-treatment-worker.jsx');
   assert.doesNotMatch(main,/TREATMENT_WAKE_EVENT/);
   assert.doesNotMatch(worker,/TREATMENT_WAKE_EVENT/);
   assert.doesNotMatch(worker,/IDLE_POLL_MS/);

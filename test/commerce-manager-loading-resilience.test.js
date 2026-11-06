@@ -6,7 +6,7 @@ import {fetchCommercialManager} from '../src/commerce-manager-fetch.js';
 const sql=fs.readFileSync('supabase/migrations/20261016231500_commerce_listing_manager_single_daily_scan_v1.sql','utf8');
 const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
 const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const base=fs.readFileSync('src/supabase-read-store.js','utf8');
+const base=fs.readFileSync('src/core/supabase-read-store.js','utf8');
 
 const mockResponse=(status,payload)=>({ok:status>=200&&status<300,status,json:async()=>payload});
 

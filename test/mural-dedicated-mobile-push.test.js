@@ -5,7 +5,7 @@ const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'ut
 
 test('Mural push is enabled exclusively for released operator content', () => {
   const router = read('src/mural/mural-router.js');
-  const push = read('src/web-push.js');
+  const push = read('src/core/web-push.js');
   assert.match(router, /const MURAL_PUBLIC_RELEASED = true/);
   assert.match(router, /if \(!MURAL_PUBLIC_RELEASED\) return/);
   assert.match(router, /if \(!MURAL_PUBLIC_RELEASED\) \{/);
@@ -15,7 +15,7 @@ test('Mural push is enabled exclusively for released operator content', () => {
 
 test('New collections, products, and notices get their own push path after publish', () => {
   const router = read('src/mural/mural-router.js') + '\n' + read('src/mural/mural-post-routes.js') + '\n' + read('src/mural/mural-collection-routes.js');
-  const push = read('src/web-push.js');
+  const push = read('src/core/web-push.js');
   assert.match(router, /await notifyMuralAfterPublication\(env, id\)/);
   assert.match(router, /await notifyMuralAfterPublication\(env, Number\(value\.id\)\)/);
   assert.match(router, /await notifyMuralAfterPublication\(env, postId\)/);

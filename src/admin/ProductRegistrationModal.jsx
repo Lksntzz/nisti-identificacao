@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import ProductCutoutImage from '../product-cutout-image.jsx';
+import ProductCutoutImage from '../imagens/product-cutout-image.jsx';
 import { CommerceSyncBadge } from './CommerceSyncBadge.jsx';
 import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../scanner/ean-barcode.js';
 

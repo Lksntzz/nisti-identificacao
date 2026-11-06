@@ -1,6 +1,6 @@
-import app from './edge-router.js';
+import app from '../edge-router.js';
 import { listPlatforms, normalizePlatform } from './platform-scope.js';
-import { handlePublicImageRequest } from './public-image-router.js';
+import { handlePublicImageRequest } from '../imagens/public-image-router.js';
 
 function invalidPlatformResponse() {
   return new Response(JSON.stringify({

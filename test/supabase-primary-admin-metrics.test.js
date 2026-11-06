@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const metrics=fs.readFileSync('src/system-metrics-clean-router.js','utf8');
+const metrics=fs.readFileSync('src/core/system-metrics-clean-router.js','utf8');
 const cleanup=fs.readFileSync('supabase/migrations/20261002115500_remove_ai_recognition_legacy.sql','utf8');
 
 test('Admin metrics and health use only active Supabase operational RPCs',()=>{

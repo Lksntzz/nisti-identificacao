@@ -8,7 +8,7 @@ import { handleCommerceListingEditorRequest } from './commerce-listing-editor-ro
 import { handleMuralRequest } from './mural/mural-router.js';
 import { handleNotificationDispatchRequest } from './expedicao/notification-dispatch-router.js';
 import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedicao/expedition-dispatch-sender-router.js';
-import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
+import { handleCanvaBridgeRequest } from './imagens/canva-bridge-entry.js';
 import { GA_HOST, handleGaHostRequest } from './ga-access.js';
 
 const COOKIE_NAME = 'nisti_admin_session';

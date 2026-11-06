@@ -1,14 +1,14 @@
 import { parseSku } from './sku.js';
-import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js';
-import { requireValidGtin13 } from './scanner/gtin.js';
-import { scheduleEanAnnouncementDraft } from './mural/mural-ean-announcement.js';
+import { PRODUCT_IMAGE_PROCESSOR_VERSION } from '../imagens/product-image-processor-version.js';
+import { requireValidGtin13 } from '../scanner/gtin.js';
+import { scheduleEanAnnouncementDraft } from '../mural/mural-ean-announcement.js';
 import {
   updateNotificationImage,
   listUserNotifications,
   getUnreadNotificationsCount,
   markNotificationRead,
   markAllNotificationsRead
-} from './cover-notifications.js';
+} from '../cover-notifications.js';
 import {
   getVapidPublicKey,
   savePushSubscription,
@@ -32,7 +32,7 @@ import {
   reconcileNistiProductToCommerceSafe,
   nistiCommerceSyncStatus,
   nistiCommerceProductStatuses
-} from './nisti-commerce-sync.js';
+} from '../nisti-commerce-sync.js';
 import {
   listAdminSystemNotifications,
   getAdminSystemUnreadCount,

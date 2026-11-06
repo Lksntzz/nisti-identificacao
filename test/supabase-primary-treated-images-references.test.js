@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
-const mirror=fs.readFileSync(new URL('../src/supabase-mutation-mirror.js',import.meta.url),'utf8');
+const core=fs.readFileSync(new URL('../src/core/core-router.js',import.meta.url),'utf8');
+const mirror=fs.readFileSync(new URL('../src/core/supabase-mutation-mirror.js',import.meta.url),'utf8');
 const cleanup=fs.readFileSync(new URL('../supabase/migrations/20261002115500_remove_ai_recognition_legacy.sql',import.meta.url),'utf8');
 const masks=fs.readFileSync(new URL('../supabase/migrations/20261002162500_persistent_product_masks_v1.sql',import.meta.url),'utf8');
 

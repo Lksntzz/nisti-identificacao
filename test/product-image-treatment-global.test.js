@@ -6,7 +6,7 @@ import { __muralTransparentImageInternals } from '../src/mural/mural-transparent
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('shared product component uses the final treated PNG pipeline', () => {
-  const component = read('src/product-cutout-image.jsx');
+  const component = read('src/imagens/product-cutout-image.jsx');
   const utility = read('src/mural/mural-transparent-image.js');
   assert.ok(component.includes('useTreatedProductImage'));
   assert.ok(component.includes('decoding="async"'));
@@ -125,9 +125,9 @@ test('Mural product rendering uses the same treated image pipeline', () => {
 
 
 test('database keeps original image and exposes persisted treated derivative as display image', () => {
-  const core = read('src/core-router.js');
-  const publicImages = read('src/public-image-router.js');
-  const component = read('src/product-cutout-image.jsx');
+  const core = read('src/core/core-router.js');
+  const publicImages = read('src/imagens/public-image-router.js');
+  const component = read('src/imagens/product-cutout-image.jsx');
   const migration = read('migrations/0022_product_display_images.sql');
 
   assert.ok(core.includes('/api/admin/product-image-treatment/pending'));
@@ -160,7 +160,7 @@ test('contour v9 requeues generated derivatives but preserves approved manual PN
 
 test('admin mounts the treatment worker but processing only starts by explicit control', () => {
   const main = read('src/main.jsx');
-  const worker = read('src/product-image-treatment-worker.jsx');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
 
   assert.ok(main.includes('ProductImageTreatmentWorker'));
   assert.equal(main.includes('TREATMENT_WAKE_EVENT'), false);
@@ -183,9 +183,9 @@ test('admin mounts the treatment worker but processing only starts by explicit c
 });
 
 test('stale browser clients cannot persist or approve a pre-v25 cutout', () => {
-  const worker = read('src/product-image-treatment-worker.jsx');
-  const core = read('src/core-router.js');
-  const version = read('src/product-image-processor-version.js');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
+  const core = read('src/core/core-router.js');
+  const version = read('src/imagens/product-image-processor-version.js');
   assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '25'"));
   assert.ok(worker.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
   assert.equal((worker.match(/form\.append\('processor_version', PRODUCT_IMAGE_PROCESSOR_VERSION\)/g) || []).length, 2);
@@ -195,7 +195,7 @@ test('stale browser clients cannot persist or approve a pre-v25 cutout', () => {
 
 test('original product image upload is independent from the Mural processor version', () => {
   const main = read('src/main.jsx');
-  const core = read('src/core-router.js');
+  const core = read('src/core/core-router.js');
   const start = core.indexOf("const imageUpload = url.pathname.match(/^\\/api\\/products\\/(\\d+)\\/image$/);");
   const end = core.indexOf("const imageGet = url.pathname.match", start);
   const originalUpload = core.slice(start, end);
@@ -210,8 +210,8 @@ test('original product image upload is independent from the Mural processor vers
 
 test('each product treatment persists an individual auditable mask', () => {
   const utility = read('src/mural/mural-transparent-image.js');
-  const worker = read('src/product-image-treatment-worker.jsx');
-  const core = read('src/core-router.js');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
+  const core = read('src/core/core-router.js');
   const migration = read('supabase/migrations/20261002162500_persistent_product_masks_v1.sql');
 
   assert.ok(utility.includes('productMaskPngBlob'));
@@ -232,8 +232,8 @@ test('each product treatment persists an individual auditable mask', () => {
 
 test('mask backfill is visible and cannot destroy treatment review state', () => {
   const admin = read('src/mural/MuralProductImageManager.jsx');
-  const worker = read('src/product-image-treatment-worker.jsx');
-  const core = read('src/core-router.js');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
+  const core = read('src/core/core-router.js');
 
   assert.ok(core.includes('mask_ready:Math.max(0,withImage-maskPending)'));
   assert.ok(core.includes('mask_pending:maskPending'));
@@ -244,9 +244,9 @@ test('mask backfill is visible and cannot destroy treatment review state', () =>
 
 test('Mural admin shows live treatment totals and the current SKU', () => {
   const admin = read('src/mural/MuralProductImageManager.jsx');
-  const worker = read('src/product-image-treatment-worker.jsx');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
   const css = read('src/mural/mural-admin.css');
-  const core = read('src/core-router.js');
+  const core = read('src/core/core-router.js');
   const summarySql = read('supabase/migrations/20261001223000_product_treatment_admin_reads_v1.sql');
 
   assert.ok(admin.includes("nisti:product-image-treatment-progress"));
@@ -265,9 +265,9 @@ test('Mural admin shows live treatment totals and the current SKU', () => {
 
 
 test('display endpoint is server-authoritative and serves explicitly approved derivatives across processor versions', () => {
-  const publicImages = read('src/public-image-router.js');
+  const publicImages = read('src/imagens/public-image-router.js');
   const utility = read('src/mural/mural-transparent-image.js');
-  const core = read('src/core-router.js');
+  const core = read('src/core/core-router.js');
   const queueSql = read('supabase/migrations/20261002173000_mkp_treatment_queue_wireo_v1.sql');
 
   assert.ok(publicImages.includes("'x-nisti-image-source':'treated'"));
@@ -275,9 +275,9 @@ test('display endpoint is server-authoritative and serves explicitly approved de
   const hook = utility.slice(utility.indexOf('export function useTreatedProductImage'), utility.indexOf('export const __muralTransparentImageInternals'));
   assert.ok(hook.includes('Display is server-authoritative'));
   assert.equal(hook.includes('treatedProductImageUrl('), false);
-  const version = read('src/product-image-processor-version.js');
+  const version = read('src/imagens/product-image-processor-version.js');
   assert.ok(version.includes("PRODUCT_IMAGE_PROCESSOR_VERSION = '25'"));
-  assert.ok(core.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from './product-image-processor-version.js'"));
+  assert.ok(core.includes("import { PRODUCT_IMAGE_PROCESSOR_VERSION } from '../imagens/product-image-processor-version.js'"));
   assert.ok(core.includes('supabaseProductTreatmentQueue'));
   assert.ok(core.includes("wireo_code:row.wireo_code || ''"));
   assert.ok(queueSql.includes("queue_status IN ('pending','stale')"));
@@ -294,9 +294,9 @@ test('display endpoint is server-authoritative and serves explicitly approved de
 });
 
 test('treatment queue cannot be blocked forever by one failed or oversized image', () => {
-  const worker = read('src/product-image-treatment-worker.jsx');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
   const utility = read('src/mural/mural-transparent-image.js');
-  const core = read('src/core-router.js');
+  const core = read('src/core/core-router.js');
 
   assert.ok(utility.includes('const MAX_RENDER_DIMENSION = 1280'));
   assert.ok(utility.includes("URL.revokeObjectURL(cutoutSrc)"));
@@ -307,9 +307,9 @@ test('treatment queue cannot be blocked forever by one failed or oversized image
 
 test('treatment supports pause, review, approval and explicit precise redo', () => {
   const admin = read('src/mural/MuralProductImageManager.jsx');
-  const worker = read('src/product-image-treatment-worker.jsx');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
   const utility = read('src/mural/mural-transparent-image.js');
-  const core = read('src/core-router.js');
+  const core = read('src/core/core-router.js');
 
   assert.ok(worker.includes('TREATMENT_PAUSE_KEY'));
   assert.ok(worker.includes("status:'review'"));
@@ -364,10 +364,10 @@ test('Mural review opens a large preview and exposes approve and precise-redo ac
 
 
 test('manual image treatment stays idle until the admin explicitly starts it', () => {
-  const worker = read('src/product-image-treatment-worker.jsx');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
   const admin = read('src/mural/MuralProductImageManager.jsx');
   const main = read('src/main.jsx');
-  const core = read('src/core-router.js');
+  const core = read('src/core/core-router.js');
 
   assert.equal(worker.includes('IDLE_POLL_MS'), false);
   assert.equal(worker.includes('TREATMENT_WAKE_EVENT'), false);
@@ -381,7 +381,7 @@ test('manual image treatment stays idle until the admin explicitly starts it', (
   assert.ok(core.includes("url.pathname === '/api/admin/product-image-treatment/summary'"));
 });
 test('image treatment retries after another admin tab owns the processing lock', () => {
-  const worker = read('src/product-image-treatment-worker.jsx');
+  const worker = read('src/imagens/product-image-treatment-worker.jsx');
   const admin = read('src/mural/MuralProductImageManager.jsx');
   const adminCss = read('src/mural/mural-admin.css');
 

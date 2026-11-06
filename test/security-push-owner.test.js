@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core=fs.readFileSync('src/core-router.js','utf8');
-const push=fs.readFileSync('src/web-push.js','utf8');
+const core=fs.readFileSync('src/core/core-router.js','utf8');
+const push=fs.readFileSync('src/core/web-push.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261019235500_nisti_push_unsubscribe_ownership.sql','utf8');
 
 test('operator unsubscribe requires server-verified session ID',()=>{
@@ -36,7 +36,7 @@ test('push transport never follows a redirect outside the trusted push host',()=
 });
 
 test('public core API does not echo database/RPC errors to unauthenticated callers',async()=>{
-  const {default:core}=await import('../src/core-router.js');
+  const {default:core}=await import('../src/core/core-router.js');
   const result=await core.fetch(new Request('https://sistemanistiid.online/api/products'),{}, {});
   assert.equal(result.status,502);
   const payload=await result.json();

@@ -30,6 +30,6 @@ test('rotas de PIN e o painel de PIN foram removidos', async () => {
   }
   assert.equal(fs.existsSync('src/operator-pin-access.js'), false);
   assert.equal(fs.existsSync('src/operator-pin-gate.jsx'), false);
-  assert.doesNotMatch(fs.readFileSync('src/admin-navigation.js', 'utf8'), /operadores-pin/);
+  assert.doesNotMatch(fs.readFileSync('src/admin/admin-navigation.js', 'utf8'), /operadores-pin/);
   assert.doesNotMatch(fs.readFileSync('src/entry.jsx', 'utf8'), /OperatorPinGate/);
 });

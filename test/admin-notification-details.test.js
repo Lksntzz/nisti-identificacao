@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { describeAdminSystemActivity } from '../src/system-notifications.js';
+import { describeAdminSystemActivity } from '../src/core/system-notifications.js';
 
 const modal = readFileSync(new URL('../src/admin/AdminNotificationsModal.jsx', import.meta.url), 'utf8');
 
@@ -19,7 +19,7 @@ test('modal expands details with explanation and keeps fallbacks', () => {
 });
 
 test('abrir a página de login (GET) não gera aviso de sessão iniciada', async () => {
-  const { recordAdminActivityFromResponse } = await import('../src/system-notifications.js');
+  const { recordAdminActivityFromResponse } = await import('../src/core/system-notifications.js');
   const out = await recordAdminActivityFromResponse(new Request('https://x.test/admin-login', { method: 'GET' }), new Response('ok', { status: 200 }), {});
   assert.equal(out, null);
 });

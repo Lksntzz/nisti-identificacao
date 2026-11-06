@@ -1,5 +1,5 @@
 import { handleCanvaImageBridgeRequest } from './canva-image-router.js';
-import { supabaseRpc } from './supabase-read-store.js';
+import { supabaseRpc } from '../core/supabase-read-store.js';
 
 const RECOVERABLE_STATUS_REASONS = new Set([
   'canva_api_error',

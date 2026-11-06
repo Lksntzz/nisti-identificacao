@@ -15,7 +15,7 @@ Production uses `SUPABASE_READS_ENABLED=1`, `SUPABASE_WRITE_MODE=primary` and
 - Mural product treatment remains operational without generative-model APIs. Contour processor v9 uses the official mask pipeline and manual editorial uploads remain available.
 - System Health no longer treats the retired visual index or external-model quota as an operational dependency.
 - Product finish edits remain Supabase-only and continue synchronizing/reconciling Commerce.
-- `src/core-router.js`, `src/cover-notifications.js` and `src/web-push.js` contain no runtime D1 SQL.
+- `src/core/core-router.js`, `src/cover-notifications.js` and `src/core/web-push.js` contain no runtime D1 SQL.
 
 ## Remaining D1 compatibility SQL
 
@@ -30,7 +30,7 @@ configuration above is enabled.
 | `src/mural/mural-post-routes.js` | legacy Mural post create/update/publish/archive/duplicate/delete D1 compatibility SQL (extracted from `mural-router.js`) | Supabase |
 | `src/mural/mural-image-routes.js` | legacy Mural editorial and treated-product image record D1 mutations (extracted from `mural-router.js`; R2 remains the object store) | Supabase |
 | `src/recognition-metrics.js` | historical telemetry/read compatibility | Supabase |
-| `src/system-metrics-clean-router.js` | legacy D1 metrics/health branch | Supabase |
+| `src/core/system-metrics-clean-router.js` | legacy D1 metrics/health branch | Supabase |
 | `src/geometric-shadow-evidence-router.js` | legacy evidence/read SQL | Supabase |
 | `src/scanner/gtin-router.js` | GTIN event/link/admin compatibility SQL | Supabase |
 | `src/geometric-shadow-confirmation-router.js` | legacy confirmation SQL | Supabase |

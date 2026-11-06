@@ -20,8 +20,8 @@ test('all real Mural push infrastructure remains while every test action was rem
   const app=source('src/public-main.jsx');
   const admin=source('src/mural/MuralNistiAdminView.jsx');
   const router=source('src/mural/mural-router.js');
-  const core=source('src/core-router.js');
-  const sender=source('src/web-push.js');
+  const core=source('src/core/core-router.js');
+  const sender=source('src/core/web-push.js');
   const sw=source('public/sw.js');
   assert.doesNotMatch(app,/testThisDevicePush|testLocalNotification|pushTestMessage|Testar exibição|Testar push/);
   assert.doesNotMatch(admin,/mural-adm-test-push|testAdmLukasMuralPush|Testar push · ADM Lukas/);

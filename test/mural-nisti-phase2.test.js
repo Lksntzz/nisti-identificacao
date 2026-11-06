@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const publicMain = fs.readFileSync(new URL('../src/public-main.jsx', import.meta.url), 'utf8');
 const mural = fs.readFileSync(new URL('../src/mural/mural-nisti.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/mural/mural-nisti.css', import.meta.url), 'utf8');
-const display = fs.readFileSync(new URL('../src/product-display.js', import.meta.url), 'utf8');
+const display = fs.readFileSync(new URL('../src/imagens/product-display.js', import.meta.url), 'utf8');
 
 test('phase 2 keeps scanner/mural navigation while public mural is release-gated', () => {
   assert.match(publicMain, /publicView === 'scanner' \? \(/);

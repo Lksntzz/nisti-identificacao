@@ -34,7 +34,7 @@ test('sincronização preserva dados específicos do NISTI ID no payload e atual
 });
 
 test('cadastro, edição e imagem do NISTI ID acionam a sincronização', () => {
-  const core = read('src/core-router.js');
+  const core = read('src/core/core-router.js');
 
   assert.equal(core.includes('syncNistiProductToCommerceSafe'), true);
   assert.equal(core.includes('syncNistiProductsToCommerce'), true);
@@ -181,7 +181,7 @@ test('Resumo do Catálogo não pagina o catálogo inteiro para calcular indicado
 test('status da sincronização fica disponível por produto no NISTI ID', () => {
   const sql = read('supabase/migrations/20260928185936_nisti_sync_visibility_v1.sql');
   const helper = read('src/nisti-commerce-sync.js');
-  const router = read('src/core-router.js');
+  const router = read('src/core/core-router.js');
 
   assert.equal(sql.includes('commerce_nisti_product_statuses_v1'), true);
   assert.equal(sql.includes('commerce_product_id bigint'), true);
@@ -219,7 +219,7 @@ test('sincronização principal não executa reconciliação histórica dentro d
 });
 
 test('RPC de escrita pode usar timeout maior e a sincronização faz retry temporário', () => {
-  const readStore = read('src/supabase-read-store.js');
+  const readStore = read('src/core/supabase-read-store.js');
   const sync = read('src/nisti-commerce-sync.js');
 
   assert.equal(readStore.includes('MAX_CUSTOM_TIMEOUT_MS = 30000'), true);
@@ -231,7 +231,7 @@ test('RPC de escrita pode usar timeout maior e a sincronização faz retry tempo
 });
 
 test('reconciliação histórica roda em segundo plano no cadastro e edição', () => {
-  const router = read('src/core-router.js');
+  const router = read('src/core/core-router.js');
 
   assert.equal(router.includes('scheduleCommerceReconcile'), true);
   assert.equal(router.includes('ctx.waitUntil'), true);
@@ -259,7 +259,7 @@ test('reconciliação histórica usa índices de SKU e família', () => {
 
 
 test('detalhe do produto permite corrigir a sincronização individual com o Catálogo', () => {
-  const router = read('src/core-router.js');
+  const router = read('src/core/core-router.js');
   const main = read('src/main.jsx');
   const css = read('src/app.css');
 

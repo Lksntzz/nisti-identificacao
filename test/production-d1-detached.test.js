@@ -6,7 +6,7 @@ const production=fs.readFileSync('wrangler.toml','utf8');
 const compatibility=fs.readFileSync('wrangler.d1-compat.toml','utf8');
 const gate=fs.readFileSync('.github/workflows/production-gate.yml','utf8');
 const deploy=fs.readFileSync('.github/workflows/deploy-production.yml','utf8');
-const core=fs.readFileSync('src/core-router.js','utf8');
+const core=fs.readFileSync('src/core/core-router.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
 test('production Worker is detached from Cloudflare D1',()=>{

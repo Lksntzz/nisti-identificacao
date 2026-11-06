@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
-const reads=fs.readFileSync(new URL('../src/supabase-read-store.js',import.meta.url),'utf8');
+const core=fs.readFileSync(new URL('../src/core/core-router.js',import.meta.url),'utf8');
+const reads=fs.readFileSync(new URL('../src/core/supabase-read-store.js',import.meta.url),'utf8');
 const sql=fs.readFileSync(new URL('../supabase/migrations/20261001223000_product_treatment_admin_reads_v1.sql',import.meta.url),'utf8');
 
 test('treatment admin reads expose Supabase summary and paginated queue RPCs',()=>{

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import LOGO from '../assets/logo.png';
-import { ADMIN_MENU_SECTIONS } from '../admin-navigation.js';
+import { ADMIN_MENU_SECTIONS } from './admin-navigation.js';
 
 export default function AdminSidebar({
   activeView,

@@ -6,7 +6,7 @@ const importView=read('src/commerce-import-center.jsx');
 const styles=read('src/commerce-import-center.css');
 const main=read('src/main.jsx');
 const admin=read('src/commerce-admin-app-v2.jsx');
-const nav=read('src/admin-navigation.js');
+const nav=read('src/admin/admin-navigation.js');
 
 test('operator chooses type first; relevant platform, account and file field then appear in one card',()=>{
   assert.match(importView,/useState\(IMPORT_MODES\.includes\(initialMode\) \? initialMode : embedded \? '' : 'catalog'\)/);

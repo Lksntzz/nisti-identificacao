@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const core=fs.readFileSync('src/core-router.js','utf8');
-const finish=fs.readFileSync('src/product-finish-router.js','utf8');
+const core=fs.readFileSync('src/core/core-router.js','utf8');
+const finish=fs.readFileSync('src/imagens/product-finish-router.js','utf8');
 
 test('Supabase-primary product create/update paths synchronize Commerce instead of returning a cutover skip',()=>{
   const upsertStart=core.indexOf('async function upsertCatalogProduct');

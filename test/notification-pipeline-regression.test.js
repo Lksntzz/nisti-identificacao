@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { recordAdminActivityFromResponse } from '../src/system-notifications.js';
+import { recordAdminActivityFromResponse } from '../src/core/system-notifications.js';
 
 const read = path => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 const cover = read('../src/cover-notifications.js');
 const scoped = read('../supabase/migrations/20261009153500_notification_feed_scope_v1.sql');
-const core = read('../src/core-router.js');
+const core = read('../src/core/core-router.js');
 const sw = read('../public/sw.js');
 const operatorApp = read('../src/public-main.jsx');
 
@@ -14,7 +14,7 @@ test('admin activity recording is not blocked by removed D1 binding', async () =
   const request = new Request('https://nisti.example/api/notifications/unread-count');
   const response = Response.json({ ok:true });
   assert.equal(await recordAdminActivityFromResponse(request, response, {}), null);
-  assert.doesNotMatch(read('../src/system-notifications.js'), /if \(!env\?\.DB/);
+  assert.doesNotMatch(read('../src/core/system-notifications.js'), /if \(!env\?\.DB/);
 });
 
 test('Supabase notification feed and unread count filter by audience before limiting', () => {
@@ -42,7 +42,7 @@ test('push renewal does not discard the prior endpoint before saving the new one
 });
 
 test('operator push status verifies server registration and correct VAPID pairing', () => {
-  const push = read('../src/web-push.js');
+  const push = read('../src/core/web-push.js');
   assert.match(push, /export async function pushVapidHealth/);
   assert.match(push, /crypto\.subtle\.verify/);
   assert.match(push, /vapid_keys_mismatch/);
@@ -52,8 +52,8 @@ test('operator push status verifies server registration and correct VAPID pairin
 });
 
 test('legacy push QA endpoints are completely removed without disrupting real notifications', () => {
-  const webPush = read('../src/web-push.js');
-  const activities = read('../src/system-notifications.js');
+  const webPush = read('../src/core/web-push.js');
+  const activities = read('../src/core/system-notifications.js');
   assert.doesNotMatch(core, /\/api\/push\/test(?:\/|['"`])|\/api\/admin\/notifications\/test|\/api\/admin\/push\/six-covers/);
   assert.doesNotMatch(core, /sendMuralPushSelfTest|test-my-device|test-receipt|test-result/);
   assert.doesNotMatch(webPush, /sendOperatorDevicePushTest|Teste de notificação · NISTI ID/);
@@ -77,7 +77,7 @@ test('primary product RPC identifies only the first notification for each distin
 });
 
 test('product POST schedules a push for the newly inserted cover only', () => {
-  const webpush=read('../src/web-push.js');
+  const webpush=read('../src/core/web-push.js');
   assert.match(core,/const notificationId=Number\(saved\?\.cover_notification_id \|\| 0\)/);
   assert.match(core,/if \(!saved\?\.cover_notification_created/);
   assert.match(core,/ctx\?\.waitUntil\) ctx\.waitUntil\(task\)/);

@@ -52,6 +52,6 @@ Produção usa o **Supabase como banco principal**: `SUPABASE_READS_ENABLED=1` e
 - `src/mural/mural-ean-announcement.js`: rascunho automático de EAN.
 - `src/mural/mural-transparent-image.js`: fundo transparente das fotos.
 - `src/mural/mural-nisti.jsx` (feed), `src/admin/Mural*.jsx` (admin), `src/mural-*.css`.
-- Push em geral: `src/web-push.js`.
+- Push em geral: `src/core/web-push.js`.
 
 Fluxo de publicação: [[deploy]].

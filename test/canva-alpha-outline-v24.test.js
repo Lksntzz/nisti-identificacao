@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { __canvaAlphaOutlineInternals } from '../src/canva-alpha-outline.js';
-import { fitDesignSize } from '../src/canva-product-cutout.js';
+import { __canvaAlphaOutlineInternals } from '../src/imagens/canva-alpha-outline.js';
+import { fitDesignSize } from '../src/imagens/canva-product-cutout.js';
 
 test('alpha outline dilation expands outside the original mask',()=>{
   const mask=new Uint8Array(25);
@@ -34,7 +34,7 @@ test('Canva design safely scales dimensions above API maximum',()=>{
 
 
 test('Mural outline uses thicker 12px target and white backing under alpha fringe',()=>{
-  const source=fs.readFileSync(new URL('../src/canva-alpha-outline.js',import.meta.url),'utf8');
+  const source=fs.readFileSync(new URL('../src/imagens/canva-alpha-outline.js',import.meta.url),'utf8');
   assert.ok(source.includes('const TARGET_OUTLINE_AT_1024=12;'));
   assert.ok(source.includes('TARGET_OUTLINE_AT_1024/1024),7,16)'));
   assert.ok(source.includes('if(!expanded[i]) continue;'));

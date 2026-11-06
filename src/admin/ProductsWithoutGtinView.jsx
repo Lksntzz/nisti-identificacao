@@ -1,5 +1,5 @@
 import React from 'react';
-import ProductCutoutImage from '../product-cutout-image.jsx';
+import ProductCutoutImage from '../imagens/product-cutout-image.jsx';
 
 function productImage(product) {
   if (!product?.image_url) return '';

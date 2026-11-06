@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const worker=fs.readFileSync(new URL('../src/product-image-treatment-worker.jsx',import.meta.url),'utf8');
+const worker=fs.readFileSync(new URL('../src/imagens/product-image-treatment-worker.jsx',import.meta.url),'utf8');
 
 test('manual image treatment continues through the full queue sequentially',()=>{
   assert.ok(worker.includes('const BATCH_SIZE = 1;'));

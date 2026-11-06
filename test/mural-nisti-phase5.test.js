@@ -5,8 +5,8 @@ import test from 'node:test';
 
 const mural=fs.readFileSync(new URL('../src/mural/mural-router.js',import.meta.url),'utf8');
 const postRoutes=fs.readFileSync(new URL('../src/mural/mural-post-routes.js',import.meta.url),'utf8');
-const core=fs.readFileSync(new URL('../src/core-router.js',import.meta.url),'utf8');
-const push=fs.readFileSync(new URL('../src/web-push.js',import.meta.url),'utf8');
+const core=fs.readFileSync(new URL('../src/core/core-router.js',import.meta.url),'utf8');
+const push=fs.readFileSync(new URL('../src/core/web-push.js',import.meta.url),'utf8');
 const admin = muralAdminSource;
 
 test('product creation no longer creates automatic Mural drafts',()=>{

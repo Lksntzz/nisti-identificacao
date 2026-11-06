@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { formatSaoPauloDateTime } from '../date-time.js';
-import ProductCutoutImage from '../product-cutout-image.jsx';
+import { formatSaoPauloDateTime } from '../core/date-time.js';
+import ProductCutoutImage from '../imagens/product-cutout-image.jsx';
 
 function formatScanDate(value) {
   return formatSaoPauloDateTime(value);

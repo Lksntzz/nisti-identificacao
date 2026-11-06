@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const platformScope = readFileSync(new URL('../src/platform-scope.js', import.meta.url),'utf8');
-const systemMetrics = readFileSync(new URL('../src/system-metrics-clean-router.js', import.meta.url),'utf8');
-const storageMetrics = readFileSync(new URL('../src/storage-metrics-router.js', import.meta.url),'utf8');
+const platformScope = readFileSync(new URL('../src/core/platform-scope.js', import.meta.url),'utf8');
+const systemMetrics = readFileSync(new URL('../src/core/system-metrics-clean-router.js', import.meta.url),'utf8');
+const storageMetrics = readFileSync(new URL('../src/core/storage-metrics-router.js', import.meta.url),'utf8');
 
 test('platformExists asks the legacy fallback for one indexed row instead of scanning all platforms', () => {
   assert.match(platformScope, /SELECT 1 AS found/);
