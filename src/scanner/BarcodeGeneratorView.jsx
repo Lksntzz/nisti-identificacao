@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from '../ean-barcode.js';
-import { buildEanCollections, collectionZipFilename } from '../ean-collections.js';
-import { AdminState } from './AdminState.jsx';
+import { createEan13Svg, downloadBarcodePng, downloadBarcodeZip } from './ean-barcode.js';
+import { buildEanCollections, collectionZipFilename } from './ean-collections.js';
+import { AdminState } from '../admin/AdminState.jsx';
 import ProductCutoutImage from '../product-cutout-image.jsx';
 
 const BARCODE_PRODUCT_PAGE_SIZE = 10;

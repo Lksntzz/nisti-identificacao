@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const mod = readFileSync('src/mural-ean-announcement.js', 'utf8');
 const sql = readFileSync('supabase/migrations/20261027170000_mural_ean_announcement_draft_v1.sql', 'utf8');
 const core = readFileSync('src/core-router.js', 'utf8');
-const gtin = readFileSync('src/gtin-router.js', 'utf8');
+const gtin = readFileSync('src/scanner/gtin-router.js', 'utf8');
 
 test('SQL: rascunho de comunicacao, nunca publicado, uma vez por produto', () => {
   assert.match(sql, /values \('notice','draft'/);

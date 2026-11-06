@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeEan13Bits, decodeEan13LumaRow, imageDataToLumaRow } from '../src/gtin-camera-decoder.js';
+import { decodeEan13Bits, decodeEan13LumaRow, imageDataToLumaRow } from '../src/scanner/gtin-camera-decoder.js';
 
 const L = {
   0:'0001101',1:'0011001',2:'0010011',3:'0111101',4:'0100011',

@@ -1,4 +1,4 @@
-import app from './gtin-router.js';
+import app from './scanner/gtin-router.js';
 import { handleCommerceAdminRequest } from './commerce-admin-router.js';
 import { bumpReadCacheGeneration } from './commerce-read-cache.js';
 import { handleCommerceUpdateAdminRequest } from './commerce-update-admin-router.js';

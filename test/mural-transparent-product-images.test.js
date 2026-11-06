@@ -14,7 +14,7 @@ const core = fs.readFileSync(new URL('../src/core-router.js', import.meta.url), 
 const globalImage = fs.readFileSync(new URL('../src/product-cutout-image.jsx', import.meta.url), 'utf8');
 const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const catalog = fs.readFileSync(new URL('../src/admin/CatalogView.jsx', import.meta.url), 'utf8');
-const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const scanner = fs.readFileSync(new URL('../src/scanner/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 
 test('Mural creates transparent PNG cutouts by removing only border-connected near-white pixels', () => {
   assert.ok(utility.includes('isBorderBackgroundCandidate'));

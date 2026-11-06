@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { normalizeGtinProduct } from '../src/gtin-product-normalizer.js';
+import { normalizeGtinProduct } from '../src/scanner/gtin-product-normalizer.js';
 
-const scanner = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const scanner = fs.readFileSync(new URL('../src/scanner/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
 
 test('scanner resolves EAN only through the same-origin Worker API', () => {
   assert.match(scanner, /fetch\(\`\/api\/gtin\/\$\{encodeURIComponent\(gtin\)\}\`/);

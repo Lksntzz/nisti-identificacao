@@ -233,7 +233,7 @@ test('critical reserve RPCs keep scanner and notification compatibility while oc
     'supabase/migrations/20261001164500_supabase_emergency_critical_reads_v1.sql',
     'utf8'
   );
-  const gtinRouter = fs.readFileSync('src/gtin-router.js', 'utf8');
+  const gtinRouter = fs.readFileSync('src/scanner/gtin-router.js', 'utf8');
   const notifications = fs.readFileSync('src/cover-notifications.js', 'utf8');
   const wrangler = fs.readFileSync('wrangler.toml', 'utf8');
 
@@ -262,7 +262,7 @@ test('GTIN dashboard uses the Supabase reserve without touching D1 when reads ar
     'supabase/migrations/20261001192000_gtin_dashboard_read_v1.sql',
     'utf8'
   );
-  const router = fs.readFileSync('src/gtin-router.js', 'utf8');
+  const router = fs.readFileSync('src/scanner/gtin-router.js', 'utf8');
   const store = fs.readFileSync('src/supabase-read-store.js', 'utf8');
 
   assert.match(migration, /nisti_reserve_gtin_dashboard_v1/);
@@ -279,7 +279,7 @@ test('primary operational writes bypass D1 for scanner events and mural reads', 
     'supabase/migrations/20261001194000_primary_operational_writes_v1.sql',
     'utf8'
   );
-  const gtin = fs.readFileSync('src/gtin-router.js', 'utf8');
+  const gtin = fs.readFileSync('src/scanner/gtin-router.js', 'utf8');
   const mural = fs.readFileSync('src/mural-router.js', 'utf8');
 
   for (const name of [

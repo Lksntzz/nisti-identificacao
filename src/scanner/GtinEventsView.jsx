@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { formatSaoPauloDateTime } from '../date-time.js';
-import { AdminState } from './AdminState.jsx';
+import { AdminState } from '../admin/AdminState.jsx';
 
 function formatProductDate(dateVal) {
   return formatSaoPauloDateTime(dateVal, { emptyTime: '' });

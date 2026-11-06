@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   serverUnavailable, findFreshCachedEntry, withoutGtin, cachedLookupWarning, GTIN_CACHE_MAX_AGE_MS
-} from '../src/gtin-scan-cache.js';
+} from '../src/scanner/gtin-scan-cache.js';
 
 const now = Date.parse('2026-10-23T12:00:00Z');
 const entry = (gtin, ageMs, id = 1) => ({

@@ -14,7 +14,7 @@ test('Mural notification scheduling is allowed and the legacy reserve backfill i
 });
 
 test('GTIN history mirrors new events directly and reads reserve only after backfill readiness', () => {
-  const gtin = fs.readFileSync('src/gtin-router.js','utf8');
+  const gtin = fs.readFileSync('src/scanner/gtin-router.js','utf8');
   const migration = fs.readFileSync(
     'supabase/migrations/20261001173500_reserve_history_mural_backfill_v1.sql',
     'utf8'

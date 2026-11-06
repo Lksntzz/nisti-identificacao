@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
-const view = read('src/admin/GtinEventsView.jsx');
-const gtinRouter = read('src/gtin-router.js');
+const view = read('src/scanner/GtinEventsView.jsx');
+const gtinRouter = read('src/scanner/gtin-router.js');
 const main = read('src/main.jsx');
 
 test('vincular EAN não cadastrado usa a rota que o servidor realmente atende', () => {

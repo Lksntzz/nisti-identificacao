@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEan13Svg, encodeEan13, safeBarcodeFilename, withPngDpiMetadata } from '../src/ean-barcode.js';
+import { createEan13Svg, encodeEan13, safeBarcodeFilename, withPngDpiMetadata } from '../src/scanner/ean-barcode.js';
 
 test('EAN-13 encoder creates the official 95-module symbol', () => {
   const modules = encodeEan13('7898764983584');

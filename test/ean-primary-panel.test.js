@@ -4,8 +4,8 @@ import fs from 'node:fs';
 
 const publicSource = fs.readFileSync(new URL('../src/public-main.jsx', import.meta.url), 'utf8');
 const entrySource = fs.readFileSync(new URL('../src/entry.jsx', import.meta.url), 'utf8');
-const scannerSource = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
-const scannerStyles = fs.readFileSync(new URL('../src/gtin-scanner.css', import.meta.url), 'utf8');
+const scannerSource = fs.readFileSync(new URL('../src/scanner/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const scannerStyles = fs.readFileSync(new URL('../src/scanner/gtin-scanner.css', import.meta.url), 'utf8');
 const indexSource = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 test('public application uses the embedded EAN scanner as its primary panel', () => {

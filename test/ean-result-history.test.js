@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const scannerSource = fs.readFileSync(new URL('../src/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
-const scannerStyles = fs.readFileSync(new URL('../src/gtin-scanner.css', import.meta.url), 'utf8');
+const scannerSource = fs.readFileSync(new URL('../src/scanner/gtin-scanner-overlay.jsx', import.meta.url), 'utf8');
+const scannerStyles = fs.readFileSync(new URL('../src/scanner/gtin-scanner.css', import.meta.url), 'utf8');
 
 test('EAN result uses compact professional cards for product metadata', () => {
   assert.match(scannerSource, /gtin-result-priority-details/);
