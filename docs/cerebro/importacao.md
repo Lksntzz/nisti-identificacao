@@ -4,7 +4,7 @@ Botão **Importar arquivo** do Painel Comercial (GA). Vendas, catálogo e relat�
 
 ## Tipos de importação
 
-Registro único em `src/commerce-import-options.js` (alimenta o menu e a tela de envio). Cada tipo tem leitor, tela e função SQL próprios:
+Registro único em `src/ga/commerce-import-options.js` (alimenta o menu e a tela de envio). Cada tipo tem leitor, tela e função SQL próprios:
 
 - **Produtos e anúncios** (catálogo por plataforma): lote em etapas (criar lote → linhas → conciliar → aprovar → commit). Rotas `/imports/...`.
 - **Vendas**: o foco desta nota. Rotas `/sales/imports/...`.
@@ -13,7 +13,7 @@ Registro único em `src/commerce-import-options.js` (alimenta o menu e a tela de
 ## Caminho das vendas
 
 1. **O navegador lê a planilha** (`read-excel-file/browser`, em `commerce-sales-import-reader.js`). O servidor não recebe o arquivo: recebe os dados já lidos, em partes.
-2. `src/commerce-import-client.js` envia JSON em pedaços (lotes de linhas), nesta ordem: criar lote → `rows` → `summary` → `listing-daily` (vendas por anúncio por dia) → `sku-daily` (Shopee) → `finance-month` → `finance-daily` → `shopee-full` → **`commit`**. O `commit` é o último passo.
+2. `src/ga/commerce-import-client.js` envia JSON em pedaços (lotes de linhas), nesta ordem: criar lote → `rows` → `summary` → `listing-daily` (vendas por anúncio por dia) → `sku-daily` (Shopee) → `finance-month` → `finance-daily` → `shopee-full` → **`commit`**. O `commit` é o último passo.
 3. Funções SQL `commerce_create_sales_import_v1`, `commerce_append_*` e `commerce_commit_sales_import_v1`, chamadas por `commerce-supabase-store.js`. Dados vão para `commerce_sales_listing_daily_v1` e, na Shopee, `commerce_shopee_sales_sku_daily_v1`, que alimentam a view `commerce_current_sales_listing_daily_v1` (usada por todas as telas de vendas).
 4. Excluir uma importação errada: tela **Histórico de importações** (`commerce_delete_import_batch_v1`).
 
@@ -56,8 +56,8 @@ Registro único em `src/commerce-import-options.js` (alimenta o menu e a tela de
 
 ## Arquivos principais
 
-- `src/commerce-import-options.js`: lista dos tipos de importação.
-- `src/commerce-import-center.jsx`: tela de envio (catálogo e vendas, arquivo grande). `src/commerce-import-client.js`: envia os dados lidos ao servidor, em pedaços.
-- `src/commerce-sales-import-reader.js`: leitor de vendas (Shopee e genérico); `commerce-ml-native-sales-reader.js` (ML Vendas BR); `commerce-shopee-sales-info.js` e `commerce-shopee-finance-aggregation.js` (Shopee).
-- `src/commerce-xlsx-reader.js` e `commerce-import-normalizer.js`: leitura de planilha e normalização do catálogo.
-- `src/commerce-admin-router.js` (rotas `/sales/imports/*` e `/imports/*`) e `src/commerce-supabase-store.js`.
+- `src/ga/commerce-import-options.js`: lista dos tipos de importação.
+- `src/ga/commerce-import-center.jsx`: tela de envio (catálogo e vendas, arquivo grande). `src/ga/commerce-import-client.js`: envia os dados lidos ao servidor, em pedaços.
+- `src/ga/commerce-sales-import-reader.js`: leitor de vendas (Shopee e genérico); `commerce-ml-native-sales-reader.js` (ML Vendas BR); `commerce-shopee-sales-info.js` e `commerce-shopee-finance-aggregation.js` (Shopee).
+- `src/ga/commerce-xlsx-reader.js` e `commerce-import-normalizer.js`: leitura de planilha e normalização do catálogo.
+- `src/ga/commerce-admin-router.js` (rotas `/sales/imports/*` e `/imports/*`) e `src/ga/commerce-supabase-store.js`.

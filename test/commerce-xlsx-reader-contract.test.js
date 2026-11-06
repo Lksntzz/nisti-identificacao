@@ -7,7 +7,7 @@ function read(path) {
 }
 
 test('leitor distingue hyperlink presente de URL recuperada do texto visível', () => {
-  const source = read('src/commerce-xlsx-reader.js');
+  const source = read('src/ga/commerce-xlsx-reader.js');
   assert.equal(source.includes('countRecoveredHyperlinks'), true);
   assert.equal(source.includes('workbook_hyperlinks: workbookHyperlinkCount'), true);
   assert.equal(source.includes('recovered_hyperlinks: recoveredHyperlinks'), true);

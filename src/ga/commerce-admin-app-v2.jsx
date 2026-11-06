@@ -1,8 +1,8 @@
 import { requestFreshData } from './commerce-manager-fetch.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import './app.css';
+import '../app.css';
 import './commerce-admin.css';
-import LOGO from './assets/logo.png';
+import LOGO from '../assets/logo.png';
 import CommerceCommercialPanel from './commerce-commercial-panel.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceDashboard from './commerce-dashboard.jsx';
@@ -10,8 +10,8 @@ import CommerceImportHistory from './commerce-import-history.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { usePrivacy, setPrivate } from './commerce-privacy.js';
 import { useDark, setDark, applyTheme } from './commerce-theme.js';
-import './nisti-motion.css';
-import './nisti-motion.js';
+import '../nisti-motion.css';
+import '../nisti-motion.js';
 import './commerce-dark.css';
 
 const IS_GA = typeof window !== 'undefined' && (window.location.hostname === 'ga.sistemanistiid.online' || (import.meta.env.DEV && window.location.pathname === '/ga-preview'));

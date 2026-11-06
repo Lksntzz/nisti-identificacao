@@ -8,7 +8,7 @@ import {
   getUnreadNotificationsCount,
   markNotificationRead,
   markAllNotificationsRead
-} from '../cover-notifications.js';
+} from '../ga/cover-notifications.js';
 import {
   getVapidPublicKey,
   savePushSubscription,
@@ -32,7 +32,7 @@ import {
   reconcileNistiProductToCommerceSafe,
   nistiCommerceSyncStatus,
   nistiCommerceProductStatuses
-} from '../nisti-commerce-sync.js';
+} from '../ga/nisti-commerce-sync.js';
 import {
   listAdminSystemNotifications,
   getAdminSystemUnreadCount,

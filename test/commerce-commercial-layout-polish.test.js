@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read = name => fs.readFileSync(name,'utf8');
-const ui = read('src/commerce-import-center.jsx');
-const css = read('src/commerce-import-center.css');
-const client = read('src/commerce-import-client.js');
+const ui = read('src/ga/commerce-import-center.jsx');
+const css = read('src/ga/commerce-import-center.css');
+const client = read('src/ga/commerce-import-client.js');
 const salesSchema = read('supabase/migrations/20260928205021_commerce_sales_import_pipeline_v1.sql');
 const listingSchema = read('supabase/migrations/20261016050000_commerce_sales_listing_daily_v1.sql');
 

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const store = readFileSync(new URL('../src/commerce-supabase-store.js', import.meta.url), 'utf8');
+const store = readFileSync(new URL('../src/ga/commerce-supabase-store.js', import.meta.url), 'utf8');
 const sql = readFileSync(new URL('../supabase/migrations/20261026120000_commerce_listing_id_first_v1.sql', import.meta.url), 'utf8');
 
 test('import uses the listing-id-first reconcile and commit RPCs', () => {

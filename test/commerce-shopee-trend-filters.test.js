@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const daily=fs.readFileSync('supabase/migrations/20261016224500_commerce_shopee_trend_filters_v1.sql','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
 
 test('Shopee trend works in equal 7/30/60/90 day periods, not current wall-clock time',()=>{
   assert.match(daily,/when p_days in \(7,30,60,90\) then p_days else 30 end days/);

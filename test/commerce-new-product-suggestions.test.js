@@ -37,7 +37,7 @@ test('quando há família de SKU inequívoca ela suprime candidatos só por nome
 });
 
 test('reconciliação administrativa usa v8 mantendo o passe de sugestões v5', () => {
-  const store = read('src/commerce-supabase-store.js');
+  const store = read('src/ga/commerce-supabase-store.js');
   assert.equal(store.includes("'commerce_reconcile_import_batch_id_first_v1'"), true);
 });
 

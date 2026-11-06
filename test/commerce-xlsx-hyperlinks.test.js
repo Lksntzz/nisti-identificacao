@@ -7,7 +7,7 @@ import {
   hyperlinksForRow,
   parseWorkbookSheetTargets,
   parseWorksheetHyperlinks
-} from '../src/commerce-xlsx-hyperlinks.js';
+} from '../src/ga/commerce-xlsx-hyperlinks.js';
 
 function xlsxBuffer(files) {
   const bytes = zipSync(Object.fromEntries(

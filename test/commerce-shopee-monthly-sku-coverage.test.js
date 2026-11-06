@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 const month=fs.readFileSync('supabase/migrations/20261016174500_commerce_listing_manager_month_sku_v1.sql','utf8');
 const monthlyExploration=fs.readFileSync('supabase/migrations/20261016221500_commerce_shopee_month_exploratory_v2.sql','utf8');
 const evolution=fs.readFileSync('supabase/migrations/20261016175000_commerce_shopee_monthly_evolution_sku_v1.sql','utf8');

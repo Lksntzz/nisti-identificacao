@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=path=>fs.readFileSync(path,'utf8');
-const ui=read('src/commerce-ad-manager.jsx');
-const css=read('src/commerce-ad-manager.css');
+const ui=read('src/ga/commerce-ad-manager.jsx');
+const css=read('src/ga/commerce-ad-manager.css');
 const sql=read('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql');
 const monthly=read('supabase/migrations/20261016153000_commerce_listing_manager_monthly_v1.sql');
-const store=read('src/commerce-supabase-store.js');
-const router=read('src/commerce-admin-router.js');
+const store=read('src/ga/commerce-supabase-store.js');
+const router=read('src/ga/commerce-admin-router.js');
 const main=read('src/main.jsx');
-const admin=read('src/commerce-admin-app-v2.jsx');
+const admin=read('src/ga/commerce-admin-app-v2.jsx');
 
 test('the Gestor de Anúncios lives only in the GA entry point, not in the NISTI ID admin',()=>{
   assert.doesNotMatch(main,/commerce-ad-manager/);

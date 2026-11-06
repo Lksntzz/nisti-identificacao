@@ -104,7 +104,7 @@ function RootApp() {
 
   useEffect(() => {
     if (route === 'commerce' && !CommerceComponent) {
-      import('./commerce-admin-app-v2.jsx').then(mod => {
+      import('./ga/commerce-admin-app-v2.jsx').then(mod => {
         setCommerceComponent(() => mod.default || mod.CommerceAdminAppV2);
       });
     } else if (route === 'admin' && !AdminComponent) {

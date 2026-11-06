@@ -5,7 +5,7 @@
 ## Onde está no código
 
 - `src/edge-router.js`: `enforceRateLimit` (cada IP tem um balde por escopo; chave `escopo:IP`).
-- `src/ga-access.js`: helper `limit` com a mesma mensagem, para a API do GA.
+- `src/ga/ga-access.js`: helper `limit` com a mesma mensagem, para a API do GA.
 - `wrangler.toml`, blocos `[[ratelimits]]`.
 
 ## Limites (por IP, janela de 60 s)

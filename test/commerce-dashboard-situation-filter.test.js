@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 test('Painel Comercial (explorer): filtros em ordem Plataforma, Situação, Período e as 3 abas viram o filtro Situação', () => {
-  const ui = fs.readFileSync('src/commerce-dashboard.jsx', 'utf8');
+  const ui = fs.readFileSync('src/ga/commerce-dashboard.jsx', 'utf8');
   const a = ui.indexOf("mode==='explorer'&&<Dropdown label=\"Plataforma\"");
   const b = ui.indexOf("<Dropdown label=\"Situação\"");
   const c = ui.indexOf('<PeriodPicker');
@@ -16,7 +16,7 @@ test('Painel Comercial (explorer): filtros em ordem Plataforma, Situação, Per�
 });
 
 test('Painel Comercial: aba Sem vendas mostra quem completou N dias (e "Ver todos")', () => {
-  const src=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  const src=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(src,/const inBand=r=>/);
   assert.match(src,/d>=doneDays&&d<=doneDays\+6/);
   assert.match(src,/nsBand\(\)\?inBand\(r\)/);
@@ -25,6 +25,6 @@ test('Painel Comercial: aba Sem vendas mostra quem completou N dias (e "Ver todo
 });
 
 test('filtro inteligente: Pararam/Em queda em todo o histórico muda sozinho para 90 dias', () => {
-  const src=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  const src=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(src,/\(tab==='stopped'\|\|tab==='drops'\)&&days===0&&!month\)setDays\(90\)/);
 });

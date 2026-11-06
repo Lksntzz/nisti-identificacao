@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {shopeeFinanceColumns,aggregateShopeeFinance} from '../src/commerce-shopee-finance-aggregation.js';
-import {shopeeMonthlyImportCoverage} from '../src/commerce-ad-evidence.js';
+import {shopeeFinanceColumns,aggregateShopeeFinance} from '../src/ga/commerce-shopee-finance-aggregation.js';
+import {shopeeMonthlyImportCoverage} from '../src/ga/commerce-ad-evidence.js';
 
 const make=(order_id,sku_norm,product_revenue,fee,discount=0)=>({
   order_id,sku_norm,sale_date:'2026-04-01',units:1,product_revenue,
@@ -90,9 +90,9 @@ test('coverage accurately differentiates identified units and current month tota
 });
 
 test('order finance is staged before sales commit, and activation is always AFTER commit',()=>{
-  const reader=fs.readFileSync('src/commerce-sales-import-reader.js','utf8');
-  const client=fs.readFileSync('src/commerce-import-client.js','utf8');
-  const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+  const reader=fs.readFileSync('src/ga/commerce-sales-import-reader.js','utf8');
+  const client=fs.readFileSync('src/ga/commerce-import-client.js','utf8');
+  const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
   assert.match(reader,/shopeeFinanceColumns/);
   assert.match(reader,/aggregateShopeeFinance\(raw\)/);
   assert.match(reader,/finance_daily_rows:finance\.finance_daily_rows/);
@@ -124,7 +124,7 @@ test('financial database validates months and preserves service-only access',()=
 });
 
 test('finance panel does not present estimates as official seller payout',()=>{
-  const panel=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  const panel=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
   assert.match(panel,/Taxa de transação/);
   assert.match(panel,/Descontos do vendedor/);
   assert.match(panel,/finance\.fee_reconciled_subtotal/);

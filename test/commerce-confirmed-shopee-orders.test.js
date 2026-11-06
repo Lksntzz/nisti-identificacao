@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { commerceSalesImportInternals } from '../src/commerce-sales-import-reader.js';
+import { commerceSalesImportInternals } from '../src/ga/commerce-sales-import-reader.js';
 const ok=commerceSalesImportInternals.isConfirmedShopeeOrder;
 test('Shopee imports only confirmed paid orders',()=>{
   for (const status of ['Concluído','Entregue','Enviado','A Enviar','Pedido Recebido','O comprador pode pedir uma devolução até 2026-10-06']) {

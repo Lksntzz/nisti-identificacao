@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import {parseShopeePerformanceSheets,periodFromFilename} from '../src/commerce-shopee-performance-reader.js';
+import {parseShopeePerformanceSheets,periodFromFilename} from '../src/ga/commerce-shopee-performance-reader.js';
 const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
 const sql=read('supabase/migrations/20261026160000_commerce_shopee_performance_v1.sql');
-const router=read('src/commerce-admin-router.js');
-const center=read('src/commerce-import-center.jsx');
-const cell=read('src/commerce-price-signal.jsx');
+const router=read('src/ga/commerce-admin-router.js');
+const center=read('src/ga/commerce-import-center.jsx');
+const cell=read('src/ga/commerce-price-signal.jsx');
 
 const HEAD=['ID do Item','Produto','Status Atual do Item','ID da Variação','Impressão do Produto','Cliques Por Produto','Visitantes do Produto (Visita)','Pedido Feito','Unidades (Pedido realizado)','Vendas (Pedido realizado) (BRL)'];
 const sheet=data=>[{sheet:'Produtos com Melhor Desempenho',data}];
@@ -38,7 +38,7 @@ test('SQL is isolated, idempotent by sha256, service_role only and never touches
 });
 test('routes, import tab and cause text are wired and never claim proof',()=>{
   assert.ok(router.includes("/shopee/performance/reports")&&router.includes('/listings/manager/performance-diagnosis'));
-  assert.ok(center.includes("'performance'")&&read('src/commerce-performance-import.jsx').includes('<CommerceShopeePerformanceImport'));
+  assert.ok(center.includes("'performance'")&&read('src/ga/commerce-performance-import.jsx').includes('<CommerceShopeePerformanceImport'));
   assert.match(cell,/não prova o motivo/);
   assert.ok(cell.includes('Menos impressões')&&cell.includes('Converte menos'));
 });

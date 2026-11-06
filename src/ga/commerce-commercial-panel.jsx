@@ -3,9 +3,9 @@ import CommerceImportModal from './commerce-import-modal.jsx';
 import {COMMERCE_IMPORT_OPTIONS} from './commerce-import-options.js';
 import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceCategoriesPanel from './commerce-categories-panel.jsx';
-import CommercialIcon from './vendor/CommercialIcon.jsx';
+import CommercialIcon from '../vendor/CommercialIcon.jsx';
 import './commerce-ad-manager.css';
-import './nisti-reactbits-adaptations.css';
+import '../nisti-reactbits-adaptations.css';
 import './commerce-approved-layout.css';
 import './commerce-reactbits-lucide.css';
 

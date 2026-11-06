@@ -32,7 +32,7 @@ test('manual listing state route is protected and routed before generic commerce
 });
 
 test('product UI uses product_id and marketplace_codes returned by RPC', () => {
-  const view = read('src/commerce-products-view.jsx');
+  const view = read('src/ga/commerce-products-view.jsx');
   assert.equal(view.includes('product.product_id'), true);
   assert.equal(view.includes('product.marketplace_codes'), true);
   assert.equal(view.includes('product.marketplaces'), false);

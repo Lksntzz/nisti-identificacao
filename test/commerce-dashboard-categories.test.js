@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {pickSummaryYear,summarizeCategories} from '../src/commerce-dashboard-categories-logic.js';
+import {pickSummaryYear,summarizeCategories} from '../src/ga/commerce-dashboard-categories-logic.js';
 
 test('resumo de categorias: ano mais recente com histórico do ano anterior na plataforma', () => {
   const cov=[{platform:'SHOPEE',year:2025,units:100},{platform:'SHOPEE',year:2026,units:50},{platform:'ML_NOVO',year:2026,units:9}];
@@ -24,19 +24,19 @@ test('resumo de categorias: top 5 por unidades, maior alta e maior queda', () =>
 });
 
 test('Dashboard mostra o resumo só no modo overview, depois do carregamento, e leva à tela Categorias', () => {
-  const dash=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  const dash=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(dash,/mode==='overview'&&hasData&&<Panel title="Categorias"/);
   assert.match(dash,/<CategoriesSummary platform=\{platform\} onOpen=\{onOpenCategories\}\/>/);
-  const app=fs.readFileSync('src/commerce-admin-app-v2.jsx','utf8');
+  const app=fs.readFileSync('src/ga/commerce-admin-app-v2.jsx','utf8');
   assert.match(app,/onOpenCategories=\{\(\) => \{ setCommercialView\('categories'\); setActiveView\('catalog'\); \}\}/);
-  const ui=fs.readFileSync('src/commerce-dashboard-categories.jsx','utf8');
+  const ui=fs.readFileSync('src/ga/commerce-dashboard-categories.jsx','utf8');
   assert.match(ui,/sales-compare\/annual-coverage/);
   assert.match(ui,/Não segue o filtro de dias do Dashboard/);
 });
 
 test('dashboard: resumo de Categorias espera o resto carregar (escalonado)', async () => {
   const fs=await import('node:fs');
-  const src=fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  const src=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(src,/setLateOk\(true\)/);
   assert.match(src,/lateOk\?<CategoriesSummary/);
 });

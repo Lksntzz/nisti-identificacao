@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const jsx=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
+const jsx=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
 const details=jsx.slice(jsx.indexOf('const DETAIL_TABS='),jsx.indexOf('export default function CommerceCommercialDashboard'));
 const sql=fs.readFileSync('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql','utf8');
 

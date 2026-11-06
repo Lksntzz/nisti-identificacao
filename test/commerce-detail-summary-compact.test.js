@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
 const detail=ui.slice(ui.indexOf('function ListingDetail('),ui.indexOf('export default function CommerceCommercialDashboard'));
 const summary=detail.slice(detail.indexOf("{activeTab==='summary'&&<>"),detail.indexOf("{activeTab==='finance'&&<>"));
 const finance=detail.slice(detail.indexOf("{activeTab==='finance'&&<>"),detail.indexOf("{activeTab==='variations'&&<>"));

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read=file=>fs.readFileSync(file,'utf8');
-const store=read('src/commerce-supabase-store.js');
-const router=read('src/commerce-admin-router.js');
+const store=read('src/ga/commerce-supabase-store.js');
+const router=read('src/ga/commerce-admin-router.js');
 const abcSql=read('supabase/migrations/20261016010000_commerce_sales_abc_v1.sql');
 const adSql=read('supabase/migrations/20261016020000_commerce_sales_abc_ads_v1.sql');
 const catalogSql=read('supabase/migrations/20261016021000_catalog_normalized_sku_search_from_abc.sql');

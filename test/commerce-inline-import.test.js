@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = file => fs.readFileSync(file,'utf8');
-const importView=read('src/commerce-import-center.jsx');
-const styles=read('src/commerce-import-center.css');
+const importView=read('src/ga/commerce-import-center.jsx');
+const styles=read('src/ga/commerce-import-center.css');
 const main=read('src/main.jsx');
-const admin=read('src/commerce-admin-app-v2.jsx');
+const admin=read('src/ga/commerce-admin-app-v2.jsx');
 const nav=read('src/admin/admin-navigation.js');
 
 test('operator chooses type first; relevant platform, account and file field then appear in one card',()=>{

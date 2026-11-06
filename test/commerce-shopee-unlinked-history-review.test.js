@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261016210000_commerce_shopee_review_unlinked_history_v1.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
 
 test('historical approval has no variation assignment and never edits products or sales',()=>{
   assert.match(sql,/create table if not exists public\.commerce_shopee_sales_history_reviews_v1/);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeCommerceImportRow } from '../src/commerce-import-normalizer.js';
+import { normalizeCommerceImportRow } from '../src/ga/commerce-import-normalizer.js';
 
 function mlRow({ sku = 'AGMT26_CACTUS_PBX', variation = '881234567' } = {}) {
   const row = Array(30).fill(null);

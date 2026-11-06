@@ -14,10 +14,10 @@ test('A exclusão do lote é restrita aos dados temporários e bloqueia importa�
 });
 
 test('O histórico permite apagar somente com confirmação, sem apagar anúncios', () => {
-  const ui = read('src/commerce-import-center.jsx');
-  const client = read('src/commerce-import-client.js');
-  const store = read('src/commerce-supabase-store.js');
-  const router = read('src/commerce-admin-router.js');
+  const ui = read('src/ga/commerce-import-center.jsx');
+  const client = read('src/ga/commerce-import-client.js');
+  const store = read('src/ga/commerce-supabase-store.js');
+  const router = read('src/ga/commerce-admin-router.js');
   assert.match(ui, /window\.confirm/);
   assert.match(ui, /deleteCommerceImport\(item\.id\)/);
   assert.match(ui, /item\.status !== 'COMMITTED'/);

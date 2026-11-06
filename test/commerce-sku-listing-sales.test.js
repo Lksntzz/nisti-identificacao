@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const shell = fs.readFileSync('src/main.jsx','utf8');
-const separate = fs.readFileSync('src/commerce-admin-app-v2.jsx','utf8');
-const api = fs.readFileSync('src/commerce-admin-router.js','utf8');
-const store = fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const separate = fs.readFileSync('src/ga/commerce-admin-app-v2.jsx','utf8');
+const api = fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const store = fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 const sql = fs.readFileSync('supabase/migrations/20261015234500_commerce_sku_listing_manual_sales.sql','utf8');
 const activeEanMigration = fs.readFileSync('supabase/migrations/20261015235500_sku_catalog_active_eans.sql','utf8');
 

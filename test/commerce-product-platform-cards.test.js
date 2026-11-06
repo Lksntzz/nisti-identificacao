@@ -25,15 +25,15 @@ test('detalhe multiplataforma preserva imagem específica e fallback NISTI ID', 
 });
 
 test('store e router expõem detalhe por Produto Mestre', () => {
-  const store = read('src/commerce-supabase-store.js');
-  const router = read('src/commerce-admin-router.js');
+  const store = read('src/ga/commerce-supabase-store.js');
+  const router = read('src/ga/commerce-admin-router.js');
   assert.equal(store.includes("'commerce_product_platform_detail_v2'"), true);
   assert.equal(store.includes('commerceProductDetail'), true);
   assert.equal(router.includes('/products\\/(\\d+)\\/details'), true);
 });
 
 test('Produtos Mestre usam tabela compacta com tags exclusivo e multiplataforma', () => {
-  const view = read('src/commerce-products-view.jsx');
+  const view = read('src/ga/commerce-products-view.jsx');
   assert.equal(view.includes("label: 'Exclusivo'"), true);
   assert.equal(view.includes("label: 'Multiplataforma'"), true);
   assert.equal(view.includes("label: 'Sem anúncio'"), true);
@@ -43,7 +43,7 @@ test('Produtos Mestre usam tabela compacta com tags exclusivo e multiplataforma'
 });
 
 test('clique no card abre painel com plataformas e dados do anúncio', () => {
-  const view = read('src/commerce-products-view.jsx');
+  const view = read('src/ga/commerce-products-view.jsx');
   assert.equal(view.includes('ProductPlatformDrawer'), true);
   assert.equal(view.includes('/products/${productId}/details'), true);
   assert.equal(view.includes('Informações da plataforma'), true);

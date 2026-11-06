@@ -4,8 +4,8 @@ import fs from 'node:fs';
 
 const daily=fs.readFileSync('supabase/migrations/20261016221000_commerce_shopee_analytical_filters_v1.sql','utf8');
 const monthly=fs.readFileSync('supabase/migrations/20261016221500_commerce_shopee_month_exploratory_v2.sql','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 
 test('daily zero filter includes variations without confirmed linked sales inside a sold listing',()=>{
   assert.match(daily,/c\.source_code='SHOPEE' and\s*\(coalesce\(c\.identified_units,0\)=0 or coalesce\(c\.identified_empty_variations,0\)>0\)/);

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261021220000_commerce_evolution_ads_v1.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 
 test('Painel Comercial nao tem mais navegacao de abas nem evolucao integrada',()=>{
   assert.doesNotMatch(manager,/<nav className="nim-commercial-views"/);

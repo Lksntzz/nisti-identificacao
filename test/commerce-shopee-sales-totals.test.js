@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { shopeeSalesTotals } from '../src/commerce-ad-evidence.js';
+import { shopeeSalesTotals } from '../src/ga/commerce-ad-evidence.js';
 
 test('mês Shopee mostra o total importado e mantém subtotal vinculado',()=>{
   const data={source_kind:'MONTHLY_SKU_PARTIAL',kpis:{month_linked_units:5156,month_linked_revenue:178251.60},
@@ -28,7 +28,7 @@ test('na falta de origem confiável não fabrica total nem zeros',()=>{
   assert.equal(shopeeSalesTotals({source_kind:'LISTING_DAILY',kpis},30),null);
 });
 test('a interface distingue bruto do vinculado sem sinal enganoso',()=>{
-  const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
   assert.match(ui,/Faturamento bruto importado/);
   assert.match(ui,/Faturamento vinculado/);
   assert.match(ui,/shopeeSalesTotals\(data,days\)/);

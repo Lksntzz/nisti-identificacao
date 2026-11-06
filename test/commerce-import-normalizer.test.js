@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   commerceImportNormalizerInternals,
   normalizeCommerceImportRow
-} from '../src/commerce-import-normalizer.js';
+} from '../src/ga/commerce-import-normalizer.js';
 
 const { normalizeVideoStatus, normalizeUpdateHint, extractExternalListingId } = commerceImportNormalizerInternals;
 

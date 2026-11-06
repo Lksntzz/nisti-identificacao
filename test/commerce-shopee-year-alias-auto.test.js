@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261016195500_commerce_shopee_auto_year_26_to_27_v1.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 
 test('automatic 26->27 rule is restricted to PB, PLAN and AGMT (never 25 or unrelated SKUs)',()=>{
   assert.match(sql,/\^PB26\[A-Z0-9\]\{3,\}\$/);

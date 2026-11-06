@@ -6,7 +6,7 @@ import {
   listingLinkedSalesForPeriod,
   listingClassificationCoverage,
   importedWindowDescription
-} from '../src/commerce-ad-evidence.js';
+} from '../src/ga/commerce-ad-evidence.js';
 
 test('Shopee: 4 capas com 457, 160, 495 e 74 unidades identificadas',()=>{
   const listing={
@@ -80,7 +80,7 @@ test('modo mensal e outros marketplaces conservam sua descrição regular',()=>{
 });
 
 test('UI apresenta claramente os dados parciais, por variação e a última data importada',()=>{
-  const jsx=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  const jsx=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
   assert.match(jsx,/identifiedVariationCoverage\(item,days\)/);
   assert.match(jsx,/identifiedVariationCoverage\(detail,detailDays\)/);
   assert.match(jsx,/com vendas identificadas/);
@@ -119,7 +119,7 @@ test('origem mista mensal usa somente vendas identificadas no próprio recorte',
 });
 
 test('ficha do anúncio mostra datas reais quando selecionado outro período',()=>{
-  const jsx=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  const jsx=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
   assert.match(jsx,/setPeriodResult\(\{days:detailDays,item:found,periodStart:/);
   assert.match(jsx,/período independente do filtro principal/);
   assert.match(jsx,/const linkedEvidence=listingLinkedSalesForPeriod\(detail,detailDays\)/);
@@ -128,7 +128,7 @@ test('ficha do anúncio mostra datas reais quando selecionado outro período',()
 });
 
 test('mês personalizado mostra a data importada, não o último dia do calendário como venda analisada',()=>{
-  const jsx=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+  const jsx=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
   assert.match(jsx,/importedThrough=\{data\?\.imported_month\?\.period_end\|\|data\?\.data_through\}/);
   assert.match(jsx,/detailDays===0\s*\?/);
   assert.match(jsx,/vendas importadas até/);

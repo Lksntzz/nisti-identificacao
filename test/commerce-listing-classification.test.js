@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { listingSalesSituation } from '../src/commerce-listing-classification.js';
+import { listingSalesSituation } from '../src/ga/commerce-listing-classification.js';
 
 test('anúncios que venderam seguem como Com vendas independentemente de crescimento', () => {
   assert.equal(listingSalesSituation({ ready: true, units: 12, growing: true }), 'SOLD');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { indexMercadoLivreBulkStatus } from '../src/commerce-import-normalizer.js';
+import { indexMercadoLivreBulkStatus } from '../src/ga/commerce-import-normalizer.js';
 
 function makeRow({ id, status, sku = '', variation = null, title = null }) {
   const row = Array(32).fill(null);
@@ -49,8 +49,8 @@ test('official export requires STATUS and rejects conflicting parent states', ()
 });
 
 test('current import path filters to ACTIVE and invokes server-side auto-link without new UI', () => {
-  const reader = fs.readFileSync('src/commerce-xlsx-reader.js', 'utf8');
-  const store = fs.readFileSync('src/commerce-supabase-store.js', 'utf8');
+  const reader = fs.readFileSync('src/ga/commerce-xlsx-reader.js', 'utf8');
+  const store = fs.readFileSync('src/ga/commerce-supabase-store.js', 'utf8');
   const sql = fs.readFileSync('supabase/migrations/20261015190000_ml_active_nisti_auto_link_v1.sql', 'utf8');
   assert.match(reader, /listingStatusById\.get\(.*\) !== 'ACTIVE'/);
   assert.match(reader, /indexMercadoLivreBulkStatus\(data\)/);

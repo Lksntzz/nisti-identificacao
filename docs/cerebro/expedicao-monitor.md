@@ -2,7 +2,7 @@
 
 Quando chega um pedido que exige retirar a capa do caderno, a equipe de envio manda um aviso para uma tela no notebook da expedição, que mostra e toca um som. É um sistema de **chamadas em fila**, separado do scanner e do GA.
 
-Esta nota é o resumo para se orientar. A instalação do notebook (Modo Quiosque, áudio, inicialização automática) está em [[monitor-notificacoes-expedicao]]. Notificações de novas capas e atividade do admin são outro assunto (ficam em `src/cover-notifications.js` e `src/core/system-notifications.js`).
+Esta nota é o resumo para se orientar. A instalação do notebook (Modo Quiosque, áudio, inicialização automática) está em [[monitor-notificacoes-expedicao]]. Notificações de novas capas e atividade do admin são outro assunto (ficam em `src/ga/cover-notifications.js` e `src/core/system-notifications.js`).
 
 ## As três telas
 

@@ -4,9 +4,9 @@ import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261017001000_commerce_shopee_finance_recovery_v1.sql','utf8');
 const foundation=fs.readFileSync('supabase/migrations/20261016235500_commerce_shopee_financial_sales_v1.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const client=fs.readFileSync('src/commerce-import-client.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const client=fs.readFileSync('src/ga/commerce-import-client.js','utf8');
 
 test('finance reprocessing requires the exact filename and SHA of a previously COMMITTED Shopee sale file',()=>{
   assert.match(sql,/commerce_shopee_finance_backfill_source_v1/);

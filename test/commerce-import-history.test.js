@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
 const sql=read('supabase/migrations/20261026150000_commerce_sales_import_history_v1.sql');
-const router=read('src/commerce-admin-router.js');
-const app=read('src/commerce-admin-app-v2.jsx');
-const ui=read('src/commerce-import-history.jsx');
+const router=read('src/ga/commerce-admin-router.js');
+const app=read('src/ga/commerce-admin-app-v2.jsx');
+const ui=read('src/ga/commerce-import-history.jsx');
 test('import history SQL is read-only, service_role only and filename-first',()=>{
   assert.match(sql,/language sql stable/);
   assert.doesNotMatch(sql,/\b(insert into|update public|delete from)\b/i);

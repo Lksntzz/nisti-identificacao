@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261020235500_commerce_shopee_verified_variations_v2.sql','utf8');
 
 test('Shopee exposes only two sale statuses and does not claim unmatched SKU as zero',()=>{

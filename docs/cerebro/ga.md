@@ -5,7 +5,7 @@ Detalhe completo (tabelas, funções, histórico): [[MAPA-GA]]. Esta nota é só
 
 ## Caminho de um dado
 
-`tela (src/commerce-*.jsx)` → `/api/admin/commerce/...` → router (`src/commerce-admin-router.js` e vizinhos) → store (`src/commerce-supabase-store.js`, via `supabaseRpc`) → função SQL `commerce_*_vN` → tabelas.
+`tela (src/commerce-*.jsx)` → `/api/admin/commerce/...` → router (`src/ga/commerce-admin-router.js` e vizinhos) → store (`src/ga/commerce-supabase-store.js`, via `supabaseRpc`) → função SQL `commerce_*_vN` → tabelas.
 
 O navegador nunca fala com o banco. Toda função SQL do GA termina em `_vN` e só `service_role` executa.
 
@@ -28,7 +28,7 @@ A tela **Comparação anual** foi removida em 05/11/2026 (PR #839) e o back-end 
 
 - A view `commerce_current_sales_listing_daily_v1` alimenta **todas** as telas de vendas. Mudar nela afeta tudo; só com comparação antes/depois.
 - Mudar a curva ABC exige comparar resultado antigo x novo em vários casos (já divergiu antes).
-- Leituras do dashboard têm cache de 5 min (`src/commerce-read-cache.js`); gravações zeram; `?fresh=1` ignora.
+- Leituras do dashboard têm cache de 5 min (`src/ga/commerce-read-cache.js`); gravações zeram; `?fresh=1` ignora.
 - Função SQL nova: `_v1`, revogar de `public, anon, authenticated`, conceder a `service_role`. Função existente: ler a definição atual antes e mudar só o necessário.
 - Apagar dados: mostrar contagem, pedir aprovação explícita e fazer backup antes. Backups `bak_*` só saem a pedido do Lucas.
 

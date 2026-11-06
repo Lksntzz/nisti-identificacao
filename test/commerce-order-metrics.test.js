@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261019180000_commerce_order_metrics_v1.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const reader=fs.readFileSync('src/commerce-sales-import-reader.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const reader=fs.readFileSync('src/ga/commerce-sales-import-reader.js','utf8');
 
 test('pedidos únicos e ticket mensal usam snapshot vigente, nunca somam linhas de SKU',()=>{
   assert.match(sql,/commerce_sales_summary_rows s/);

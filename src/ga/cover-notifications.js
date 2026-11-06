@@ -1,6 +1,6 @@
-import { broadcastNewCoverPush } from './core/web-push.js';
-import { supabaseReserveNotifications, supabaseReserveUnreadNotifications } from './core/supabase-read-store.js';
-import { mirrorSupabaseRpc } from './core/supabase-write-store.js';
+import { broadcastNewCoverPush } from '../core/web-push.js';
+import { supabaseReserveNotifications, supabaseReserveUnreadNotifications } from '../core/supabase-read-store.js';
+import { mirrorSupabaseRpc } from '../core/supabase-write-store.js';
 
 function clean(value) {
   const text = String(value || '').trim();

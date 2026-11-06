@@ -8,13 +8,13 @@ import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport} from './commerce-shopee
 import CommerceShopeeAftercare from './commerce-shopee-aftercare.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import './commerce-ad-manager.css';
-import './nisti-reactbits-adaptations.css';
+import '../nisti-reactbits-adaptations.css';
 import './commerce-approved-layout.css';
 import './commerce-reactbits-lucide.css';
 import './commerce-view-specific-kpis.css';
 import './commerce-zero-sales-filters.css';
-import GlareHover from './vendor/react-bits/GlareHover.jsx';
-import CommercialIcon from './vendor/CommercialIcon.jsx';
+import GlareHover from '../vendor/react-bits/GlareHover.jsx';
+import CommercialIcon from '../vendor/CommercialIcon.jsx';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import './commerce-price-signal.css';
 import CommerceDashboard from './commerce-dashboard.jsx';

@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const jsx=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const css=fs.readFileSync('src/commerce-ad-manager.css','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const jsx=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const css=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261016165500_commerce_listing_manager_custom_month_v1.sql','utf8');
 
 test('o Gestor oferece Personalizado e só exibe seletor de mês dentro do período',()=>{

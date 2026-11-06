@@ -1,10 +1,10 @@
-// Gera src/commerce-dark.css: versão noturna das folhas de estilo do GA.
+// Gera src/ga/commerce-dark.css: versão noturna das folhas de estilo do GA.
 // Regra: inverte só a luminosidade de cada cor (matiz e saturação ficam), então vermelho segue vermelho e verde segue verde.
 // Uso: node scripts/build-dark-css.mjs
 import fs from 'node:fs';
 import postcss from 'postcss';
 
-const FILES = fs.readdirSync('src').filter(f => /^commerce-.*\.css$/.test(f) && f !== 'commerce-dark.css').map(f => 'src/' + f);
+const FILES = fs.readdirSync('src/ga').filter(f => /^commerce-.*\.css$/.test(f) && f !== 'commerce-dark.css').map(f => 'src/ga/' + f);
 FILES.push('src/app.css', 'src/nisti-motion.css');
 const GA_SELECTOR = /\.(admin-|sidebar|topbar|hamburger|commerce|ndb|nim|ga-|brand|nav-|btn-|badge|stat-|empty|toast|modal|table|card|pill|chip|tab)/;
 const COLOR_PROP = /^(color|background|background-color|background-image|border|border-(top|right|bottom|left)(-color)?|border-color|outline|outline-color|box-shadow|text-shadow|fill|stroke|caret-color|accent-color|text-decoration-color|column-rule-color)$/;
@@ -73,5 +73,5 @@ out.push('html.ga-dark .ndb-table th,html.ga-dark .ndb-best-month,html.ga-dark .
 out.push('html.ga-dark{background:#1a1d23;color:#e6e8ec;color-scheme:dark}');
 out.push('html.ga-dark body{background:#14171c;color:#e6e8ec}');
 out.push("html.ga-dark .commerce-theme-btn.is-on{background:#e6e8ec;color:#14213d}");
-fs.writeFileSync('src/commerce-dark.css', out.join('\n') + '\n');
-console.log('regras:', out.length, 'bytes:', fs.statSync('src/commerce-dark.css').size);
+fs.writeFileSync('src/ga/commerce-dark.css', out.join('\n') + '\n');
+console.log('regras:', out.length, 'bytes:', fs.statSync('src/ga/commerce-dark.css').size);

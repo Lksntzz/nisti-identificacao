@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {analyzeTrafficWindow,trafficDerivedRates} from '../src/commerce-traffic-analysis.js';
+import {analyzeTrafficWindow,trafficDerivedRates} from '../src/ga/commerce-traffic-analysis.js';
 const sql=fs.readFileSync('supabase/migrations/20261020095000_commerce_listing_traffic_reports_v1.sql','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const route=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const listing=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const panel=fs.readFileSync('src/commerce-traffic-metrics.jsx','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const route=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const listing=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const panel=fs.readFileSync('src/ga/commerce-traffic-metrics.jsx','utf8');
 
 test('reports distinguish unknown metric from actual zero',()=>{
   assert.deepEqual(trafficDerivedRates({visits:100,orders:0,clicks:null,impressions:null}),

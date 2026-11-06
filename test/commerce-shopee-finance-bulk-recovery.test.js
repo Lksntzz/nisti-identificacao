@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const client=fs.readFileSync('src/commerce-import-client.js','utf8');
+const client=fs.readFileSync('src/ga/commerce-import-client.js','utf8');
 const db=fs.readFileSync('supabase/migrations/20261017001000_commerce_shopee_finance_recovery_v1.sql','utf8');
 
 test('server still verifies SHA and current snapshot without editing sales or Scanner',()=>{

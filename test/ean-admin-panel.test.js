@@ -134,7 +134,7 @@ test('taxa de sucesso abre as bipagens reais de hoje por resultado', () => {
 });
 
 test('catálogo mostra plataformas sincronizadas em badges compactas', () => {
-  const sync = fs.readFileSync(new URL('../src/nisti-commerce-sync.js', import.meta.url), 'utf8');
+  const sync = fs.readFileSync(new URL('../src/ga/nisti-commerce-sync.js', import.meta.url), 'utf8');
   const platformMigration = fs.readFileSync(new URL('../supabase/migrations/20260929174500_nisti_catalog_platforms_v1.sql', import.meta.url), 'utf8');
 
   assert.match(sync, /commerce_nisti_product_platforms_v1/);

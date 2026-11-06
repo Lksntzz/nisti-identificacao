@@ -4,8 +4,8 @@ import fs from 'node:fs';
 
 const read = p => fs.readFileSync(p,'utf8');
 const sql=read('supabase/migrations/20261016060000_commerce_scanner_pending_active_v1.sql');
-const store=read('src/commerce-supabase-store.js');
-const router=read('src/commerce-admin-router.js');
+const store=read('src/ga/commerce-supabase-store.js');
+const router=read('src/ga/commerce-admin-router.js');
 
 test('every active catalog seller SKU, including nested variations, enters independent Scanner pending queue',()=>{
   assert.match(sql,/commerce_active_product_catalog_v1/);

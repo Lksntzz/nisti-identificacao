@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261105120000_commerce_read_cache_v1.sql','utf8');
 
 test('consultas pesadas passam pelo cache do banco, com fallback se a função não existir', () => {

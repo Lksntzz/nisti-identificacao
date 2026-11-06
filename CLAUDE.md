@@ -10,7 +10,7 @@ Dono: Lucas, leigo em programação. Fala português. O sistema é o NISTI ID e 
 
 ## Tecnologia
 - JavaScript (sem TypeScript). Interface React 18 + Vite 8. Servidor: Cloudflare Worker (`src/operator-audit-router.js` é a entrada, depois `src/edge-router.js`). Banco: Supabase Postgres, projeto `yioetdcbgorunwgwuawg` (sa-east-1). Imagens: R2.
-- O navegador nunca fala com o banco. Caminho: tela → `/api/admin/commerce/...` → router → `src/commerce-supabase-store.js` → função SQL `commerce_*_vN`.
+- O navegador nunca fala com o banco. Caminho: tela → `/api/admin/commerce/...` → router → `src/ga/commerce-supabase-store.js` → função SQL `commerce_*_vN`.
 - Mapa completo do GA: `docs/MAPA-GA.md`. Se divergir do código, vale o código e o mapa deve ser atualizado.
 - Testes: `npm test` (todos devem passar antes de abrir PR).
 - Notas curtas por assunto: comece por `docs/cerebro/INDEX.md` e leia só a nota da área em que for mexer (GA, deploy, limites de requisição). Mudou o código de uma área? Atualize a nota dela no mesmo PR.
@@ -35,7 +35,7 @@ Dono: Lucas, leigo em programação. Fala português. O sistema é o NISTI ID e 
 - Mesclar PR antes de todos os checks terminarem causou falha no Deploy Production.
 - Migração esquecida: o código foi ao ar e a importação teria falhado.
 - Alterar a curva ABC exige comparar resultado antigo x novo com vários casos (já aconteceu de divergir).
-- Leituras do dashboard têm cache de 5 min (`READ_CACHE_TTL_SECONDS` em `src/commerce-read-cache.js`); gravações zeram o cache; `?fresh=1` ignora.
+- Leituras do dashboard têm cache de 5 min (`READ_CACHE_TTL_SECONDS` em `src/ga/commerce-read-cache.js`); gravações zeram o cache; `?fresh=1` ignora.
 - Regras da importação Shopee: confirmado = status válido E pagamento; cancelados (ML e Shopee) ficam fora. Full = "Pedido FBS" = Yes ou "Opção de envio" = Full.
 - A view `commerce_current_sales_listing_daily_v1` é usada por todas as telas de vendas; mexer nela afeta tudo.
 - Avisos de segurança: só POST em `/admin-login` conta como login.

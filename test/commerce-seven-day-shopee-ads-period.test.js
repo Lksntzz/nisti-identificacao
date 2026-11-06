@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {shopeeAdsRowsForPeriod,preferredShopeeAdsReport}
-  from '../src/commerce-shopee-ads-period.js';
-import {importedTotalsForExactWindow} from '../src/commerce-ad-evidence.js';
+  from '../src/ga/commerce-shopee-ads-period.js';
+import {importedTotalsForExactWindow} from '../src/ga/commerce-ad-evidence.js';
 
-const ui=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const ads=fs.readFileSync('src/commerce-shopee-ads-summary.jsx','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
+const ui=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const ads=fs.readFileSync('src/ga/commerce-shopee-ads-summary.jsx','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 
 test('Shopee Ads cumulative reports never masquerade as 7-day or 30-day metrics',()=>{
   const reports=[

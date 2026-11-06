@@ -1,7 +1,7 @@
 import app from '../core/storage-metrics-router.js';
 import { WIREO_COLORS, ACCESSORY_COLORS } from '../core/sku.js';
 import { mirrorSupabaseRpc } from '../core/supabase-write-store.js';
-import { syncNistiProductToCommerceSafe, reconcileNistiProductToCommerceSafe } from '../nisti-commerce-sync.js';
+import { syncNistiProductToCommerceSafe, reconcileNistiProductToCommerceSafe } from '../ga/nisti-commerce-sync.js';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {

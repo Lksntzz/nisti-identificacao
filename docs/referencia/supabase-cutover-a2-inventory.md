@@ -15,7 +15,7 @@ Production uses `SUPABASE_READS_ENABLED=1`, `SUPABASE_WRITE_MODE=primary` and
 - Mural product treatment remains operational without generative-model APIs. Contour processor v9 uses the official mask pipeline and manual editorial uploads remain available.
 - System Health no longer treats the retired visual index or external-model quota as an operational dependency.
 - Product finish edits remain Supabase-only and continue synchronizing/reconciling Commerce.
-- `src/core/core-router.js`, `src/cover-notifications.js` and `src/core/web-push.js` contain no runtime D1 SQL.
+- `src/core/core-router.js`, `src/ga/cover-notifications.js` and `src/core/web-push.js` contain no runtime D1 SQL.
 
 ## Remaining D1 compatibility SQL
 

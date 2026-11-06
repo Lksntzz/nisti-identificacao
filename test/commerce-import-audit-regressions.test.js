@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = name => fs.readFileSync(new URL('../'+name, import.meta.url),'utf8');
-const reader=read('src/commerce-sales-import-reader.js');
-const client=read('src/commerce-import-client.js');
-const center=read('src/commerce-import-center.jsx');
+const reader=read('src/ga/commerce-sales-import-reader.js');
+const client=read('src/ga/commerce-import-client.js');
+const center=read('src/ga/commerce-import-center.jsx');
 
 test('multi-month report computes a separate partial cutoff for each month',()=>{
   assert.match(reader,/latestSaleDateByMonth = new Map\(\)/);

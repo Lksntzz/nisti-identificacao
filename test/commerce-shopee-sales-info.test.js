@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   looksLikeShopeeSalesInfo,detectShopeeSalesInfo,parseShopeeSalesInfo,attestShopeeActiveExport
-} from '../src/commerce-shopee-sales-info.js';
+} from '../src/ga/commerce-shopee-sales-info.js';
 
 const header=[
   'et_title_product_id','et_title_product_name','et_title_variation_id',
@@ -102,8 +102,8 @@ test('bloqueia metadados inválidos e cabeçalhos incompletos',()=>{
 });
 
 test('leitor e painel de importação integram o formato com confirmação explícita',()=>{
-  const reader=fs.readFileSync('src/commerce-xlsx-reader.js','utf8');
-  const ui=fs.readFileSync('src/commerce-import-center.jsx','utf8');
+  const reader=fs.readFileSync('src/ga/commerce-xlsx-reader.js','utf8');
+  const ui=fs.readFileSync('src/ga/commerce-import-center.jsx','utf8');
   assert.match(reader,/looksLikeShopeeSalesInfo\(data\)/);
   assert.match(reader,/parseShopeeSalesInfo\(data, sheetName\)/);
   assert.match(reader,/format: officialShopee\.format/);

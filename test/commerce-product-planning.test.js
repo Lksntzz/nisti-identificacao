@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const ui=fs.readFileSync(new URL('../src/commerce-products-view.jsx',import.meta.url),'utf8');
-const router=fs.readFileSync(new URL('../src/commerce-admin-router.js',import.meta.url),'utf8');
-const store=fs.readFileSync(new URL('../src/commerce-supabase-store.js',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('../src/ga/commerce-products-view.jsx',import.meta.url),'utf8');
+const router=fs.readFileSync(new URL('../src/ga/commerce-admin-router.js',import.meta.url),'utf8');
+const store=fs.readFileSync(new URL('../src/ga/commerce-supabase-store.js',import.meta.url),'utf8');
 const sales=fs.readFileSync(new URL('../supabase/migrations/20261013140500_commerce_product_sales_planning_v1.sql',import.meta.url),'utf8');
 const presence=fs.readFileSync(new URL('../supabase/migrations/20261013140000_commerce_product_planning_v1.sql',import.meta.url),'utf8');
 

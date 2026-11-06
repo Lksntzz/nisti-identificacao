@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {normalizeCommerceImportRow} from '../src/commerce-import-normalizer.js';
+import {normalizeCommerceImportRow} from '../src/ga/commerce-import-normalizer.js';
 test('ML bulk export ignores metadata and parent row but reads variation SKU and listing ID',()=>{
  const parent=['','MLB4028562870',null,null,'','Planner exemplo','-',0,19,37.6];
  const child=['','MLB4028562870','178695790630','178695790630','PLASHP RSA PXP',0,'CAPA 01',980,3,0];

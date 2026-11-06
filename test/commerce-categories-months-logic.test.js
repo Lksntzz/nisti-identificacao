@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {gainLoss,notRepeated,yearShare,MONTH_VIEWS} from '../src/commerce-categories-months-logic.js';
+import {gainLoss,notRepeated,yearShare,MONTH_VIEWS} from '../src/ga/commerce-categories-months-logic.js';
 
 const L=[{month:1,cur:10,base:50},{month:2,cur:60,base:20},{month:3,cur:30,base:30},{month:4,cur:0,base:40},{month:5,cur:40,base:35}];
 test('gainLoss ordena pela maior diferença absoluta e ignora meses iguais',()=>{

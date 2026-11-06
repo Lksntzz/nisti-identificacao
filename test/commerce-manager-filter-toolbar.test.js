@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=path=>fs.readFileSync(path,'utf8');
-const ui=read('src/commerce-ad-manager.jsx');
-const evidence=read('src/commerce-ad-evidence.js');
-const styles=read('src/commerce-ad-manager.css');
+const ui=read('src/ga/commerce-ad-manager.jsx');
+const evidence=read('src/ga/commerce-ad-evidence.js');
+const styles=read('src/ga/commerce-ad-manager.css');
 const sql=read('supabase/migrations/20261016152000_commerce_listing_manager_v1.sql');
 
 test('sales and ABC controls share a compact, aligned filter panel',()=>{

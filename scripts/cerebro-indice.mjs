@@ -12,7 +12,7 @@ const EXT = new Set(['.js', '.jsx', '.css']);
 export function areaDe(caminho) {
   const nome = caminho.split('/').pop();
   if (/^admin\/Mural/.test(caminho) || /^mural-/.test(nome) || /^public-image/.test(nome)) return 'Mural';
-  if (/^commerce-|^ga-access/.test(nome) || /^commerce/.test(caminho)) return 'GA (Gestor de Anúncios)';
+  if (/^commerce-|^ga-access/.test(nome) || /^commerce/.test(caminho) || /^ga\//.test(caminho)) return 'GA (Gestor de Anúncios)';
   if (/notification|dispatch|web-push|expedic/i.test(nome) || /^(notification-ui|expedicao)\//.test(caminho)) return 'Notificações e expedição';
   if (/router|edge-|operator-|worker|security|session|login|access/i.test(nome)) return 'Servidor (rotas, login, Worker)';
   if (/^admin\//.test(caminho)) return 'Painel administrativo (outros)';

@@ -4,8 +4,8 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(path,'utf8');
 
 test('categorias visual segue a referência: 5 indicadores, tabelas, gráficos mensais e sazonais',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
-  const css=read('src/commerce-categories-panel.css');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
+  const css=read('src/ga/commerce-categories-panel.css');
   for(const title of ['Total de unidades','Categoria líder','Coleção líder','Coleção em crescimento','Quem explica a variação','Peso dos lançamentos','Comparação por categoria','Categoria selecionada','Tabela mensal','Comparação semanal'])
     assert.ok(ui.includes(title),'Falta painel: '+title);
   assert.match(ui,/function MonthlyBars/);
@@ -22,7 +22,7 @@ test('categorias visual segue a referência: 5 indicadores, tabelas, gráficos m
   assert.match(css,/@media\(max-width:680px\)/);
 });
 test('somente foto real do catálogo, URLs externas seguras e sem inventar valores',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
   assert.match(ui,/^const validImage=/m);
   assert.match(ui,/^const validLink=/m);
   assert.match(ui,/<img src=\{src\} loading="lazy"/);
@@ -35,8 +35,8 @@ test('somente foto real do catálogo, URLs externas seguras e sem inventar valor
 });
 test('consulta temporal segura, paginada no detalhamento de produtos e sem gravar vendas',()=>{
   const sql=read('supabase/migrations/20261030183000_commerce_categories_timeline_v1.sql');
-  const store=read('src/commerce-supabase-store.js');
-  const router=read('src/commerce-admin-router.js');
+  const store=read('src/ga/commerce-supabase-store.js');
+  const router=read('src/ga/commerce-admin-router.js');
   assert.match(sql,/commerce_categories_timeline_v1/);
   assert.match(sql,/language sql stable security invoker/);
   assert.match(sql,/revoke all on function public\.commerce_categories_timeline_v1[\s\S]*from public,anon,authenticated/);
@@ -56,8 +56,8 @@ test('consulta temporal segura, paginada no detalhamento de produtos e sem grava
 
 
 test('investigação completa mostra melhor/pior semana e os períodos das coleções',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
-  const css=read('src/commerce-categories-panel.css');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
+  const css=read('src/ga/commerce-categories-panel.css');
   assert.match(ui,/melhor semana de/);
   assert.match(ui,/pageOf\(collectionRows,colPage\)\.items\.map\(col=>\{/);
   assert.match(ui,/Melhor mês','Melhor semana/);
@@ -67,8 +67,8 @@ test('investigação completa mostra melhor/pior semana e os períodos das cole�
 
 
 test('coleções são exibidas no card e podem abrir variações reais com SKU, imagem, unidades e link',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
-  const css=read('src/commerce-categories-panel.css');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
+  const css=read('src/ga/commerce-categories-panel.css');
   const sql=read('supabase/migrations/20261030205000_commerce_categories_collections_timeline_v2.sql');
   for(const name of ['Coleção líder','Coleção em crescimento','Coleções de','Variações da coleção','variation_name'])
     assert.ok(ui.includes(name),'Ausente: '+name);
@@ -102,7 +102,7 @@ test('categorias: série mensal corta o mês atual do ano anterior no mesmo dia'
 });
 
 test('variações abrem no acumulado do ano (igual à linha da coleção) e a migração só acrescenta chaves',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
   const sql=read('supabase/migrations/20261104190000_commerce_categories_variations_ytd_v1.sql');
   assert.match(ui,/products_ytd/);
   assert.match(ui,/Ano até hoje/);
@@ -112,22 +112,22 @@ test('variações abrem no acumulado do ano (igual à linha da coleção) e a mi
 });
 
 test('paginação: funções usadas pela tela existem no arquivo (evita tela em branco)',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
   assert.match(ui,/^const PAGE_SIZE=/m);
   assert.match(ui,/^const pageOf=/m);
   assert.match(ui,/^function Pager\(/m);
 });
 
 test('abertura rápida: a tela usa só a cobertura anual (rota leve), sem o comparativo anual completo',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
   assert.match(ui,/sales-compare\/annual-coverage/);
   assert.doesNotMatch(ui,/useAnnualCompare/);
-  assert.match(read('src/commerce-admin-router.js'),/sales-compare\/annual-coverage/);
-  assert.match(read('src/commerce-supabase-store.js'),/export async function commerceAnnualCoverage/);
+  assert.match(read('src/ga/commerce-admin-router.js'),/sales-compare\/annual-coverage/);
+  assert.match(read('src/ga/commerce-supabase-store.js'),/export async function commerceAnnualCoverage/);
 });
 
 test('painel lateral mostra ganhos/perdas, meses que não repetiram e peso no ano',()=>{
-  const ui=read('src/commerce-categories-panel.jsx');
+  const ui=read('src/ga/commerce-categories-panel.jsx');
   assert.match(ui,/^function MonthInsights\(/m);
   assert.match(ui,/Categoria · meses/);
   assert.match(ui,/Coleção · meses/);

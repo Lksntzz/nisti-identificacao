@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync('supabase/migrations/20261019174500_commerce_shopee_unlinked_sales_v1.sql','utf8');
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const router=fs.readFileSync('src/commerce-admin-router.js','utf8');
-const store=fs.readFileSync('src/commerce-supabase-store.js','utf8');
-const panel=fs.readFileSync('src/commerce-shopee-unlinked-sales.jsx','utf8');
+const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
+const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const panel=fs.readFileSync('src/ga/commerce-shopee-unlinked-sales.jsx','utf8');
 
 test('relatório sem vínculo só lê vendas reais sem inventar dono ou SKU atual',()=>{
   assert.match(sql,/commerce_sales_rows r/);

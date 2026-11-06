@@ -55,7 +55,7 @@ test('API comercial passa pelo guard administrativo antes do handler', () => {
 });
 
 test('API comercial separa staging, reconciliação e commit do catálogo', () => {
-  const router = read('src/commerce-admin-router.js');
+  const router = read('src/ga/commerce-admin-router.js');
   assert.equal(router.includes('/dashboard'), true);
   assert.equal(router.includes('/products'), true);
   assert.equal(router.includes('/listings'), true);
@@ -81,7 +81,7 @@ test('RPC de importação limita chunks a 100 linhas e preserva payload bruto', 
 
 test('lotes de importação possuem listagem paginada server-side', () => {
   const migration = read('supabase/migrations/202609221310_commerce_import_list_rpc_v1.sql');
-  const router = read('src/commerce-admin-router.js');
+  const router = read('src/ga/commerce-admin-router.js');
   assert.equal(migration.includes('commerce_list_import_batches_v1'), true);
   assert.equal(migration.includes('count(*) over() as total_count'), true);
   assert.equal(router.includes('commerceImportBatches'), true);

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {periodParams,periodQuery,periodLabel,categoryKpis,listCategories,unitPrice} from '../src/commerce-categories-helpers.js';
-import { growth, pctText, newKind, projectionRange, daysBehind } from '../src/commerce-annual-compare-helpers.js';
+import {periodParams,periodQuery,periodLabel,categoryKpis,listCategories,unitPrice} from '../src/ga/commerce-categories-helpers.js';
+import { growth, pctText, newKind, projectionRange, daysBehind } from '../src/ga/commerce-annual-compare-helpers.js';
 
 test('growth nao inventa percentual sem base', () => {
   assert.equal(growth(10, 0), null);
@@ -17,15 +17,15 @@ test('SQL do comparativo anual e somente leitura e restrito ao service_role', ()
     assert.match(sql, /revoke all on function[^;]*from public,\s*anon,\s*authenticated/i);
     assert.match(sql, /grant execute on function[^;]*to service_role/i);
   }
-  assert.match(fs.readFileSync('src/commerce-admin-router.js', 'utf8'), /sales-compare\/annual/);
+  assert.match(fs.readFileSync('src/ga/commerce-admin-router.js', 'utf8'), /sales-compare\/annual/);
 });
 
 test('Painel Comercial tem submenu com Categorias', () => {
-  const p = fs.readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  const p = fs.readFileSync('src/ga/commerce-admin-app-v2.jsx', 'utf8');
   for (const l of ['Painel Comercial', 'Categorias']) assert.ok(p.includes(l));
 });
 
-import { indexOf, weekHighlights } from '../src/commerce-annual-compare-helpers.js';
+import { indexOf, weekHighlights } from '../src/ga/commerce-annual-compare-helpers.js';
 test('indice 100 = igual ao ano passado e nao existe sem base', () => {
   assert.equal(indexOf(55, 100), 55);
   assert.equal(indexOf(150, 100), 150);
@@ -50,14 +50,14 @@ test('migracao de desempenho cria o indice de nome por SKU', () => {
 });
 
 test('submenu do Painel Comercial fica na lateral com Categorias', () => {
-  const app = fs.readFileSync('src/commerce-admin-app-v2.jsx', 'utf8');
+  const app = fs.readFileSync('src/ga/commerce-admin-app-v2.jsx', 'utf8');
   assert.match(app, /COMMERCIAL_SUBITEMS/);
   assert.doesNotMatch(app, /Comparação anual/);
   assert.match(app, /Categorias/);
-  assert.doesNotMatch(fs.readFileSync('src/commerce-commercial-panel.jsx', 'utf8'), /ndb-ac-tabs/);
+  assert.doesNotMatch(fs.readFileSync('src/ga/commerce-commercial-panel.jsx', 'utf8'), /ndb-ac-tabs/);
 });
 
-import { productLabel, share } from '../src/commerce-annual-compare-helpers.js';
+import { productLabel, share } from '../src/ga/commerce-annual-compare-helpers.js';
 test('produto: tira a marca, separa a colecao e trata cadastro ausente', () => {
   const a = productLabel('Nisti Print Caderneta de Vacinação Menino Personalizado Coleção Safari', 'X');
   assert.equal(a.title, 'Caderneta de Vacinação Menino Personalizado');
@@ -101,14 +101,14 @@ test('categorias: migração, rotas e painel existem e validam entradas', () => 
   assert.match(sql,/commerce_categories_v2/); assert.match(sql,/commerce_categories_sub_v2/);
   assert.match(sql,/revoke all on function public\.commerce_categories_v2/);
   assert.match(sql,/r_up<=5/);
-  const router = fs.readFileSync('src/commerce-admin-router.js','utf8');
+  const router = fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
   assert.match(router,/sales-compare\/categories-sub/); assert.match(router,/Filtro de categorias inválido/);
-  assert.match(fs.readFileSync('src/commerce-commercial-panel.jsx','utf8'),/CommerceCategoriesPanel/);
+  assert.match(fs.readFileSync('src/ga/commerce-commercial-panel.jsx','utf8'),/CommerceCategoriesPanel/);
 });
 
 
 test('categorias: produto tem nome, SKU, miniatura real e link de anúncio protegido', () => {
-  const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
+  const ui = fs.readFileSync('src/ga/commerce-categories-panel.jsx','utf8');
   assert.match(ui, /v\.name\|\|v\.sku/);
   assert.match(ui, /<small>\{v\.sku\}<\/small>/);
   assert.match(ui, /validImage\(src\)/);
@@ -119,8 +119,8 @@ test('categorias: produto tem nome, SKU, miniatura real e link de anúncio prote
 test('categorias por coleção: migração, rota e tela usam coleção e variações', () => {
   const sql = fs.readFileSync('supabase/migrations/20261029250000_commerce_categories_collections_v1.sql','utf8');
   assert.match(sql,/commerce_collection_v1/); assert.match(sql,/commerce_sku_collection_v1/);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'),/categories-col/);
-  const ui = fs.readFileSync('src/commerce-categories-panel.jsx','utf8');
+  assert.match(fs.readFileSync('src/ga/commerce-admin-router.js','utf8'),/categories-col/);
+  const ui = fs.readFileSync('src/ga/commerce-categories-panel.jsx','utf8');
   assert.match(ui,/Coleções de \{picked\.name\}/);
   assert.doesNotMatch(ui,/Produtos e itens do período/);
   assert.doesNotMatch(ui,/<h2>Categorias<\/h2>/);
@@ -132,7 +132,7 @@ test('SKU sem cadastro usa o nome do relatório de vendas e a consulta de catego
 });
 
 test('dashboard: filtro inteligente bloqueia plataforma sem vendas no mês e filtra os meses da plataforma', () => {
-  const d = fs.readFileSync('src/commerce-dashboard.jsx','utf8');
+  const d = fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(d, /Sem vendas importadas em/);
   assert.match(d, /options=\{platformOptions\}/);
   assert.match(d, /hasSales\(r,platform\)/);
@@ -142,10 +142,10 @@ test('dashboard: filtro inteligente bloqueia plataforma sem vendas no mês e fil
 test('dashboard: filtro de ano inteiro (banco, Worker e seletor)', () => {
   const sql = fs.readFileSync('supabase/migrations/20261029270000_commerce_dashboard_year_filter_v1.sql','utf8');
   assert.match(sql, /interval '1 year'/); assert.match(sql, /p\.span/);
-  assert.match(fs.readFileSync('src/commerce-admin-router.js','utf8'), /PERIOD_RE/);
-  assert.match(fs.readFileSync('src/commerce-supabase-store.js','utf8'), /cleanPeriod/);
-  assert.match(fs.readFileSync('src/commerce-period-picker.jsx','utf8'), /Ano todo de/);
-  assert.match(fs.readFileSync('src/commerce-dashboard.jsx','utf8'), /yearOption/);
+  assert.match(fs.readFileSync('src/ga/commerce-admin-router.js','utf8'), /PERIOD_RE/);
+  assert.match(fs.readFileSync('src/ga/commerce-supabase-store.js','utf8'), /cleanPeriod/);
+  assert.match(fs.readFileSync('src/ga/commerce-period-picker.jsx','utf8'), /Ano todo de/);
+  assert.match(fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8'), /yearOption/);
 });
 
 test('newKind separa novo de verdade de produto que ja vendia em outro mes', () => {
@@ -176,7 +176,7 @@ test('daysBehind conta dias de atraso do ultimo dado', () => {
 });
 
 test('dashboard: gráfico mensal denso mostra só valores-chave e rótulos curtos', () => {
-  const src = fs.readFileSync(new URL('../src/commerce-dashboard.jsx', import.meta.url), 'utf8');
+  const src = fs.readFileSync(new URL('../src/ga/commerce-dashboard.jsx', import.meta.url), 'utf8');
   assert.match(src, /const dense=rows\.length>12/);
   assert.match(src, /showVal=\(r,i\)=>!dense\|\|i===bestIdx\|\|i===lastIdx\|\|i===hover/);
   assert.match(src, /ndb-seas-year/);

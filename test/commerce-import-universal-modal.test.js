@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {COMMERCE_IMPORT_OPTIONS} from '../src/commerce-import-options.js';
+import {COMMERCE_IMPORT_OPTIONS} from '../src/ga/commerce-import-options.js';
 
-const manager=fs.readFileSync('src/commerce-ad-manager.jsx','utf8');
-const center=fs.readFileSync('src/commerce-import-center.jsx','utf8');
-const modal=fs.readFileSync('src/commerce-import-modal.jsx','utf8');
-const modalCss=fs.readFileSync('src/commerce-import-modal.css','utf8');
-const managerCss=fs.readFileSync('src/commerce-ad-manager.css','utf8');
+const manager=fs.readFileSync('src/ga/commerce-ad-manager.jsx','utf8');
+const center=fs.readFileSync('src/ga/commerce-import-center.jsx','utf8');
+const modal=fs.readFileSync('src/ga/commerce-import-modal.jsx','utf8');
+const modalCss=fs.readFileSync('src/ga/commerce-import-modal.css','utf8');
+const managerCss=fs.readFileSync('src/ga/commerce-ad-manager.css','utf8');
 const icon=fs.readFileSync('src/vendor/CommercialIcon.jsx','utf8');
 
 test('Importar arquivo is a dropdown; legacy four-card inline block is removed',()=>{
@@ -66,7 +66,7 @@ test('menu Importar arquivo agrupa Desempenho e a tela pede a plataforma antes d
   assert.ok(!COMMERCE_IMPORT_OPTIONS.some(x=>x.mode==='ml_performance'));
   assert.match(center,/mode==='performance'&&<CommercePerformanceImport\/>/);
   assert.match(center,/STANDALONE_MODES=\[[^\]]*'performance'/);
-  const screen=fs.readFileSync('src/commerce-performance-import.jsx','utf8');
+  const screen=fs.readFileSync('src/ga/commerce-performance-import.jsx','utf8');
   for(const v of ['SHOPEE','ML_NOVO','ML_ANTIGO'])assert.ok(screen.includes(v));
   assert.match(screen,/account="NOVO"/);assert.match(screen,/account="ANTIGO"/);
   assert.match(screen,/\{!platform&&/);

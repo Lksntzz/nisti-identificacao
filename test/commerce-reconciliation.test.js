@@ -57,7 +57,7 @@ test('RPCs de reconciliação ficam restritas à service role', () => {
 });
 
 test('API administrativa expõe reconciliação, decisão e commit somente sob /api/admin/commerce', () => {
-  const router = read('src/commerce-admin-router.js');
+  const router = read('src/ga/commerce-admin-router.js');
   assert.equal(router.includes('/reconcile'), true);
   assert.equal(router.includes('/approve-new'), true);
   assert.equal(router.includes('/commit'), true);

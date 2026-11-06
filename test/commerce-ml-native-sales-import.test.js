@@ -5,7 +5,7 @@ import {
   detectMercadoLivreVendasBrHeader,
   parseMercadoLivreSaleDate,
   parseMercadoLivreVendasBr
-} from '../src/commerce-ml-native-sales-reader.js';
+} from '../src/ga/commerce-ml-native-sales-reader.js';
 
 const header = [
   'N.º de venda','Data de venda','Depósito','Estado','Descrição do status',
@@ -100,7 +100,7 @@ test('sensitive shopper and shipping fields are not persisted in staged sales',(
   assert.equal(d.rows.every(row=>!('buyer' in row||'address' in row||'cpf' in row)),true);
   const sql=fs.readFileSync('supabase/migrations/20260928205021_commerce_sales_import_pipeline_v1.sql','utf8');
   assert.match(sql,/commerce_sales_import_stage_rows/);
-  const reader=fs.readFileSync('src/commerce-sales-import-reader.js','utf8');
+  const reader=fs.readFileSync('src/ga/commerce-sales-import-reader.js','utf8');
   assert.match(reader,/detectMercadoLivreVendasBrHeader/);
   assert.match(reader,/parseMercadoLivreVendasBr\(workbook,platformCode/);
 });
