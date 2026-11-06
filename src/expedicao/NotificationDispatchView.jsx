@@ -1,10 +1,10 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import '../notification-dispatch.css';
-import DispatchIcon from '../notification-ui/DispatchIcon.jsx';
-import PlatformLogo from '../notification-ui/PlatformLogo.jsx';
-import { submitDispatchNotifications } from '../notification-dispatch-send.js';
+import './notification-dispatch.css';
+import DispatchIcon from './notification-ui/DispatchIcon.jsx';
+import PlatformLogo from './notification-ui/PlatformLogo.jsx';
+import { submitDispatchNotifications } from './notification-dispatch-send.js';
 
-import { DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor } from '../notification-dispatch-options.js';
+import { DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor } from './notification-dispatch-options.js';
 const PLATFORMS=DISPATCH_PLATFORMS;
 const NAMES={'PENDING':'Na fila','SHOWING':'Em exibição','EXPIRED':'Exibida'};
 const titleCase=name=>name.toLowerCase().replace(/\b\w/g,x=>x.toUpperCase());

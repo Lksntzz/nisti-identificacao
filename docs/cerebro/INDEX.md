@@ -21,6 +21,10 @@ Abra **só a nota do assunto** em que for trabalhar.
 
 `npm run cerebro` cria `docs/cerebro/_gerado/arquivos.md`: todos os arquivos de `src/` agrupados por área, com linhas e uma descrição curta (do comentário no topo do arquivo ou dos exports). Não é versionado, então nunca fica velho nem gera conflito. **A IA deve rodá-lo quando precisar achar onde algo está**, em vez de varrer o código. Para a descrição ficar boa, comece arquivos novos com uma linha `// o que este arquivo faz`.
 
+## Pastas de código por módulo (reorganização em andamento)
+
+Etapa 1 feita: tudo da **expedição e monitor** (notificação para a expedição) está em `src/expedicao/` (rotas `notification-dispatch-*`, `expedition-dispatch-*`, monitor, telas `ExpeditionDashboard` e `NotificationDispatchView`, `notification-ui/`). As entradas (`src/operator-audit-router.js`, `src/edge-router.js`, `src/entry.jsx`, `src/main.jsx`) continuam em `src/`. Próximas etapas previstas: escâner, Mural, painel admin e core; GA por último.
+
 ## Notas que ainda não existem (a fazer, uma por vez)
 
 notificações (novas capas, atividade do admin, push).

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor} from '../src/notification-dispatch-options.js';
-import {handleNotificationDispatchRequest} from '../src/notification-dispatch-router.js';
+import {DISPATCH_PLATFORMS,dispatchOptionGroups,dispatchOptionValid,formatDispatchText,platformColor} from '../src/expedicao/notification-dispatch-options.js';
+import {handleNotificationDispatchRequest} from '../src/expedicao/notification-dispatch-router.js';
 
 test('RETIRAR CAPA is universal and cannot disappear',()=>{
  for(const platform of DISPATCH_PLATFORMS){

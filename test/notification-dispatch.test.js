@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {handleNotificationDispatchRequest,DISPATCH_PLATFORMS} from '../src/notification-dispatch-router.js';
+import {handleNotificationDispatchRequest,DISPATCH_PLATFORMS} from '../src/expedicao/notification-dispatch-router.js';
 
 test('the dispatch board uses 15 seconds and canonical platforms',()=>{
   assert.deepEqual(DISPATCH_PLATFORMS,['SHOPEE','MERCADO LIVRE ANTIGO','MERCADO LIVRE NOVO','MERCADO LIVRE','AMAZON','SHEIN','TIK TOK','MAGALU','KWAI','LOJA INTEGRADA']);
@@ -62,12 +62,12 @@ test('rejects empty batch, duplicate platform, invalid messages before database 
   }
 });
 test('monitor shows message and uses duration-derived progress bar',()=>{
-  const frontend=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+  const frontend=fs.readFileSync(new URL('../src/expedicao/notification-monitor.jsx',import.meta.url),'utf8');
   assert.match(frontend,/current\.message/);
   assert.match(frontend,/seconds\/duration\*100/);
 });
 test('multi-platform admin has independent message controls',()=>{
-  const frontend=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
+  const frontend=fs.readFileSync(new URL('../src/expedicao/NotificationDispatchView.jsx',import.meta.url),'utf8');
   assert.match(frontend,/type="checkbox"/);
   assert.match(frontend,/nid-selected-modes/);
   assert.match(frontend,/api\/admin\/dispatch\/batch/);

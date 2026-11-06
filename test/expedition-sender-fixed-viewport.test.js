@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const css=fs.readFileSync(new URL('../src/expedition-dispatch-standalone.css',import.meta.url),'utf8');
-const view=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
-const standalone=fs.readFileSync(new URL('../src/expedition-dispatch-standalone.jsx',import.meta.url),'utf8');
-const legacy=fs.readFileSync(new URL('../src/notification-dispatch.css',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/expedicao/expedition-dispatch-standalone.css',import.meta.url),'utf8');
+const view=fs.readFileSync(new URL('../src/expedicao/NotificationDispatchView.jsx',import.meta.url),'utf8');
+const standalone=fs.readFileSync(new URL('../src/expedicao/expedition-dispatch-standalone.jsx',import.meta.url),'utf8');
+const legacy=fs.readFileSync(new URL('../src/expedicao/notification-dispatch.css',import.meta.url),'utf8');
 
 test('expedition sender locks desktop to one browser viewport, not a growing document',()=>{
   assert.match(css,/@media\s*\(min-width:\s*1024px\)\s*and\s*\(min-height:\s*650px\)/);

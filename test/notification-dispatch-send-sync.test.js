@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {submitDispatchNotifications} from '../src/notification-dispatch-send.js';
+import {submitDispatchNotifications} from '../src/expedicao/notification-dispatch-send.js';
 
 const options={
   SHOPEE:['Full','Coleta personalizada'],
@@ -96,7 +96,7 @@ test('sem configuração autorizada não cria fila nem assume opção disponíve
 });
 
 test('a interface separa envio confirmado da atualização de contadores',()=>{
-  const jsx=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
+  const jsx=fs.readFileSync(new URL('../src/expedicao/NotificationDispatchView.jsx',import.meta.url),'utf8');
   assert.match(jsx,/await submitDispatchNotifications\(/);
   assert.match(jsx,/fetchOptions:\(\)=>request\(endpoints.options\)/);
   assert.match(jsx,/result.state==='options_changed'/);

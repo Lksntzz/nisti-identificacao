@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import NotificationDispatchView from './admin/NotificationDispatchView.jsx';
+import NotificationDispatchView from './NotificationDispatchView.jsx';
 import './expedition-dispatch-standalone.css';
 
 // O link tem a chave no fragmento (#acesso=...), que nao e enviada em requests

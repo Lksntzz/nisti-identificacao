@@ -85,8 +85,8 @@ test('authorization stays scoped to the sender URL and never runs on mural host'
 });
 
 test('sender panel shows platform personalization but no monitor administration',()=>{
-  const ui=fs.readFileSync(new URL('../src/expedition-dispatch-standalone.jsx',import.meta.url),'utf8');
-  const view=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
+  const ui=fs.readFileSync(new URL('../src/expedicao/expedition-dispatch-standalone.jsx',import.meta.url),'utf8');
+  const view=fs.readFileSync(new URL('../src/expedicao/NotificationDispatchView.jsx',import.meta.url),'utf8');
   assert.match(ui,/NotificationDispatchView senderMode/);
   assert.match(ui,/window\.location\.hash/);
   assert.match(ui,/history\.replaceState/);
@@ -175,7 +175,7 @@ test('sender may customize per-platform modes without admin or monitor privilege
     const response=await query(path,{method:'POST',headers,body:'{}'});
     assert.equal(response.status,403,path);
   }
-  const senderRoute=fs.readFileSync(new URL('../src/expedition-dispatch-sender-router.js',import.meta.url),'utf8');
+  const senderRoute=fs.readFileSync(new URL('../src/expedicao/expedition-dispatch-sender-router.js',import.meta.url),'utf8');
   assert.match(senderRoute,/path===API\+'\/options'&&\(request\.method==='GET'\|\|request\.method==='POST'\)/);
 });
 
@@ -189,7 +189,7 @@ test('Conectar is available only with sender session and cannot access admin fea
   assert.notEqual(authorized.status,403);
   const admin=await query('/api/admin/dispatch/connect',{method:'POST',headers:{origin}});
   assert.equal(admin.status,401);
-  const view=fs.readFileSync(new URL('../src/admin/NotificationDispatchView.jsx',import.meta.url),'utf8');
+  const view=fs.readFileSync(new URL('../src/expedicao/NotificationDispatchView.jsx',import.meta.url),'utf8');
   assert.match(view,/Conectar/);
   assert.match(view,/connectMonitor/);
   assert.match(view,/api\/expedition-panel\/connect/);
