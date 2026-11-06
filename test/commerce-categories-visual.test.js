@@ -6,7 +6,7 @@ const read=path=>fs.readFileSync(path,'utf8');
 test('categorias visual segue a referência: 5 indicadores, tabelas, gráficos mensais e sazonais',()=>{
   const ui=read('src/ga/commerce-categories-panel.jsx');
   const css=read('src/ga/commerce-categories-panel.css');
-  for(const title of ['Total de unidades','Categoria líder','Coleção líder','Coleção em crescimento','Quem explica a variação','Peso dos lançamentos','Comparação por categoria','Categoria selecionada','Tabela mensal','Comparação semanal'])
+  for(const title of ['Total de unidades','Categoria que mais cresceu','Categoria que mais caiu','Quem explica a variação','Peso dos lançamentos','Categorias','Categoria selecionada','Tabela mensal','Comparação semanal'])
     assert.ok(ui.includes(title),'Falta painel: '+title);
   assert.match(ui,/function MonthlyBars/);
   assert.match(ui,/function PairBars/);
@@ -18,7 +18,7 @@ test('categorias visual segue a referência: 5 indicadores, tabelas, gráficos m
   assert.match(ui,/category_months/);
   assert.match(ui,/collection_months/);
   assert.match(ui,/weekly_collections/);
-  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(css,/@media\(max-width:680px\)/);
 });
 test('somente foto real do catálogo, URLs externas seguras e sem inventar valores',()=>{
@@ -60,7 +60,8 @@ test('investigação completa mostra melhor/pior semana e os períodos das cole�
   const css=read('src/ga/commerce-categories-panel.css');
   assert.match(ui,/melhor semana de/);
   assert.match(ui,/pageOf\(collectionRows,colPage\)\.items\.map\(col=>\{/);
-  assert.match(ui,/Melhor mês','Melhor semana/);
+  assert.match(ui,/'Melhor mês'/);
+  assert.match(ui,/function DivBar/);
   assert.doesNotMatch(ui,/Produtos e itens do período/);
   assert.match(css,/\.ndb-cp-view-products/);
 });
@@ -70,7 +71,7 @@ test('coleções são exibidas no card e podem abrir variações reais com SKU, 
   const ui=read('src/ga/commerce-categories-panel.jsx');
   const css=read('src/ga/commerce-categories-panel.css');
   const sql=read('supabase/migrations/20261030205000_commerce_categories_collections_timeline_v2.sql');
-  for(const name of ['Coleção líder','Coleção em crescimento','Coleções de','Variações da coleção','variation_name'])
+  for(const name of ['Coleções de','Variações da coleção','variation_name'])
     assert.ok(ui.includes(name),'Ausente: '+name);
   assert.match(ui,/namedCollections=categories\.flatMap/);
   assert.match(ui,/col\.name!=='Sem coleção'/);

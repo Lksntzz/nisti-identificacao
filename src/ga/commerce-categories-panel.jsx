@@ -62,8 +62,8 @@ function Metric({icon,title,value,detail,tone='',onClick,active=false}){
   const inner=<><span className={'ndb-cp-metric-icon '+tone}><Icon name={icon} size={19}/></span><span className="ndb-cp-metric-main"><small>{title}</small><strong title={String(value)}>{value}</strong><span>{detail}</span></span></>;
   return onClick?<button type="button" className={'ndb-cp-metric'+(active?' is-active':'')} onClick={onClick} aria-pressed={active}>{inner}</button>:<div className="ndb-cp-metric">{inner}</div>;
 }
-function PeriodTag({cur,base}){
-  if(!(num(base)>0))return <span className="ndb-cp-tag is-neutral">Sem base</span>;
+function PeriodTag({cur,base,newLabel='Sem base'}){
+  if(!(num(base)>0))return <span className="ndb-cp-tag is-neutral">{num(cur)>0?newLabel:'—'}</span>;
   return <span className={'ndb-cp-tag '+color(num(cur)-num(base))}>{pct(cur,base)}</span>;
 }
 function Section({title,subtitle,children,aside,className=''}) {
@@ -74,6 +74,10 @@ function PairBars({base,cur,max}){
     <i className="is-base" style={{width:(num(base)>0?Math.max(3,num(base)/max*100):0)+'%'}}/>
     <i className="is-cur" style={{width:(num(cur)>0?Math.max(3,num(cur)/max*100):0)+'%'}}/>
   </span>;
+}
+function DivBar({cur,base,maxPct}){
+  const b=num(base),d=b>0?(num(cur)-b)/b*100:0,w=b>0?Math.min(50,Math.abs(d)/maxPct*50):0;
+  return <span className="ndb-cp-div" aria-hidden="true"><i className="ndb-cp-div-mid"/>{w>0&&<i className={'ndb-cp-div-bar '+(d>=0?'is-up':'is-down')} style={d>=0?{left:'50%',width:w+'%'}:{right:'50%',width:w+'%'}}/>}</span>;
 }
 function MonthlyBars({points,onSelect,selected,year,baseYear}){
   const max=Math.max(1,...points.flatMap(p=>[num(p.cur),num(p.base)]));
@@ -173,6 +177,10 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
     .sort((a,b)=>(num(b.cur)-num(b.base))-(num(a.cur)-num(a.base)))[0]||null;
   const lossCollection=namedCollections.filter(col=>num(col.base)>0&&num(col.cur)<num(col.base))
     .sort((a,b)=>(num(a.cur)-num(a.base))-(num(b.cur)-num(b.base)))[0]||null;
+  const withBase=categories.filter(c=>c.name!=='Sem categoria'&&num(c.base)>0);
+  const topGain=withBase.filter(c=>num(c.cur)>num(c.base)).sort((a,b)=>(num(b.cur)-num(b.base))-(num(a.cur)-num(a.base)))[0]||null;
+  const topLoss=withBase.filter(c=>num(c.cur)<num(c.base)).sort((a,b)=>(num(a.cur)-num(a.base))-(num(b.cur)-num(b.base)))[0]||null;
+  const maxPct=Math.max(10,...withBase.map(c=>Math.abs(variation(c.cur,c.base))));
   const collectionRows=rows(picked?.cols);
   const catMonths=rows(tAll?.category_months),collectionMonths=rows(tAll?.collection_months);
   const months=Array.from({length:12},(_,i)=>{
@@ -247,22 +255,19 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
     {data&&!error&&<>
       <div className="ndb-cp-kpis">
         <Metric icon="box" title="Total de unidades" value={fmt(total.cur)} detail={baseYear+': '+fmt(total.base)+' · '+delta(num(total.cur)-num(total.base))+' un.'}/>
-        <Metric icon="trophy" title="Categoria líder" value={leader?.name||'—'} detail={leader?fmt(leader.cur)+' unidades · '+(num(total.cur)>0?Math.round(num(leader.cur)/num(total.cur)*100)+'% do total':'—'):'Sem vendas'} onClick={()=>leader&&chooseCat(leader.name)} active={picked?.name===leader?.name}/>
-        <Metric icon="trophy" title="Coleção líder" value={leaderCollection?.name||'—'} detail={leaderCollection?fmt(leaderCollection.cur)+' unidades · '+leaderCollection.category:'Nenhuma coleção identificada'} onClick={()=>leaderCollection&&(chooseCat(leaderCollection.category),setSelectedCollection(leaderCollection.name))}/>
-        <Metric icon="up" title="Coleção em crescimento" value={gainCollection?.name||'—'} detail={gainCollection?delta(num(gainCollection.cur)-num(gainCollection.base))+' un. · '+gainCollection.category:'Sem crescimento confirmado'} tone="green" onClick={()=>gainCollection&&(chooseCat(gainCollection.category),setSelectedCollection(gainCollection.name))}/>
+        <Metric icon="up" title="Categoria que mais cresceu" value={topGain?cleanName(topGain.name):'—'} detail={topGain?delta(num(topGain.cur)-num(topGain.base))+' un. vs '+baseYear:'Sem crescimento confirmado'} tone="green" onClick={()=>topGain&&chooseCat(topGain.name)} active={!!topGain&&picked?.name===topGain.name}/>
+        <Metric icon="down" title="Categoria que mais caiu" value={topLoss?cleanName(topLoss.name):'—'} detail={topLoss?delta(num(topLoss.cur)-num(topLoss.base))+' un. vs '+baseYear:'Sem queda confirmada'} tone="red" onClick={()=>topLoss&&chooseCat(topLoss.name)} active={!!topLoss&&picked?.name===topLoss.name}/>
       </div>
       <div className="ndb-cp-main">
-        <Section title="Comparação por categoria" subtitle={baseYear+' × '+year+' · unidades no período comparado'} aside={<div className="ndb-cp-control-row"><select aria-label="Exibir categorias" value={show} onChange={e=>setShow(e.target.value)}><option value="all">Todas</option><option value="up">Crescimento</option><option value="down">Queda</option><option value="none">Sem categoria</option></select><select aria-label="Ordenar categorias" value={sort} onChange={e=>setSort(e.target.value)}><option value="units">Unidades</option><option value="growth">Maior ganho</option><option value="loss">Maior perda</option></select></div>} className="ndb-cp-category-panel">
-          <DetailTable heads={['Categoria',String(baseYear),String(year),'Diferença','Variação','Participação']}>
-            {pageOf(filtered,catPage).items.map((c,i0)=>{const i=(pageOf(filtered,catPage).n-1)*PAGE_SIZE+i0;return <tr key={c.name} className={picked?.name===c.name?'is-selected':''} onClick={()=>chooseCat(c.name)}>
-              <td><button type="button" className="ndb-cp-row-name" onClick={e=>{e.stopPropagation();chooseCat(c.name)}}><Thumb src={imageOf(c.name)} alt={'Produto de '+c.name}/><span><b>{c.name}</b><small>#{i+1}</small></span></button></td>
-              <td>{fmt(c.base)}</td><td><b>{fmt(c.cur)}</b><PairBars base={c.base} cur={c.cur} max={maxCats}/></td>
-              <td className={color(num(c.cur)-num(c.base))}>{delta(num(c.cur)-num(c.base))}</td>
-              <td><PeriodTag cur={c.cur} base={c.base}/></td>
-              <td>{num(total.cur)>0?Math.round(num(c.cur)/num(total.cur)*1000)/10+'%':'—'}<span className="ndb-cp-share"><i style={{width:(num(total.cur)>0?num(c.cur)/num(total.cur)*100:0)+'%'}}/></span></td>
-            </tr>;})}
+        <Section title="Categorias" subtitle={filtered.length+' categorias · '+baseYear+' × '+year+' no período comparado'} aside={<div className="ndb-cp-control-row"><select aria-label="Exibir categorias" value={show} onChange={e=>setShow(e.target.value)}><option value="all">Todas</option><option value="up">Crescimento</option><option value="down">Queda</option><option value="none">Sem categoria</option></select><select aria-label="Ordenar categorias" value={sort} onChange={e=>setSort(e.target.value)}><option value="units">Unidades</option><option value="growth">Maior ganho</option><option value="loss">Maior perda</option></select></div>} className="ndb-cp-category-panel">
+          <DetailTable className="ndb-cp-cat-table" heads={['Categoria',String(year),'Variação vs '+baseYear,'Part.']}>
+            {filtered.map((c,i)=><tr key={c.name} className={picked?.name===c.name?'is-selected':''} onClick={()=>chooseCat(c.name)}>
+              <td><button type="button" className="ndb-cp-row-name" onClick={e=>{e.stopPropagation();chooseCat(c.name)}}><Thumb src={imageOf(c.name)} alt={'Produto de '+c.name}/><span><b>{c.name}</b><small>#{i+1} · {baseYear}: {fmt(c.base)}</small></span></button></td>
+              <td><b>{fmt(c.cur)}</b></td>
+              <td className="ndb-cp-var-cell"><DivBar cur={c.cur} base={c.base} maxPct={maxPct}/><PeriodTag cur={c.cur} base={c.base}/></td>
+              <td>{num(total.cur)>0?Math.round(num(c.cur)/num(total.cur)*1000)/10+'%':'—'}</td>
+            </tr>)}
           </DetailTable>
-          <Pager page={pageOf(filtered,catPage).n} total={filtered.length} onPage={setCatPage}/>
           {!filtered.length&&<p className="ndb-cp-empty">Nenhuma categoria encontrada.</p>}
           <p className="ndb-cp-foot">Selecione uma categoria para investigar coleções, variações, meses e semanas. As fotos são do catálogo.</p>
         </Section>
@@ -275,24 +280,25 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
               <div><small>Variação</small><b><PeriodTag cur={picked.cur} base={picked.base}/></b></div>
             </div>
             {openYear&&<p className="ndb-cp-year-detail" role="status"><b>{openYear==='cur'?year:baseYear}:</b> melhor mês <strong>{(openYear==='cur'?bestMonth:bestMonthBase)?SHORT[(openYear==='cur'?bestMonth:bestMonthBase).month-1]+' · '+fmt(openYear==='cur'?bestMonth.cur:bestMonthBase.base):'—'}</strong> · melhor semana de {MONTHS[currentMonth-1]} <strong>{(openYear==='cur'?bestWeek:bestWeekBase)?'Sem. '+(openYear==='cur'?bestWeek:bestWeekBase).week+' · '+fmt(openYear==='cur'?bestWeek.cur:bestWeekBase.base):'—'}</strong></p>}
+            <div className="ndb-cp-detail-chart"><Section className="ndb-cp-inline-chart" title={'Comparação mensal '+(selectedCollection?'da coleção':'da categoria')} subtitle={selectedCollection||picked?.name||''} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
+          <MonthlyBars points={months} selected={currentMonth} onSelect={chooseMonth} year={year} baseYear={baseYear}/>
+          <p className="ndb-cp-foot">Meses futuros do ano atual não são tratados como zero. Clique em um mês para investigar.</p>
+        </Section></div>
             <div className="ndb-cp-insights">
               <div><small>Quem explica a variação</small>{explainers.length?explainers.map(e=><span key={e.name}><b>{cleanName(e.name)}</b> <em className={color(e.d)}>{delta(e.d)}</em></span>):<span>—</span>}</div>
               <div><small>Peso dos lançamentos</small><span><b>{newShare}%</b> das vendas vêm de {newCols.length} {newCols.length===1?'coleção sem':'coleções sem'} vendas em {baseYear}{newCols.length?' ('+fmt(newUnits)+' un.)':''}</span></div>
             </div>
             <div className="ndb-cp-panel-subheading"><b>Coleções de {picked.name}</b><button type="button" onClick={()=>setSelectedCollection(null)} disabled={!selectedCollection}>{selectedCollection?'Mostrar todas':'Todas as coleções'}</button></div>
             {temporal.loading&&!tAll?<p className="ndb-cp-loading">Carregando coleções e variações…</p>:temporal.error?<div className="ndb-cp-error">{temporal.error}<button type="button" onClick={temporal.retry}>Tentar novamente</button></div>:null}
-            <DetailTable heads={['Coleção',String(baseYear),String(year),'Diferença','Variação','Melhor mês','Melhor semana','']}>
+            <DetailTable heads={['Coleção',String(year),'Variação','Melhor mês','']}>
               {pageOf(collectionRows,colPage).items.map(col=>{const cm=rows(collectionMonths).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
-                const cw=rows(t?.weekly_collections).filter(r=>r.col===col.name&&num(r.year)===year).sort((a,b)=>num(b.units)-num(a.units))[0];
                 const expanded=selectedCollection===col.name;
                 return <React.Fragment key={col.name}>
                   <tr className={expanded?'is-selected':''} onClick={()=>{pickCollection(col.name)}}>
                     <td><button type="button" className="ndb-cp-sub-button" aria-expanded={expanded&&drawerOpen} aria-label={'Abrir variações da coleção '+col.name} onClick={e=>{e.stopPropagation();pickCollection(col.name)}}>{cleanName(col.name)}<span className="ndb-cp-col-arrow">{expanded?'⌄':'›'}</span></button></td>
-                    <td>{fmt(col.base)}</td><td><b>{fmt(col.cur)}</b></td>
-                    <td className={color(num(col.cur)-num(col.base))}>{delta(num(col.cur)-num(col.base))}</td>
-                    <td><PeriodTag cur={col.cur} base={col.base}/></td>
+                    <td><b>{fmt(col.cur)}</b></td>
+                    <td><PeriodTag cur={col.cur} base={col.base} newLabel="Novo"/></td>
                     <td>{cm?SHORT[num(cm.month)-1]+' · '+fmt(cm.units):'—'}</td>
-                    <td>{cw?'Sem. '+cw.week+' · '+fmt(cw.units):'—'}</td>
                     <td className="ndb-cp-arrow">{expanded?'⌄':'›'}</td>
                   </tr>
                 </React.Fragment>;
@@ -325,10 +331,6 @@ export default function CommerceCategoriesPanel({filters,setFilters,refresh=0}){
                     </div>
         </aside></>}
       <div className="ndb-cp-visual-grid">
-        <Section title={'Comparação mensal '+(selectedCollection?'da coleção':'da categoria')} subtitle={selectedCollection||picked?.name||''} aside={<div className="ndb-cp-legend"><span><i className="is-base"/>{baseYear}</span><span><i className="is-cur"/>{year}</span></div>}>
-          <MonthlyBars points={months} selected={currentMonth} onSelect={chooseMonth} year={year} baseYear={baseYear}/>
-          <p className="ndb-cp-foot">Meses futuros do ano atual não são tratados como zero. Clique em um mês para investigar.</p>
-        </Section>
         <Section title="Tabela mensal" subtitle={(allMonths?'Todos os meses · ':MONTHS[currentMonth-1]+' · ')+'clique no mês para detalhar semanas · '+(selectedCollection||picked?.name||'')} >
           {allMonths||num(months.find(m=>m.month===currentMonth)?.cur)>0||num(months.find(m=>m.month===currentMonth)?.base)>0?null:<p className="ndb-cp-empty">Sem vendas em {MONTHS[currentMonth-1]} nesse recorte. Escolha outro mês no gráfico ou veja todos os meses.</p>}
           <DetailTable heads={['Mês',String(baseYear),String(year),'Diferença','Variação','Categoria líder','Coleção líder']}>
