@@ -6,8 +6,8 @@ import { handleCommerceListingStateRequest } from './commerce-listing-state-rout
 import { handleCommerceProductStateRequest } from './commerce-product-state-router.js';
 import { handleCommerceListingEditorRequest } from './commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural-router.js';
-import { handleNotificationDispatchRequest } from './notification-dispatch-router.js';
-import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedition-dispatch-sender-router.js';
+import { handleNotificationDispatchRequest } from './expedicao/notification-dispatch-router.js';
+import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedicao/expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './canva-bridge-entry.js';
 import { GA_HOST, handleGaHostRequest } from './ga-access.js';
 

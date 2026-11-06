@@ -1,4 +1,4 @@
-import { supabaseRpc } from './supabase-read-store.js';
+import { supabaseRpc } from '../supabase-read-store.js';
 import { DISPATCH_PLATFORMS,dispatchOptionValid } from './notification-dispatch-options.js';
 
 export { DISPATCH_PLATFORMS } from './notification-dispatch-options.js';

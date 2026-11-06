@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DISPATCH_PLATFORMS } from '../src/notification-dispatch-options.js';
-import { DISPATCH_SOUND_PATTERNS,DISPATCH_SOUND_DURATION_SECONDS,notificationSoundNotes,playNotificationSound,stopNotificationSound,missingSoundPlatforms } from '../src/notification-platform-sounds.js';
-import { fetchPublishedMonitorBuild,shouldReloadMonitor,MONITOR_BUILD_CHECK_INTERVAL_MS } from '../src/notification-monitor-updates.js';
+import { DISPATCH_PLATFORMS } from '../src/expedicao/notification-dispatch-options.js';
+import { DISPATCH_SOUND_PATTERNS,DISPATCH_SOUND_DURATION_SECONDS,notificationSoundNotes,playNotificationSound,stopNotificationSound,missingSoundPlatforms } from '../src/expedicao/notification-platform-sounds.js';
+import { fetchPublishedMonitorBuild,shouldReloadMonitor,MONITOR_BUILD_CHECK_INTERVAL_MS } from '../src/expedicao/notification-monitor-updates.js';
 import fs from 'node:fs';
 
 test('all 10 marketplace queues have distinct sound profiles and valid notes',()=>{
@@ -100,7 +100,7 @@ test('automatic reload never interrupts live or queued alerts',()=>{
 
 test('Vite creates matching version in bundle and online monitor-build.json',()=>{
   const vite=fs.readFileSync(new URL('../vite.config.js',import.meta.url),'utf8');
-  const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+  const monitor=fs.readFileSync(new URL('../src/expedicao/notification-monitor.jsx',import.meta.url),'utf8');
   const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
   assert.match(vite,/__NISTI_MONITOR_BUILD_ID__/);
   assert.match(vite,/monitor-build\.json/);
@@ -114,7 +114,7 @@ test('Vite creates matching version in bundle and online monitor-build.json',()=
 
 
 test('monitor feed tolerates incomplete calls without rendering React objects or invalid dates',async()=>{
-  const {normalizeMonitorCall,normalizeMonitorFeed}=await import('../src/notification-monitor-data.js');
+  const {normalizeMonitorCall,normalizeMonitorFeed}=await import('../src/expedicao/notification-monitor-data.js');
   const feed=normalizeMonitorFeed({call:{id:53,platform:'SHOPEE',message:'RETIRAR CAPA',expires_at:'2026-10-20T21:00:00Z'},pending:2,duration_seconds:15,server_time:'2026-10-20T20:59:45Z'});
   assert.equal(feed.call.platform,'SHOPEE');
   assert.equal(feed.invalidCall,false);
@@ -138,14 +138,14 @@ test('kiosk screen reloads automatically after render failures with bounded retr
   assert.match(entry,/Math\.min\(5000\*\(2\*\*\(count-1\)\),60000\)/);
   const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
   assert.match(sw,/nisti-id-v41/);
-  const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+  const monitor=fs.readFileSync(new URL('../src/expedicao/notification-monitor.jsx',import.meta.url),'utf8');
   assert.match(monitor,/normalizeMonitorFeed\(result\)/);
 });
 
 
 test('a rendering error in one active notification cannot take down the entire expedition monitor',()=>{
-  const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
-  const boundary=fs.readFileSync(new URL('../src/notification-monitor-call-boundary.jsx',import.meta.url),'utf8');
+  const monitor=fs.readFileSync(new URL('../src/expedicao/notification-monitor.jsx',import.meta.url),'utf8');
+  const boundary=fs.readFileSync(new URL('../src/expedicao/notification-monitor-call-boundary.jsx',import.meta.url),'utf8');
   assert.match(monitor,/<MonitorCallBoundary key=\{current\.id\} platform=\{current\.platform\} message=\{current\.message\}>/);
   assert.match(monitor,/try\{return playNotificationSound\(audioRef\.current,platform,/);
   assert.match(monitor,/catch\(error\)/);
@@ -157,8 +157,8 @@ test('a rendering error in one active notification cannot take down the entire e
 
 
 test('reconnect marker instructs open monitor to reload without asking ADM permission',()=>{
-  const ui=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
-  const api=fs.readFileSync(new URL('../src/notification-dispatch-router.js',import.meta.url),'utf8');
+  const ui=fs.readFileSync(new URL('../src/expedicao/notification-monitor.jsx',import.meta.url),'utf8');
+  const api=fs.readFileSync(new URL('../src/expedicao/notification-dispatch-router.js',import.meta.url),'utf8');
   const sql=fs.readFileSync(new URL('../supabase/migrations/20261021234000_nisti_dispatch_sender_reconnect_v7.sql',import.meta.url),'utf8');
   assert.match(ui,/reconnectMarkerRef/);
   assert.match(ui,/marker!==reconnectMarkerRef\.current/);
@@ -170,7 +170,7 @@ test('reconnect marker instructs open monitor to reload without asking ADM permi
 });
 
 test('monitor feed history is bounded, validated, and never shows queued items',async()=>{
-  const {normalizeMonitorHistory,normalizeMonitorFeed}=await import('../src/notification-monitor-data.js');
+  const {normalizeMonitorHistory,normalizeMonitorFeed}=await import('../src/expedicao/notification-monitor-data.js');
   const items=Array.from({length:13},(_,i)=>({
     id:13-i,platform:'SHOPEE',message:'RETIRAR CAPA FULL',
     started_at:'2026-10-21T12:00:00Z',status:i===3?'PENDING':i===0?'SHOWING':'EXPIRED'
@@ -188,7 +188,7 @@ test('monitor feed history is bounded, validated, and never shows queued items',
   assert.deepEqual(invalid.recent,[]);
 });
 test('monitor receives recent completed notifications without leaking pending queue details',()=>{
-  const api=fs.readFileSync(new URL('../src/notification-dispatch-router.js',import.meta.url),'utf8');
+  const api=fs.readFileSync(new URL('../src/expedicao/notification-dispatch-router.js',import.meta.url),'utf8');
   const migration=fs.readFileSync(new URL('../supabase/migrations/20261021235000_nisti_dispatch_monitor_recent_v8.sql',import.meta.url),'utf8');
   assert.match(api,/nisti_dispatch_public_next_v8/);
   assert.match(migration,/nisti_dispatch_public_next_v7/);

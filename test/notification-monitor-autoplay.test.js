@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 test('monitor automatically tries to start audio without an operator click',()=>{
-  const src=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+  const src=fs.readFileSync(new URL('../src/expedicao/notification-monitor.jsx',import.meta.url),'utf8');
   assert.match(src,/new Audio\(\)/);
   assert.match(src,/ctx\.resume\(\)\.then\(sync\)\.catch\(sync\)/);
   assert.match(src,/ctx\.state==='running'/);

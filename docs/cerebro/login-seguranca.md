@@ -50,5 +50,5 @@ Quem pode entrar onde, como as sessões funcionam e o que protege o sistema. Tud
 
 - `src/edge-router.js`: login, sessões, CSRF, rate limit, cabeçalhos, `isProtectedApi`.
 - `src/operator-audit-router.js`: congelamento de escrita e registro de atividade do admin.
-- `src/expedition-dispatch-sender-router.js`: link privado da expedição.
+- `src/expedicao/expedition-dispatch-sender-router.js`: link privado da expedição.
 - `wrangler.toml`: limites de requisição e variáveis (nunca segredos).

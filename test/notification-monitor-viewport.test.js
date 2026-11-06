@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const css=fs.readFileSync(new URL('../src/notification-dispatch.css',import.meta.url),'utf8');
-const monitor=fs.readFileSync(new URL('../src/notification-monitor.jsx',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../src/expedicao/notification-dispatch.css',import.meta.url),'utf8');
+const monitor=fs.readFileSync(new URL('../src/expedicao/notification-monitor.jsx',import.meta.url),'utf8');
 
 test('expedition screen stays within notebook viewport without overflowing page',()=>{
   assert.match(css,/\.nid-monitor\.nid-monitor-v5\{[^}]*height:100dvh;min-height:0;min-width:0;display:grid;grid-template-columns:minmax\(0,1fr\);grid-template-rows:auto minmax\(0,1fr\) auto;overflow:hidden/);

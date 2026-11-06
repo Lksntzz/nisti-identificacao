@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {DISPATCH_PLATFORMS,optionsForPlatform,dispatchOptionValid} from '../src/notification-dispatch-options.js';
-import {handleNotificationDispatchRequest} from '../src/notification-dispatch-router.js';
+import {DISPATCH_PLATFORMS,optionsForPlatform,dispatchOptionValid} from '../src/expedicao/notification-dispatch-options.js';
+import {handleNotificationDispatchRequest} from '../src/expedicao/notification-dispatch-router.js';
 
 test('ten dispatch platforms remain separate and each has relevant operation choices',()=>{
   assert.equal(DISPATCH_PLATFORMS.length,10);

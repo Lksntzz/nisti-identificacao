@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {handleNotificationDispatchRequest} from '../src/notification-dispatch-router.js';
+import {handleNotificationDispatchRequest} from '../src/expedicao/notification-dispatch-router.js';
 
 const source=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 
 test('dedicated monitor loads directly without key, cookie, PIN or approval',()=>{
-  const monitor=source('../src/notification-monitor.jsx');
+  const monitor=source('../src/expedicao/notification-monitor.jsx');
   const edge=source('../src/edge-router.js');
   assert.match(monitor,/post\('\/api\/dispatch\/view'\)/);
   assert.match(monitor,/Aguardando solicitações/);
@@ -18,13 +18,13 @@ test('dedicated monitor loads directly without key, cookie, PIN or approval',()=
 });
 
 test('admin exposes only the stable public monitor URL, not pairing controls',()=>{
-  const admin=source('../src/admin/NotificationDispatchView.jsx');
+  const admin=source('../src/expedicao/NotificationDispatchView.jsx');
   assert.match(admin,/Acesso direto ao monitor/);
   assert.match(admin,/id="nid-monitor-public-url"/);
   assert.doesNotMatch(admin,/approvePair|pairing|pendingMonitors|monitor-key|permanentLink/);
   const edge=source('../src/edge-router.js');
   assert.match(edge,/isProtectedApi\(pathname\)/);
-  const router=source('../src/notification-dispatch-router.js');
+  const router=source('../src/expedicao/notification-dispatch-router.js');
   assert.match(router,/nisti_dispatch_public_next_v8/);
   assert.doesNotMatch(router,/nisti_dispatch_pair_monitor_v1|nisti_dispatch_approve_pair_v5/);
 });

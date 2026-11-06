@@ -116,10 +116,10 @@ function RootApp() {
         setMuralComponent(() => mod.default);
       });
     } else if (route === 'dispatch' && !DispatchComponent) {
-      import('./notification-monitor.jsx').then(mod=>setDispatchComponent(()=>mod.default))
+      import('./expedicao/notification-monitor.jsx').then(mod=>setDispatchComponent(()=>mod.default))
         .catch(error=>{console.error('[Monitor NISTI] Falha no carregamento',error?.name||'module_error');setDispatchLoadError(true)});
     } else if (route === 'dispatch-admin' && !DispatchAdminComponent) {
-      import('./expedition-dispatch-standalone.jsx').then(mod=>setDispatchAdminComponent(()=>mod.default));
+      import('./expedicao/expedition-dispatch-standalone.jsx').then(mod=>setDispatchAdminComponent(()=>mod.default));
     } else if (route === 'public' && !PublicComponent) {
       import('./public-main.jsx').then(publicMod => {
         setPublicComponent(() => publicMod.default || publicMod.PublicIdentificationApp);
