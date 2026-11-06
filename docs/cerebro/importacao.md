@@ -34,7 +34,7 @@ Registro único em `src/ga/commerce-import-options.js` (alimenta o menu e a tela
 
 ## Reimportação e períodos
 
-- **Reimportar um dia substitui o antigo** (gatilho `commerce_shopee_supersede_old_days_trg`): o lote mais novo substitui os mesmos dias de snapshots mais antigos, e o antigo fica guardado nas tabelas `*_superseded` para desfazer. Arquivos do mesmo snapshot **somam**; não substituem.
+- **Reimportar um dia substitui o antigo** (gatilho `commerce_shopee_supersede_old_days_trg`): o lote mais novo substitui os mesmos dias de snapshots mais antigos, e o antigo é removido. O gatilho (versão atual, migração `20261031000500_commerce_shopee_full_daily_import_v1.sql`) age em **três** tabelas: vendas por SKU/dia e financeiro por dia, que guardam o que saiu em `*_superseded` (dá para desfazer), e o **Full por dia** (`commerce_shopee_full_daily_v1`), que é **apagado sem cópia**. Só vale para a Shopee e só quando o lote novo tem `snapshot_id` maior. Os dias comparados vêm das vendas por SKU do lote novo. Arquivos do mesmo snapshot **somam**; não substituem.
 - **Mês incompleto:** se a última venda do arquivo é antes do fim do mês, o período vira parcial (do dia 1 até o último dia com venda), para o mês não parecer completo.
 - Várias abas ou meses no mesmo arquivo: a cobertura é calculada **por mês**, para um mês parcial não parecer completo por causa de outro.
 
