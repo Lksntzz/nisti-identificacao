@@ -11,6 +11,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 | Publicar mudanças | [[deploy]] | Antes de abrir PR, mesclar ou aplicar migração |
 | Mural NISTI | [[mural]] | Feed, publicações, coleções, imagens do Mural e push |
 | Importação de planilhas (Shopee/ML) | [[importacao]] | Mexer em importação de vendas, catálogo, Full, reimportação |
+| ID / scanner e catálogo | [[id-catalogo]] | Scanner de EAN, cadastro de produto, SKU, vínculo de EAN, gerador de código de barras |
 | Backup do banco e imagens | [[backup]] | Fazer, conferir ou planejar backup (hoje sem backup confirmado) |
 | Erro "Muitas requisições" | [[limites-requisicoes]] | Erro 429, painel travando, telas que consultam o servidor sem parar |
 
@@ -20,7 +21,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 
 ## Notas que ainda não existem (a fazer, uma por vez)
 
-ID/scanner e catálogo, expedição e monitor, notificações, login e segurança.
+expedição e monitor, notificações, login e segurança.
 Enquanto não existirem, a fonte é o código e os arquivos de `docs/` (ex.: [[monitor-notificacoes-expedicao]]).
 
 ## Pendências conhecidas (resolver e apagar daqui)
