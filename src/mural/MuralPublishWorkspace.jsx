@@ -118,6 +118,9 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
   // Cada tipo (Produto, Informação, Coleção) guarda o PRÓPRIO rascunho: trocar de tipo nunca
   // copia título, texto, selo, produto ou imagem de um tipo para o outro.
   const draftsRef = useRef({});
+  // Post já criado nesta tela: se o limite de requisições (429) cortar o envio no meio,
+  // clicar de novo atualiza este post em vez de criar um duplicado.
+  const createdPostIdRef = useRef(null);
   const freshPostForm = kind => {
     const base = { ...EMPTY_POST, kind };
     if (kind === 'notice') return postForm({ ...base, notice_level: 'info', badge: 'COMUNICADO INTERNO' });
@@ -283,7 +286,7 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
           expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null
         };
 
-        let id = (sourceItem && !isEditingCollection) ? sourceItem.id : null;
+        let id = (sourceItem && !isEditingCollection) ? sourceItem.id : createdPostIdRef.current;
         if (id) {
           await request(`/api/admin/mural/posts/${id}`, {
             method: 'PUT',
@@ -297,6 +300,7 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
             body: JSON.stringify(bodyData)
           });
           id = created.id;
+          createdPostIdRef.current = id;
         }
 
         if (image) {
@@ -323,6 +327,8 @@ function MuralPublishWorkspace({ item, products = [], onClose, onSaved, onOpenEx
           .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
         setCollectionConflict({ slug: existingSlug, name: collectionForm.name?.trim() || form.title?.trim() || 'Coleção' });
         setError('Esta coleção já está cadastrada. Abra o registro existente para concluir a publicação, sem criar uma duplicata.');
+      } else if (err?.status === 429) {
+        setError('O servidor está com muitos pedidos agora. Aguarde 1 minuto e clique de novo. O que já foi salvo não será duplicado.');
       } else {
         setError(err.message);
       }

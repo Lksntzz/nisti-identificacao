@@ -392,6 +392,8 @@ async function enforceRateLimit(env, request, pathname) {
   try {
     const result = await binding.limit({ key: rateLimitKey(request, scope) });
     if (result?.success === false) {
+      // Sem IP no log (dado pessoal): só qual limitador, método e rota, para achar a causa.
+      console.warn('[Rate limit] 429', JSON.stringify({ limiter: bindingName, method, path: pathname.slice(0, 120) }));
       return withSecurityHeaders(
         json(
           { error: 'Muitas requisições. Tente novamente em instantes.' },
