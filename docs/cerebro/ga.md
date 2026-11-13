@@ -30,6 +30,7 @@ A tela **Comparação anual** foi removida em 05/11/2026 (PR #839) e o back-end 
 - A view `commerce_current_sales_listing_daily_v1` alimenta **todas** as telas de vendas. Mudar nela afeta tudo; só com comparação antes/depois.
 - Mudar a curva ABC exige comparar resultado antigo x novo em vários casos (já divergiu antes).
 - Leituras do dashboard têm cache de 5 min (`src/ga/commerce-read-cache.js`); gravações zeram; `?fresh=1` ignora.
+- As leituras do GA saem em fila (máx. 3 ao mesmo tempo) em `src/ga/commerce-manager-fetch.js`; sem isso, logo após importar, o Dashboard estourava o limite de 8 s do banco.
 - Função SQL nova: `_v1`, revogar de `public, anon, authenticated`, conceder a `service_role`. Função existente: ler a definição atual antes e mudar só o necessário.
 - Apagar dados: mostrar contagem, pedir aprovação explícita e fazer backup antes. Backups `bak_*` só saem a pedido do Lucas.
 
