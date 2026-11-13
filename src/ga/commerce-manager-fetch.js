@@ -10,7 +10,33 @@ function withFresh(url){
   return url+(String(url).includes('?')?'&':'?')+'fresh=1';
 }
 
-export async function fetchCommercialManager(url,{signal,fetchImpl=fetch}={}){
+// Fila de leituras: no máximo 3 consultas ao mesmo tempo. Logo após uma importação o cache está vazio e a tela
+// pedia ~8 cálculos pesados juntos; num banco pequeno isso passava do limite de 8 s (statement timeout).
+const MAX_PARALLEL=3;
+let running=0;
+const waiting=[];
+function acquireSlot(signal){
+  if(signal?.aborted)return Promise.reject(new DOMException('Aborted','AbortError'));
+  if(running<MAX_PARALLEL){running++;return Promise.resolve();}
+  return new Promise((resolve,reject)=>{
+    const entry={resolve:()=>{signal?.removeEventListener('abort',onAbort);resolve();}};
+    const onAbort=()=>{const i=waiting.indexOf(entry);if(i>=0)waiting.splice(i,1);reject(new DOMException('Aborted','AbortError'));};
+    signal?.addEventListener('abort',onAbort,{once:true});
+    waiting.push(entry);
+  });
+}
+function releaseSlot(){
+  const next=waiting.shift();
+  if(next)next.resolve(); // o lugar passa direto para o próximo da fila
+  else running--;
+}
+
+export async function fetchCommercialManager(url,opts={}){
+  await acquireSlot(opts.signal);
+  try{return await fetchNow(url,opts);}finally{releaseSlot();}
+}
+
+async function fetchNow(url,{signal,fetchImpl=fetch}={}){
   url=withFresh(url);
   for(let attempt=0;attempt<2;attempt++){
     try{

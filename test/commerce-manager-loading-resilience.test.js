@@ -77,7 +77,7 @@ test('aborted requests do not retry or replace data from a later filter',async()
     }}),
     /Abort|Aborted/
   );
-  assert.equal(calls,1);
+  assert.equal(calls,0); // já cancelada: nem chega a consultar (a fila recusa antes)
 });
 
 test('UI preserves successful same-filter data and clears results for different filters',()=>{
