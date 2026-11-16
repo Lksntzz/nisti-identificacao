@@ -16,3 +16,9 @@ test('Pararam: contagens do card, alerta e aba usam a mesma lista filtrada', () 
   assert.equal((src.match(/stoppedCount/g) || []).length >= 4, true);
   assert.doesNotMatch(src, /ov\.stopped_total\?\?/);
 });
+
+test('Pararam virou filtro dentro de Sem vendas e os atalhos antigos continuam funcionando', () => {
+  assert.match(src, /initialTab==='never'\|\|initialTab==='stopped'\?'nosales'/);
+  assert.match(src, /if\(k==='never'\|\|k==='stopped'\)\{setNsf\(k\);setTab\('nosales'\);\}/);
+  assert.match(src, /tab==='nosales'&&nsf==='stopped'&&!all/);
+});

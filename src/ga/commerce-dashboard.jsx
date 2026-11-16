@@ -374,7 +374,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [abcPlat,setAbcPlat]=useState('TODAS');
   const [abcData,setAbcData]=useState(null);
   const [curve,setCurve]=useState(false);
-  const [tab,setTabRaw]=useState(initialTab==='never'?'nosales':initialTab||'best');
+  const [tab,setTabRaw]=useState(initialTab==='never'||initialTab==='stopped'?'nosales':initialTab||'best');
   const [focus,setFocus]=useState(Boolean(initialTab));
   const setTab=k=>{setTabRaw(k);setFocus(true);};
   const [helpOpen,setHelpOpen]=useState(false);
@@ -390,13 +390,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   },[loading,lateOk]);
   const doneDays=(days&&!month&&[7,30,60,90].includes(Number(days)))?Number(days):null;
   const nsSince=r=>r.last_sale&&data?.last_day?Math.round((Date.parse(String(data.last_day).slice(0,10))-Date.parse(String(r.last_sale).slice(0,10)))/86400000):null;
-  const inBand=r=>{const d=nsSince(r);return doneDays!=null&&d!=null&&d>=doneDays&&d<=doneDays+6;};
+  const inBand=r=>{const d=nsSince(r);return doneDays!=null&&d!=null&&d>=doneDays&&d<=Math.min(doneDays+6,90);};
   const [nsAll,setNsAll]=useState(false);
   // Aba "Sem vendas" com período de 7/30/60/90 dias: mostra quem COMPLETOU N dias sem vender (última venda há N a N+6 dias),
   // a mesma regra do relatório. "Ver todos" volta à lista completa sem vendas no período.
   const nsBand=()=>doneDays!=null&&nsf==='all'&&!nsAll;
   const nsMatch=r=>nsBand()?inBand(r):(nsf==='all'||(nsf==='stopped'?Boolean(r.last_sale):!r.last_sale));
-  const [nsf,setNsf]=useState(initialTab==='never'?'never':'all');
+  const [nsf,setNsf]=useState(initialTab==='never'?'never':initialTab==='stopped'?'stopped':'all');
   useEffect(()=>{
     const controller=new AbortController();
     const q='?platform='+platform+'&days='+days+(month?'&month='+month:'');
@@ -453,8 +453,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const all=days===0&&!month;
   // Filtro inteligente: "Pararam" e "Em queda" comparam períodos; em "todo o histórico" passa sozinho para 90 dias.
   useEffect(()=>{
-    if(mode==='explorer'&&(tab==='stopped'||tab==='drops')&&days===0&&!month)setDays(90);
-  },[mode,tab,days,month]);
+    if(mode==='explorer'&&((tab==='nosales'&&nsf==='stopped')||tab==='drops')&&days===0&&!month)setDays(90);
+  },[mode,tab,nsf,days,month]);
   const span=month?Number(data?.days)||30:days;
   // Desempenho do Mercado Livre (relatório importado): visitas e conversão por anúncio; falha silenciosa.
   const [mlPerf,setMlPerf]=useState(null),[spPerf,setSpPerf]=useState(null);
@@ -512,8 +512,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const idsOf=a=>a.filter(r=>r.listing_id).map(r=>({id:r.listing_id}));
   const bestIds=useMemo(()=>mode==='explorer'&&tab==='best'?idsOf(top):[],[data,tab,mode]);
   const dropIds=useMemo(()=>mode==='explorer'&&tab==='drops'?signalRows:[],[signalRows,tab,mode]);
-  const stoppedIds=useMemo(()=>mode==='explorer'&&tab==='stopped'?idsOf(overview?.stopped||[]):[],[overview,tab,mode]);
-  const noSalesIds=useMemo(()=>mode==='explorer'&&tab==='nosales'?(overview?.no_sales||[]).filter(r=>r.last_sale&&r.listing_id).slice(0,200).map(r=>({id:r.listing_id})):[],[overview,tab,mode]);
+  const stoppedIds=useMemo(()=>mode==='explorer'&&tab==='nosales'&&nsf==='stopped'?idsOf(overview?.stopped||[]):[],[overview,tab,nsf,mode]);
+  const noSalesIds=useMemo(()=>mode==='explorer'&&tab==='nosales'&&nsf!=='stopped'?(overview?.no_sales||[]).filter(r=>r.last_sale&&r.listing_id).slice(0,200).map(r=>({id:r.listing_id})):[],[overview,tab,nsf,mode]);
   const bestBreakdown=useSalesBreakdown(bestIds);
   const dropBreakdown=useSalesBreakdown(dropIds);
   const stoppedBreakdown=useSalesBreakdown(stoppedIds,'last_sale');
@@ -586,7 +586,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   // Com uma plataforma escolhida, a coluna/etiqueta de plataforma é redundante; só aparece em "Todas as plataformas".
   const multi=platform==='TODAS';
   const bestSpan=(multi?6:5)+bestCols.length;
-  const goTab=k=>{if(onOpenTab)onOpenTab(k,{platform,days,month});else{if(k==='never'){setNsf('never');setTab('nosales');}else setTab(k);}};
+  const goTab=k=>{if(onOpenTab)onOpenTab(k,{platform,days,month});else{if(k==='never'||k==='stopped'){setNsf(k);setTab('nosales');}else setTab(k);}};
   const openAlert=k=>{if(k==='nosales')setNsAll(true);goTab(k);}; // o aviso fala de todos os sem vendas: abre a lista completa
   const openAbc=(c,curveMode)=>{if(mode==='overview'){goTab('abc');return;}setTab('abc');setCurve(curveMode);if(c)setCls(c);};
   
@@ -595,19 +595,17 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const TABS=[
     ['best','Melhores produtos',null],
     ['drops','Em queda',all?null:data?.drops?.total],
-    ['stopped','Pararam',overview&&!all?stoppedCount:null],
     ['nosales','Sem vendas',overview?(doneDays!=null&&!nsAll&&nsf==='all'?(ov.no_sales||[]).filter(inBand).length:(ov.no_sales_total??lst.active_without_sales)):null],
     ['abc','Curva ABC',null],
     ['cohorts','Cadastros por mês',null]
   ];
-  const SITUATION_TABS=['best','drops','stopped','nosales'];
+  const SITUATION_TABS=['best','drops','nosales'];
   const TAB_BAR=TABS.filter(t=>!SITUATION_TABS.includes(t[0]));
   const countOf=k=>{const c=TABS.find(t=>t[0]===k)?.[2];return c!=null?' ('+num(c)+')':'';};
   const situationOptions=[
     ...(SITUATION_TABS.includes(tab)?[]:[['__none','Selecione…']]),
     ['best','Melhores produtos'],
     ['drops','Em queda'+countOf('drops'),all?'Escolha um período de 30, 60 ou 90 dias':null],
-    ['stopped','Pararam'+countOf('stopped'),all?'Escolha um período de 30, 60 ou 90 dias':(!overview?'Consulta indisponível':null)],
     ['nosales','Sem vendas'+countOf('nosales'),!overview?'Consulta indisponível':null]
   ];
   const pickSituation=v=>{if(v==='__none')return;setTab(v);};
@@ -651,7 +649,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
       <IndexCard icon="box" tone="good" label="Vendendo" value={num(totals.listings||0)} foot={all?'anúncios com venda no histórico':'anúncios com venda no período'} active={tab==='best'&&focus} onClick={()=>goTab('best')} title="Anúncios que tiveram ao menos uma venda no período do filtro."/>
       <IndexCard icon="down" tone="bad" label="Em queda" value={all?'—':num(data?.drops?.total||0)} foot={all?'escolha um período':'vendem menos que no período anterior'} active={tab==='drops'&&focus} disabled={all} onClick={()=>goTab('drops')} title="Anúncios ativos que venderam pelo menos 15% menos que no período anterior."/>
-      <IndexCard icon="pause" tone="warn" label="Vendia e parou" value={all||!overview?'—':num(stoppedCount)} foot={all?'escolha um período':overview?'já venderam e estão sem vender no período':'consulta indisponível'} active={tab==='stopped'&&focus} disabled={all||!overview} onClick={()=>goTab('stopped')} title="Anúncios ativos que já venderam 3 ou mais unidades e não tiveram nenhuma venda no período."/>
+      <IndexCard icon="pause" tone="warn" label="Vendia e parou" value={all||!overview?'—':num(stoppedCount)} foot={all?'escolha um período':overview?'já venderam e estão sem vender no período':'consulta indisponível'} active={tab==='nosales'&&focus&&nsf==='stopped'} disabled={all||!overview} onClick={()=>goTab('stopped')} title="Anúncios ativos que já venderam 3 ou mais unidades e não tiveram nenhuma venda no período."/>
       <IndexCard icon="eye" tone="muted" label="Não vendeu" value={overview?num(ov.no_sales_never??0):'—'} foot={overview?'ativos que nunca venderam nos dados':'consulta indisponível'} active={tab==='nosales'&&focus&&nsf==='never'} disabled={!overview} onClick={()=>goTab('never')} title="Anúncios ativos sem nenhuma venda em todo o histórico importado."/>
     </div>}
     <div className="ndb-main">
@@ -699,7 +697,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {top.length===0&&!loading&&<tr><td colSpan={bestSpan} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">Os 15 anúncios que mais faturam no período.</p></>}
-          {(tab==='drops'||tab==='stopped')&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}
+          {(tab==='drops'||(tab==='nosales'&&nsf==='stopped'))&&all&&<p className="ndb-empty">Escolha 30, 60 ou 90 dias no filtro de período: esta lista compara períodos.</p>}
           {tab==='drops'&&!all&&<><PeriodBar cur={curTxt} prev={prevTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Unidades (ant. → atual)</th><th className="num">Variação</th><th className="num">Perdeu</th><th className="num">Preço médio</th><th title="Unidades por semana de 7 dias: três semanas atrás, duas, uma e a semana atual (a barra azul). O % ao lado compara a semana atual com a anterior.">Vendas por semana</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
             {whyRows.map(r=>{const sg=signals[r.listing_id];const rk=r.platform+r.external_id;const sb=dropBreakdown[r.listing_id];return <React.Fragment key={rk}><tr>
               <td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{multi?(PLATFORM_LABEL[r.platform]||r.platform)+' · ':''}{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
@@ -709,16 +707,18 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             {drops.length===0&&!loading&&<tr><td colSpan={7} className="ndb-empty">Nenhum anúncio ativo em queda neste período.</td></tr>}
           </tbody></table></div>
           <p className="ndb-note">Mostrando {Math.min(drops.length,20)} de {num(data?.drops?.total)} em queda, por maior perda de faturamento. O % compara com o período anterior.</p></>}
-          {tab==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>Como vendia antes de parar</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
+          {tab==='nosales'&&<div className="ndb-abc-bar-row">
+            <div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',nsBand()?(ov.no_sales||[]).filter(inBand).length:(ov.no_sales||[]).length],['stopped','Vendia e parou',stoppedCount],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} title={v==='stopped'?'Já venderam 3 ou mais unidades e estão parados há no máximo 90 dias.':undefined} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>
+            {nsBand()&&nsf==='all'&&<p className="ndb-note">Mostrando só quem completou {doneDays} dias sem vender (última venda há {doneDays}{doneDays<90?' a '+Math.min(doneDays+6,90):''} dias). <button type="button" className="ndb-link" onClick={()=>setNsAll(true)}>Ver todos os sem vendas</button></p>}
+            {nsAll&&doneDays!=null&&<button type="button" className="ndb-link" onClick={()=>{setNsAll(false);setNsf('all');}}>Voltar a quem completou {doneDays} dias</button>}
+          </div>}
+          {tab==='nosales'&&nsf==='stopped'&&!all&&<><PeriodBar cur={curTxt}/><div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Produto</th><th className="num">Última venda</th><th className="num">Sem vender há</th><th className="num">Já vendeu</th><th>Como vendia antes de parar</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
             {stoppedRows.map(r=>{const rk='s'+r.platform+r.external_id;const sb=stoppedBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{multi?(PLATFORM_LABEL[r.platform]||r.platform)+' · ':''}{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               <td className="num">{r.last_sale?fmtDayFull(r.last_sale):'—'}</td><td className="num">{r.days_since!=null?num(r.days_since)+' dias':'—'}</td><td className="num">{num(r.units_ever)} un. · {money(r.revenue_ever)}</td><td>{salesCell(rk,r.listing_id,sb,true)}</td><td>{bestCell(rk,r.listing_id)}</td></tr>{salesRows(rk,r.listing_id,sb,true,6)}</React.Fragment>;})}
             {(ov.stopped||[]).length>=300&&<tr><td colSpan={6} className="ndb-empty">A consulta traz no máximo os 300 que pararam mais recentemente; pode haver mais.</td></tr>}
             {stoppedRows.length===0&&<tr><td colSpan={6} className="ndb-empty">{overview?'Nenhum anúncio ativo está parado neste período.':'Sem dados: consulta indisponível.'}</td></tr>}
           </tbody></table></div><p className="ndb-note">{doneDays!=null?'Mostrando só quem completou '+doneDays+' dias sem vender (parado há '+doneDays+(doneDays<STOP_MAX?' a '+Math.min(doneDays+6,STOP_MAX):'')+' dias). ':''}Anúncios parados há mais de {STOP_MAX} dias não aparecem aqui. Semanas, dias e meses contados até a última venda de cada anúncio, para ver como ele vendia antes de parar. Confira estoque, se o anúncio está pausado ou bloqueado e se o preço mudou.</p></>}
-          {tab==='nosales'&&<><div className="ndb-abc-bar-row">
-            {nsBand()?<p className="ndb-note">Mostrando só quem completou {doneDays} dias sem vender (última venda há {doneDays} a {doneDays+6} dias). <button type="button" className="ndb-link" onClick={()=>setNsAll(true)}>Ver todos os sem vendas</button></p>:<div className="ndb-seg" role="group" aria-label="Filtrar sem vendas">{[['all','Todos',(ov.no_sales||[]).length],['stopped','Vendia e parou',(ov.no_sales||[]).filter(r=>r.last_sale).length],['never','Nunca venderam',(ov.no_sales||[]).filter(r=>!r.last_sale).length]].map(([v,l,c])=><button key={v} type="button" className={v===nsf?'is-active':''} aria-pressed={v===nsf} onClick={()=>setNsf(v)}>{l} ({num(c)})</button>)}</div>}
-            {nsAll&&doneDays!=null&&<button type="button" className="ndb-link" onClick={()=>{setNsAll(false);setNsf('all');}}>Voltar a quem completou {doneDays} dias</button>}
-            </div><PeriodBar cur={curTxt}/>
+          {tab==='nosales'&&nsf!=='stopped'&&<><PeriodBar cur={curTxt}/>
           <div className="ndb-scroll"><table className="ndb-table ndb-detail-table"><thead><tr><th>Anúncio</th>{multi&&<th>Plataforma</th>}<th>Última venda</th><th>Como vendia antes de parar</th><th title="Mês com mais unidades vendidas deste anúncio, em todo o histórico importado. Clique para comparar os meses.">Melhor mês</th></tr></thead><tbody>
             {(ov.no_sales||[]).filter(hit).filter(nsMatch).map(r=>{const sold=Boolean(r.last_sale);const rk='n'+r.platform+r.external_id;const sb=noSalesBreakdown[r.listing_id];return <React.Fragment key={rk}><tr><td title={r.title||''}><div className="ndb-pc"><div className="ndb-pt"><strong>{r.title||r.external_id}</strong><small>{r.external_id}</small></div><Ext platform={r.platform} id={r.external_id}/></div></td>
               {multi&&<td>{PLATFORM_LABEL[r.platform]||r.platform}</td>}<td>{sold?fmtDayFull(r.last_sale):'nunca'}</td><td>{sold?salesCell(rk,r.listing_id,sb,true):<span className="ndb-sb-empty">nunca vendeu nos dados</span>}</td><td>{sold?bestCell(rk,r.listing_id):null}</td></tr>{sold&&salesRows(rk,r.listing_id,sb,true,multi?5:4)}</React.Fragment>;})}
