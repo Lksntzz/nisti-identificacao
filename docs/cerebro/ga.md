@@ -41,4 +41,4 @@ O back-end sem uso da antiga Comparação anual foi apagado em 05/11/2026 (11 fu
 ## Ao terminar uma mudança no GA
 
 Atualizar o [[MAPA-GA]] (seção 10 ou a correspondente) e esta nota, no mesmo PR. Fluxo de publicação: [[deploy]].
-- Aba "Pararam": filtro no navegador (`stopBand` em `commerce-dashboard.jsx`): máximo 90 dias parado e, com 7/30/60/90, só a faixa N a N+6 dias (90 = só 90). Em 90 dias a lista costuma ficar vazia.
+- "Pararam" não é mais aba: é o filtro "Vendia e parou" dentro de "Sem vendas". Regra no navegador (`stopBand` em `commerce-dashboard.jsx`): máximo 90 dias parado e, com 7/30/60/90, só a faixa N a N+6 dias (90 = só 90). Em 90 dias a lista costuma ficar vazia.
