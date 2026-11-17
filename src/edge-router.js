@@ -10,6 +10,7 @@ import { handleNotificationDispatchRequest } from './expedicao/notification-disp
 import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedicao/expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './imagens/canva-bridge-entry.js';
 import { GA_HOST, handleGaHostRequest } from './ga/ga-access.js';
+import { autorizadaPelaChaveDoMockup } from './core/integracao-mockup.js';
 
 const COOKIE_NAME = 'nisti_admin_session';
 const LOGIN_CSRF_COOKIE = '__Host-nisti_login_csrf';
@@ -664,7 +665,7 @@ export default {
       return withSecurityHeaders(new Response(null, { status: 303, headers: { location: '/', 'set-cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`, 'cache-control': 'no-store' } }));
     }
 
-    if (isProtectedApi(pathname) && !(await validSession(request, env))) {
+    if (isProtectedApi(pathname) && !(await validSession(request, env)) && !(await autorizadaPelaChaveDoMockup(request, env))) {
       return withSecurityHeaders(json({ error: 'Acesso administrativo não autorizado.' }, 401));
     }
 

@@ -37,6 +37,14 @@ Quem pode entrar onde, como as sessões funcionam e o que protege o sistema. Tud
 - **Repositório público:** ver o código não dá acesso, mas qualquer segredo commitado vira público. Regra do `CLAUDE.md`: nada de chaves, senhas ou dados de negócio em arquivos.
 - **Branch `main` sem proteção no GitHub.** O deploy só publica commits vindos de PR com o teste verde, mas quem tem permissão de escrita ainda pode alterar a `main`. Passo a passo em [[PLANO-PROTECAO-E-RECUPERACAO]].
 
+## Chave do app de mockup (cadastro sem login)
+
+- O app de mockup (Electron, no PC do designer) cadastra produto no NISTI com `POST /api/products` e `Authorization: Bearer <chave>`. Sem cookie de admin.
+- A chave é o segredo `MOCKUP_INTEGRATION_KEY` do Worker (painel da Cloudflare, nunca em arquivo). Menos de 32 caracteres ou ausente = integração desligada.
+- Ela vale **só** para `POST /api/products` exato (cadastro/atualização por SKU) e `POST /api/products/{id}/image` (foto do produto; id só com dígitos). Não apaga, não lê, não mexe em `/api/products/:id`, `/api/admin/` nem `/api/sku/`. Checagem em `src/core/integracao-mockup.js`, chamada em `src/edge-router.js` ao lado de `validSession`.
+- O caminho é o mesmo do cadastro manual, então espelho no Supabase, aviso de "Novo produto cadastrado", push de nova capa e sincronização com o GA funcionam igual.
+- Trocar a chave: gerar outra, atualizar o segredo na Cloudflare e a chave no app. Quem perdeu a chave: trocar.
+
 ## Cuidados ao mexer
 
 - Não colocar dado sensível em rota que não esteja em `isProtectedApi` (ela decide o que exige login).
