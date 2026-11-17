@@ -41,7 +41,7 @@ Quem pode entrar onde, como as sessões funcionam e o que protege o sistema. Tud
 
 - O app de mockup (Electron, no PC do designer) cadastra produto no NISTI com `POST /api/products` e `Authorization: Bearer <chave>`. Sem cookie de admin.
 - A chave é o segredo `MOCKUP_INTEGRATION_KEY` do Worker (painel da Cloudflare, nunca em arquivo). Menos de 32 caracteres ou ausente = integração desligada.
-- Ela vale **só** para `POST /api/products` exato (cadastro/atualização por SKU; não apaga, não lê, não mexe em `/api/products/:id`, `/api/admin/` nem `/api/sku/`). Checagem em `src/core/integracao-mockup.js`, chamada em `src/edge-router.js` ao lado de `validSession`.
+- Ela vale **só** para `POST /api/products` exato (cadastro/atualização por SKU) e `POST /api/products/{id}/image` (foto do produto; id só com dígitos). Não apaga, não lê, não mexe em `/api/products/:id`, `/api/admin/` nem `/api/sku/`. Checagem em `src/core/integracao-mockup.js`, chamada em `src/edge-router.js` ao lado de `validSession`.
 - O caminho é o mesmo do cadastro manual, então espelho no Supabase, aviso de "Novo produto cadastrado", push de nova capa e sincronização com o GA funcionam igual.
 - Trocar a chave: gerar outra, atualizar o segredo na Cloudflare e a chave no app. Quem perdeu a chave: trocar.
 

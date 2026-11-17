@@ -1,5 +1,7 @@
 // chave própria do app de mockup: só cadastra produto (POST /api/products), sem login de administrador
 const CAMINHO_DO_CADASTRO = '/api/products';
+// foto do produto recém-cadastrado: só o envio da imagem, com o id numérico devolvido pelo cadastro
+const CAMINHO_DA_IMAGEM = /^\/api\/products\/\d{1,12}\/image$/;
 const CHAVE_MINIMA = 32;
 
 const bytes = texto => new TextEncoder().encode(texto);
@@ -25,7 +27,7 @@ export async function autorizadaPelaChaveDoMockup(request, env) {
   if (String(request?.method || '').toUpperCase() !== 'POST') return false;
   let caminho;
   try { caminho = new URL(request.url).pathname; } catch { return false; }
-  if (caminho !== CAMINHO_DO_CADASTRO) return false;
+  if (caminho !== CAMINHO_DO_CADASTRO && !CAMINHO_DA_IMAGEM.test(caminho)) return false;
 
   const chave = String(env?.MOCKUP_INTEGRATION_KEY || '').trim();
   if (chave.length < CHAVE_MINIMA) return false;

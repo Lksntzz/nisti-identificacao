@@ -27,7 +27,10 @@ test('a chave não vale para outras rotas nem outros métodos', async () => {
   assert.equal(await autorizadaPelaChaveDoMockup(pedido('GET', '/api/products', auth), env), false);
   assert.equal(await autorizadaPelaChaveDoMockup(pedido('DELETE', '/api/products', auth), env), false);
   assert.equal(await autorizadaPelaChaveDoMockup(pedido('POST', '/api/products/12', auth), env), false);
-  assert.equal(await autorizadaPelaChaveDoMockup(pedido('POST', '/api/products/12/image', auth), env), false);
+  assert.equal(await autorizadaPelaChaveDoMockup(pedido('POST', '/api/products/12/image', auth), env), true);
+  assert.equal(await autorizadaPelaChaveDoMockup(pedido('GET', '/api/products/12/image', auth), env), false);
+  assert.equal(await autorizadaPelaChaveDoMockup(pedido('POST', '/api/products/abc/image', auth), env), false);
+  assert.equal(await autorizadaPelaChaveDoMockup(pedido('POST', '/api/products/12/image/x', auth), env), false);
   assert.equal(await autorizadaPelaChaveDoMockup(pedido('POST', '/api/admin/commerce/qualquer', auth), env), false);
   assert.equal(await autorizadaPelaChaveDoMockup(pedido('POST', '/api/sku/x', auth), env), false);
 });
