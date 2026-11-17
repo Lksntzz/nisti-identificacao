@@ -62,3 +62,4 @@ Registro único em `src/ga/commerce-import-options.js` (alimenta o menu e a tela
 - `src/ga/commerce-sales-import-reader.js`: leitor de vendas (Shopee e genérico); `commerce-ml-native-sales-reader.js` (ML Vendas BR); `commerce-shopee-sales-info.js` e `commerce-shopee-finance-aggregation.js` (Shopee).
 - `src/ga/commerce-xlsx-reader.js` e `commerce-import-normalizer.js`: leitura de planilha e normalização do catálogo.
 - `src/ga/commerce-admin-router.js` (rotas `/sales/imports/*` e `/imports/*`) e `src/ga/commerce-supabase-store.js`.
+- **Planilha de anúncios do Mercado Livre (comparação):** roda no banco em ~5 s (era 27 s). O limite de chamadas da tela é 8 s; se voltar a estourar ("A comparação do lote não terminou", lote PARSED), o gargalo é `commerce_auto_link_ml_active_v1` (ver MAPA-GA, 17/11/2026). Catálogo maior = mais lento.
