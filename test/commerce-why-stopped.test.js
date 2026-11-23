@@ -63,3 +63,9 @@ test('rota, store, menu abaixo de Categorias e tela antiga removida',()=>{
   assert.doesNotMatch(router,/performance\/(overview|stalled|falling)/);
   assert.equal(fs.existsSync('src/ga/commerce-shopee-performance-view.jsx'),false);
 });
+test('card enxuto: detalhe recolhido por padrão e rótulos curtos nas etapas',()=>{
+  assert.match(view,/useState\(false\)/);assert.match(view,/aria-expanded=\{open\}/);
+  assert.match(view,/\{open&&<div className="nwy-detail">/);
+  assert.doesNotMatch(view,/nwy-steps|nwy-low|nwy-check/);
+  assert.deepEqual(steps({cause:'VISIBILIDADE'}).map(s=>s.short),['Impressões','CTR','Conversão']);
+});
