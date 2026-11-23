@@ -5,6 +5,7 @@ import {Card} from './commerce-why-stopped.jsx';
 import {maskMoney} from './commerce-privacy.js';
 import {causeOf} from './commerce-why-stopped-logic.js';
 import {GROUPS,PROBLEM_PCT,PLATFORM_LABEL,headline,windowWarning} from './commerce-problems-logic.js';
+import {getSharedFilter,setSharedFilter,resetSharedFilter} from './commerce-shared-filter.js';
 import './commerce-dashboard.css';
 import './commerce-why-stopped.css';
 import './commerce-problems.css';
@@ -58,11 +59,14 @@ function ProblemCard({r,diag,store}){
 }
 
 export default function CommerceProblems({initialFilter=null}={}){
-  const [days,setDays]=useState(DAYS.includes(initialFilter?.days)?initialFilter.days:30);
-  const [platform,setPlatform]=useState(initialFilter?.platform||'TODAS');
+  const [shared0]=useState(()=>getSharedFilter());
+  const [days,setDaysState]=useState(DAYS.includes(initialFilter?.days)?initialFilter.days:(DAYS.includes(shared0.days)?shared0.days:30));
+  const [platform,setPlatformState]=useState(initialFilter?.platform||shared0.platform);
+  const setDays=v=>{setDaysState(v);setSharedFilter({days:v});};
+  const setPlatform=v=>{const nv=typeof v==='function'?v(platform):v;setPlatformState(nv);setSharedFilter({platform:nv});};
   const [group,setGroup]=useState(initialFilter?.group||null);
   const filtered=days!==30||platform!=='TODAS'||group!=null;
-  const clearFilters=()=>{setDays(30);setPlatform('TODAS');setGroup(null);};
+  const clearFilters=()=>{resetSharedFilter();setDaysState(30);setPlatformState('TODAS');setGroup(null);};
   const [data,setData]=useState(null);const [plats,setPlats]=useState(null);const [diag,setDiag]=useState({});
   const [error,setError]=useState('');const [loading,setLoading]=useState(true);const [limit,setLimit]=useState(20);
   useEffect(()=>{

@@ -85,7 +85,7 @@ const panel=read('src/ga/commerce-problems.jsx'),app=read('src/ga/commerce-admin
 test('painel: busca grupos e diagnóstico, seletor 30/60/90 com padrão 30 e cards dos 4 grupos',()=>{
   assert.match(panel,/\/api\/admin\/commerce\/problems\/groups\?days=/);
   assert.match(panel,/\/api\/admin\/commerce\/problems\/platforms\?days=/);
-  assert.match(panel,/DAYS\.includes\(initialFilter\?\.days\)\?initialFilter\.days:30/);assert.match(panel,/GROUPS\.map\(/);
+  assert.match(panel,/DAYS\.includes\(initialFilter\?\.days\)\?initialFilter\.days:/);assert.match(panel,/GROUPS\.map\(/);
   assert.match(panel,/\[30,60,90\]/);
 });
 test('painel: avisos de campanha, relatório velho (30+ dias), Pior performance oculto (90+), sem venda desde jan/2025 e SEM_IDADE à parte',()=>{
