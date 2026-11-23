@@ -28,9 +28,9 @@ export const priceRose=r=>{const c=priceChange(r);return c!=null&&c>=PRICE_UP;};
 export const BAD_STEP=-20;
 export function steps(r){
   return [
-    {key:'imp',label:'Impressões/dia',before:r.imp_day_before,after:r.imp_day_after,change:r.imp_change,unit:''},
-    {key:'ctr',label:'CTR',before:r.ctr_before,after:r.ctr_after,change:r.ctr_change,unit:'%'},
-    {key:'conv',label:'Conversão',before:r.conv_before,after:r.conv_after,change:r.conv_change,unit:'%'}
+    {key:'imp',label:'Impressões/dia',short:'Impressões',before:r.imp_day_before,after:r.imp_day_after,change:r.imp_change,unit:''},
+    {key:'ctr',label:'CTR',short:'CTR',before:r.ctr_before,after:r.ctr_after,change:r.ctr_change,unit:'%'},
+    {key:'conv',label:'Conversão',short:'Conversão',before:r.conv_before,after:r.conv_after,change:r.conv_change,unit:'%'}
   ].map(s=>({...s,bad:s.change!=null&&Number(s.change)<=BAD_STEP,main:(r.cause==='VISIBILIDADE'&&s.key==='imp')||(r.cause==='CLIQUE'&&s.key==='ctr')||(r.cause==='CONVERSAO'&&s.key==='conv')}));
 }
 export const FILTERS=[['all','Todos'],['VISIBILIDADE','Perdeu visibilidade'],['CLIQUE','Perdeu cliques'],['CONVERSAO','Perdeu conversão'],['SEM','Sem diagnóstico'],['PRICE','Preço subiu']];

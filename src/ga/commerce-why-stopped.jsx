@@ -41,27 +41,31 @@ function Card({icon,label,value,foot,tone='neutral',active,onClick,info}){
 }
 
 function ItemCard({r}){
+  const [open,setOpen]=useState(false);
   const c=causeOf(r.cause),pc=priceChange(r),url=listingUrl('SHOPEE',r.item_id);
+  const st=r.cause!=='SEM_RELATORIO'?steps(r):[];
   return <article className={'nwy-item tone-'+c.tone}>
     <header>
       <div className="nwy-item-title">
         <span className={'nwy-kind '+(r.kind==='PAROU'?'is-stop':'is-fall')}>{r.kind==='PAROU'?'PAROU':'EM QUEDA'}</span>
-        {url?<a href={url} target="_blank" rel="noreferrer">{r.title||r.item_id}</a>:<b>{r.title||r.item_id}</b>}
+        {url?<a href={url} target="_blank" rel="noreferrer" title={r.title||r.item_id}>{r.title||r.item_id}</a>:<b title={r.title||r.item_id}>{r.title||r.item_id}</b>}
       </div>
-      <div className="nwy-item-sales"><b>{num(r.units_prev)} → {num(r.units_cur)} un.</b><span className="nwy-drop">−{Number(r.drop_pct).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</span><small>{money(r.revenue_prev-r.revenue_cur)} a menos{r.kind==='PAROU'&&r.last_sale?' · última venda '+dBr(r.last_sale):''}</small></div>
+      <span className="nwy-drop">−{Number(r.drop_pct).toLocaleString('pt-BR',{maximumFractionDigits:0})}%</span>
     </header>
-    <div className="nwy-why">
-      <strong>Motivo provável: {c.label}</strong>
-      <span>{c.why}</span>
-      {priceRose(r)&&<span className="nwy-price">Preço médio vendido subiu {pctTxt(pc)} ({money(r.price_prev)} → {money(r.price_cur)}).</span>}
+    <p className="nwy-sales">{num(r.units_prev)} → {num(r.units_cur)} un. · <b>{money(r.revenue_prev-r.revenue_cur)}</b> a menos{r.kind==='PAROU'&&r.last_sale?' · última venda '+dm(r.last_sale):''}</p>
+    <div className="nwy-why"><span className="nwy-dot" aria-hidden="true"/><strong>{c.label}</strong>
+      {priceRose(r)&&<span className="nwy-tag is-price" title={'Preço médio vendido: '+money(r.price_prev)+' → '+money(r.price_cur)}>Preço {pctTxt(pc)}</span>}
+      {r.low_volume&&r.cause!=='SEM_RELATORIO'&&<span className="nwy-tag" title="Menos de 1.000 impressões ou 100 visitantes no relatório: etapas sem volume não entram no motivo.">pouco volume</span>}
     </div>
-    {r.cause!=='SEM_RELATORIO'&&<ul className="nwy-steps" aria-label="Funil antes e depois">
-      {steps(r).map(s=><li key={s.key} className={(s.bad?'is-bad':'')+(s.main?' is-main':'')}>
-        <span>{s.label}</span><b>{stepVal(s.before,s.unit)} → {stepVal(s.after,s.unit)}</b><em>{pctTxt(s.change)}</em>
-      </li>)}
+    {st.length>0&&<ul className="nwy-chips" aria-label="Variação por etapa">
+      {st.map(x=><li key={x.key} className={(x.bad?'is-bad':'')+(x.main?' is-main':'')}><span>{x.short}</span><b>{pctTxt(x.change)}</b></li>)}
     </ul>}
-    {r.low_volume&&r.cause!=='SEM_RELATORIO'&&<p className="nwy-low">Pouco volume no relatório (menos de 1.000 impressões ou 100 visitantes): etapas sem volume não entram no motivo.</p>}
-    <p className="nwy-check"><b>O que olhar:</b> {c.check.join(' · ')}</p>
+    <button type="button" className="nwy-more" onClick={()=>setOpen(o=>!o)} aria-expanded={open}>{open?'Esconder detalhes':'Ver detalhes e o que conferir'}</button>
+    {open&&<div className="nwy-detail">
+      <p>{c.why}</p>
+      {st.length>0&&<ul>{st.map(x=><li key={x.key}>{x.label}: <b>{stepVal(x.before,x.unit)} → {stepVal(x.after,x.unit)}</b></li>)}</ul>}
+      <p><b>O que conferir:</b> {c.check.join(' · ')}</p>
+    </div>}
   </article>;
 }
 
@@ -85,7 +89,7 @@ export default function CommerceWhyStopped(){
         <p>{w?'Shopee · '+dm(w.cur_start)+' a '+dm(w.cur_end)+' comparado com '+dm(w.prev_start)+' a '+dm(w.prev_end):'Shopee · anúncios bons que pararam ou caíram'}</p></div></div>
       <div className="ndb-head-filters">
         <Dropdown label="Comparar" value={String(days)} options={WHY_DAYS.map(d=>[String(d),'Últimos '+d+' dias'])} onChange={v=>setDays(Number(v))}/>
-        <InfoIcon text={SRC.window} label="Período"/>
+        <InfoIcon text={SRC.window+(ra&&rb?' Motivo calculado com os relatórios de '+dBr(ra.start)+' a '+dBr(ra.end)+' (antes) e '+dBr(rb.start)+' a '+dBr(rb.end)+' (depois), por dia.':'')} label="Período"/>
         <Dropdown label="Mostrar" value={filter} options={FILTERS} onChange={setFilter}/>
       </div>
     </header>
@@ -104,7 +108,6 @@ export default function CommerceWhyStopped(){
         <Card icon="tag" label="Preço subiu" value={num(k.price_up)} foot="10% ou mais" tone="warn" active={filter==='PRICE'} onClick={()=>toggle('PRICE')}/>
         <Card icon="info" label="Sem diagnóstico" value={num((k.no_signal||0)+(k.no_report||0))} foot="relatório não explica" tone="neutral" active={filter==='SEM'} onClick={()=>toggle('SEM')}/>
       </div>
-      {ra&&rb&&<p className="nwy-note">Motivo calculado com os relatórios de desempenho de {dBr(ra.start)} a {dBr(ra.end)} (antes) e {dBr(rb.start)} a {dBr(rb.end)} (depois), por dia.</p>}
       <div className="nwy-list">
         {rows.map(r=><ItemCard key={r.item_id} r={r}/>)}
         {!rows.length&&<p className="ndb-empty">{(k.total||0)===0?'Nenhum anúncio bom parou ou caiu 30% ou mais nos últimos '+days+' dias.':'Nenhum anúncio neste filtro.'}</p>}
