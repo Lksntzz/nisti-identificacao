@@ -54,7 +54,7 @@ simple.period = 60
 APP_ENV = "production"
 COMMERCE_DATA_SCOPE = "live"
 # Somente o SHA-256 do token aleatorio de 256 bits; jamais adicionar o token ao repositorio.
-DISPATCH_SENDER_TOKEN_SHA256 = "9e91bda228a84f35b0f3441e368559532ad2ff2f9ad04671df3e79c952a310fd"
+DISPATCH_SENDER_TOKEN_SHA256 = "943d6e3f2c36d7e37c8f6aa9cbad1ba9cc17f9309945bb535f6f169b278fdf04"
 COMMERCE_COMMIT_ENABLED = "1"
 SUPABASE_URL = "https://yioetdcbgorunwgwuawg.supabase.co"
 SUPABASE_READS_ENABLED = "1"
