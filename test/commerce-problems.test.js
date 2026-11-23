@@ -80,3 +80,27 @@ test('grupos: itens trazem impressões, visitantes e conversão da loja para o c
   assert.match(groupsCode,/'conv_pct'/);
   assert.match(groupsCode,/'store_conv_pct'/);
 });
+
+const panel=read('src/ga/commerce-problems.jsx'),app=read('src/ga/commerce-admin-app-v2.jsx');
+test('painel: busca grupos e diagnóstico, seletor 30/60/90 com padrão 30 e cards dos 4 grupos',()=>{
+  assert.match(panel,/\/api\/admin\/commerce\/problems\/groups\?days=/);
+  assert.match(panel,/\/api\/admin\/commerce\/problems\/platforms\?days=/);
+  assert.match(panel,/useState\(30\)/);assert.match(panel,/GROUPS\.map\(/);
+  assert.match(panel,/\[30,60,90\]/);
+});
+test('painel: avisos de campanha, relatório velho (30+ dias), Pior performance oculto (90+), sem venda desde jan/2025 e SEM_IDADE à parte',()=>{
+  assert.match(panel,/campaignWarning\(/);
+  assert.match(panel,/age_days\s*>=\s*30/);assert.match(panel,/age_days\s*>\s*90/);
+  assert.match(panel,/sem venda desde jan\/2025/);
+  assert.match(panel,/SEM_IDADE/);assert.match(panel,/EM_TESTE/);
+});
+test('painel: motivo só na Shopee, detalhe recolhido e diagnóstico por anúncio pela rota existente',()=>{
+  assert.match(panel,/\/api\/admin\/commerce\/listings\/manager\/performance-diagnosis\?ids=/);
+  assert.match(panel,/aria-expanded=\{open\}/);assert.match(panel,/\{open&&/);
+  assert.match(panel,/sem relatório de desempenho do ML/);
+});
+test('menu: abaixo de Categorias, "Anúncios com problema" e painel novo renderizado',()=>{
+  assert.match(app,/\{ id: 'categories', label: 'Categorias' \},\s*\{ id: 'why', label: 'Anúncios com problema', view: 'why' \}/);
+  assert.match(app,/why: 'Anúncios com problema'/);
+  assert.match(app,/activeView === 'why' && <CommerceProblems \/>/);
+});

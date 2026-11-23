@@ -7,7 +7,7 @@ import CommerceCommercialPanel from './commerce-commercial-panel.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
-import CommerceWhyStopped from './commerce-why-stopped.jsx';
+import CommerceProblems from './commerce-problems.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { usePrivacy, setPrivate } from './commerce-privacy.js';
 import { useDark, setDark, applyTheme } from './commerce-theme.js';
@@ -28,7 +28,7 @@ const NAV_ITEMS = Object.freeze([
 
 const COMMERCIAL_SUBITEMS = Object.freeze([
   { id: 'categories', label: 'Categorias' },
-  { id: 'why', label: 'Por que parou', view: 'why' }
+  { id: 'why', label: 'Anúncios com problema', view: 'why' }
 ]);
 
 const VIEW_TITLES = Object.freeze({
@@ -37,7 +37,7 @@ const VIEW_TITLES = Object.freeze({
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
   imports: 'Histórico de importações',
-  why: 'Por que parou (Shopee)'
+  why: 'Anúncios com problema'
 });
 
 function SidebarIcon({ name }) {
@@ -344,7 +344,7 @@ export default function CommerceAdminAppV2() {
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} onOpenCategories={() => { setCommercialView('categories'); setActiveView('catalog'); }} />}
             {activeView === 'imports' && <CommerceImportHistory />}
-            {activeView === 'why' && <CommerceWhyStopped />}
+            {activeView === 'why' && <CommerceProblems />}
           </div>
         </main>
 
