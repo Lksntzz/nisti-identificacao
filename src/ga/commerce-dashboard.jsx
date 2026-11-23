@@ -186,10 +186,12 @@ function Icon({name}){
   return <svg {...p}><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg>;
 }
 
-function Panel({title,icon,source,children,className='',aside}){
+function Panel({title,icon,source,children,className='',aside,collapsible}){
+  const [open,setOpen]=useState(true);
   return <section className={'ndb-panel '+className}>
-    <header><h3>{icon&&<span className="ndb-ico"><Icon name={icon}/></span>}{title}</h3>{aside}{source&&<InfoIcon text={SOURCES[source]||source} label={title}/>}</header>
-    {children}
+    <header><h3>{icon&&<span className="ndb-ico"><Icon name={icon}/></span>}{title}</h3>{aside}{source&&<InfoIcon text={SOURCES[source]||source} label={title}/>}
+      {collapsible&&<button type="button" className="ndb-collapse" onClick={()=>setOpen(o=>!o)} aria-expanded={open} aria-label={(open?'Recolher ':'Abrir ')+title}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{transform:open?'none':'rotate(-90deg)'}}><path d="M6 9l6 6 6-6"/></svg></button>}</header>
+    {(!collapsible||open)&&children}
   </section>;
 }
 
@@ -641,20 +643,18 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-sum-row" role="group" aria-label="Resumo do período">
-      <KpiCard icon="money" label="Faturamento" source="kpiRevenue" value={money(totals.cur_rev)} chip={!all&&<Delta cur={totals.cur_rev} prev={totals.prev_rev}/>} foot={<>{all?'todo o histórico':'vs. '+prevTxt}{shipNode}</>}/>
       <KpiCard icon="box" label="Unidades vendidas" source="kpiUnits" value={num(totals.cur_units)} chip={!all&&<Delta cur={totals.cur_units} prev={totals.prev_units}/>} foot={all?'todo o histórico':'vs. '+prevTxt}/>
       <KpiCard icon="cart" label="Ticket médio por unidade" source="kpiTicket" value={Number(totals.cur_units)>0?money(Number(totals.cur_rev)/Number(totals.cur_units)):'—'} chip={!all&&Number(totals.prev_units)>0&&<Delta cur={Number(totals.cur_rev)/Math.max(1,Number(totals.cur_units))} prev={Number(totals.prev_rev)/Number(totals.prev_units)}/>} foot="faturamento ÷ unidades"/>
       <KpiCard icon="list" label="Média por dia" source="kpiDaily" value={money(Number(totals.cur_rev)/Math.max(1,all?(Number(ov.window_days_with_sales)||1):span))} foot={all?'por dia com venda':'por dia no período'}/>
     </div>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
-      <IndexCard icon="box" tone="good" label="Vendendo" value={num(totals.listings||0)} foot={all?'anúncios com venda no histórico':'anúncios com venda no período'} active={tab==='best'&&focus} onClick={()=>goTab('best')} title="Anúncios que tiveram ao menos uma venda no período do filtro."/>
       <IndexCard icon="down" tone="bad" label="Em queda" value={all?'—':num(data?.drops?.total||0)} foot={all?'escolha um período':'vendem menos que no período anterior'} active={tab==='drops'&&focus} disabled={all} onClick={()=>goTab('drops')} title="Anúncios ativos que venderam pelo menos 15% menos que no período anterior."/>
       <IndexCard icon="pause" tone="warn" label="Vendia e parou" value={all||!overview?'—':num(stoppedCount)} foot={all?'escolha um período':overview?'já venderam e estão sem vender no período':'consulta indisponível'} active={tab==='nosales'&&focus&&nsf==='stopped'} disabled={all||!overview} onClick={()=>goTab('stopped')} title="Anúncios ativos que já venderam 3 ou mais unidades e não tiveram nenhuma venda no período."/>
       <IndexCard icon="eye" tone="muted" label="Não vendeu" value={overview?num(ov.no_sales_never??0):'—'} foot={overview?'ativos que nunca venderam nos dados':'consulta indisponível'} active={tab==='nosales'&&focus&&nsf==='never'} disabled={!overview} onClick={()=>goTab('never')} title="Anúncios ativos sem nenhuma venda em todo o histórico importado."/>
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
-        {mode==='overview'&&<Panel title={all?'Histórico de vendas por mês':yearSel?'Vendas por mês em '+month:'Vendas por dia'} icon="chart" source={all||yearSel?'history':'daily'} className="ndb-trend-panel" aside={month&&<button type="button" className="ndb-link" onClick={()=>{setMonth('');setDays(0);}}>Ver todos os meses</button>}>
+        {mode==='overview'&&<Panel title={all?'Histórico de vendas por mês':yearSel?'Vendas por mês em '+month:'Vendas por dia'} icon="chart" source={all||yearSel?'history':'daily'} className="ndb-trend-panel" collapsible aside={month&&<button type="button" className="ndb-link" onClick={()=>{setMonth('');setDays(0);}}>Ver todos os meses</button>}>
           {all||yearSel?(monthly?<MonthsTrend months={yearMonths} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>)
             :(series?<SalesTrend daily={series.daily} platform={platform}/>:<p className="ndb-empty">{loading?'Carregando…':'Gráfico indisponível.'}</p>)}
         </Panel>}
@@ -674,7 +674,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
             ?(monthly?<MonthMatrix months={monthly.months} platform={platform} onPick={setMonth}/>:<p className="ndb-empty">Carregando…</p>)
             :(splitRows?<PlatformTable daily={splitRows} platform={platform} all={all||yearSel} onPick={setPlatform}/>:<p className="ndb-empty">Carregando…</p>)}
         </Panel>}
-        {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="top" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}</span>}>
+        {mode==='overview'&&<Panel title="Faturamento por produto" icon="money" source="top" className="ndb-chart-panel ndb-rank-panel" aside={hasData&&<span className="ndb-rev-sum">Total {money(totals.cur_rev)} · {num(totals.cur_units)} un.{!all&&<> <Delta cur={totals.cur_rev} prev={totals.prev_rev}/></>}{shipNode}</span>}>
           <p className="ndb-note">{all?'15 anúncios que mais faturaram em todo o histórico.':'15 anúncios que mais faturaram em '+curTxt+'.'}</p>
           <RevenueByProduct items={top} showPlatform={multi}/>
         </Panel>}

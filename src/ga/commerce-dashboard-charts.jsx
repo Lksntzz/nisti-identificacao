@@ -100,8 +100,14 @@ export function PlatformSplit({daily,platform,onPick}){
   const total=sums.reduce((a,v)=>a+v,0);
   if(total<=0)return <p className="ndb-empty">Sem faturamento no período.</p>;
   const parts=PLATS.map((p,i)=>({p,v:sums[i]})).filter(x=>x.v>0);
+  const R=46,C=50;let acc=0;
+  const slice=(v)=>{const a0=acc/total*2*Math.PI,a1=(acc+v)/total*2*Math.PI;acc+=v;
+    if(v>=total)return 'M'+C+' '+(C-R)+'A'+R+' '+R+' 0 1 1 '+(C-0.01)+' '+(C-R)+'Z';
+    const pt=a=>(C+R*Math.sin(a)).toFixed(2)+' '+(C-R*Math.cos(a)).toFixed(2);
+    return 'M'+C+' '+C+'L'+pt(a0)+'A'+R+' '+R+' 0 '+(a1-a0>Math.PI?1:0)+' 1 '+pt(a1)+'Z';};
+  const can=platform==='TODAS'&&onPick;
   return <div className="ndb-split">
-    <div className="ndb-split-bar" role="img" aria-label="Divisão do faturamento por plataforma">{parts.map(({p,v})=><i key={p[0]} style={{width:v/total*100+'%',background:p[6],cursor:platform==='TODAS'&&onPick?'pointer':'default'}} title={p[1]+': '+money(v)+' ('+(v/total*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%)'+(platform==='TODAS'&&onPick?' — clique para filtrar':'')} onClick={()=>platform==='TODAS'&&onPick&&onPick(p[0])}/>)}</div>
+    <svg className="ndb-pie" viewBox="0 0 100 100" width="150" height="150" role="img" aria-label="Divisão do faturamento por plataforma">{parts.map(({p,v})=><path key={p[0]} d={slice(v)} fill={p[6]} stroke="#fff" strokeWidth="1" style={{cursor:can?'pointer':'default'}} onClick={()=>can&&onPick(p[0])}><title>{p[1]+': '+money(v)+' ('+(v/total*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%)'+(can?' — clique para filtrar':'')}</title></path>)}</svg>
     <ul>{parts.map(({p,v})=>{const can=platform==='TODAS';
       return <li key={p[0]}><i style={{background:p[6]}}/>
         {can?<button type="button" className="ndb-link" onClick={()=>onPick(p[0])} title={'Filtrar o dashboard só por '+p[1]}>{p[1]}</button>:<span>{p[1]}</span>}
