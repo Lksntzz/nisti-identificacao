@@ -224,6 +224,12 @@ export async function commerceShopeePerformanceStalled(env,{report=null,days=7}=
   const data=await supabaseRpc(env,'commerce_shopee_performance_stalled_v1',{p_report_id:id,p_days:d},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[]};
 }
+export async function commerceShopeePerformanceFalling(env,{report=null,days=14}={}) {
+  const id=/^[0-9]{1,12}$/.test(String(report??''))?Number(report):null;
+  const d=[7,14,30].includes(Number(days))?Number(days):14;
+  const data=await supabaseRpc(env,'commerce_shopee_performance_falling_v1',{p_report_id:id,p_days:d},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[]};
+}
 export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {diagnosis:{}};

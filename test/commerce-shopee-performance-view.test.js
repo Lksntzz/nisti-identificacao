@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {pct,deltaPct,rates,funnelSteps,weakStep,enrichRows,sortRows,filterRows,toCsv,stallTags,filterStalled,sinceLabel,stalledCsv,STALL_DAYS} from '../src/ga/commerce-shopee-performance-view-logic.js';
+import {pct,deltaPct,rates,funnelSteps,weakStep,enrichRows,sortRows,filterRows,toCsv,stallTags,filterStalled,sinceLabel,stalledCsv,STALL_DAYS,FALL_DAYS,fallLabel,fallingCsv} from '../src/ga/commerce-shopee-performance-view-logic.js';
 
 const sql=fs.readFileSync('supabase/migrations/20261123130000_commerce_shopee_performance_overview_v1.sql','utf8');
 const sqlAtivos=fs.readFileSync('supabase/migrations/20261123140000_commerce_shopee_performance_overview_active_only_v1.sql','utf8');
 const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
 const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 const sqlStalled=fs.readFileSync('supabase/migrations/20261123150000_commerce_shopee_performance_stalled_v1.sql','utf8');
+const sqlFall=fs.readFileSync('supabase/migrations/20261123160000_commerce_shopee_performance_falling_v1.sql','utf8');
 const dash=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
 const view=fs.readFileSync('src/ga/commerce-shopee-performance-view.jsx','utf8');
 
@@ -88,4 +89,20 @@ test('SQL bons que pararam: so ativos, so leitura, dias validados e privilegios'
   assert.doesNotMatch(sqlStalled,/\b(insert into|update public|delete from|drop table|alter table)\b/i);
   assert.match(router,/\/shopee\/performance\/stalled/);assert.match(store,/commerce_shopee_performance_stalled_v1/);
   assert.match(view,/\/api\/admin\/commerce\/shopee\/performance\/stalled/);
+});
+
+test('em queda: rotulo, CSV, janelas validas e SQL so leitura com minimo de volume',()=>{
+  assert.equal(fallLabel({drop_pct:34.5}),'-34,5%');assert.equal(fallLabel({}),'—');
+  assert.deepEqual(FALL_DAYS,[7,14,30]);
+  const csv=fallingCsv([{item_id:'1',title:'X',good_sales:true,good_traffic:false,units_prev:194,units_cur:127,drop_pct:34.5,lost_units:67,revenue_prev:6279.3,revenue_cur:4156.6}]);
+  assert.match(csv,/Vendeu bem;194;127;34,5;67;6279,30;4156,60/);
+  assert.match(sqlFall,/commerce_shopee_performance_falling_v1/);
+  assert.match(sqlFall,/listing_status='ACTIVE'/);
+  assert.match(sqlFall,/p_days in \(7,14,30\)/);
+  assert.match(sqlFall,/u_cur>0 and u_cur<=u_prev\*0\.7/);
+  assert.match(sqlFall,/max\(sale_date\)-1/);
+  assert.match(sqlFall,/from public,anon,authenticated/);assert.match(sqlFall,/to service_role/);
+  assert.doesNotMatch(sqlFall.replace(/^--.*$/gm,''),/\b(insert into|update public|delete from|drop table|alter table)\b/i);
+  assert.match(router,/\/shopee\/performance\/falling/);assert.match(store,/commerce_shopee_performance_falling_v1/);
+  assert.match(view,/\/api\/admin\/commerce\/shopee\/performance\/falling/);
 });
