@@ -43,3 +43,9 @@ test('Atenção/Nunca vendeu: falha da consulta mostra "consulta indisponível" 
   assert.match(dash,/problemDays\?\(problems\?.*consultando….*\):'escolha 30, 60 ou 90 dias'/);
   assert.match(probs,/error/);
 });
+test('cards do Dashboard: as duas linhas de 3 cards ocupam a largura toda (3 colunas), 2 e 1 em telas menores',()=>{
+  const css=fs.readFileSync('src/ga/commerce-dashboard.css','utf8');
+  assert.match(css,/\.ndb-sum-row,\s*\.ndb-idx-row\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)\}/);
+  assert.match(css,/@media \(max-width:1180px\)\{\.ndb-sum-row,\.ndb-idx-row\{grid-template-columns:repeat\(2,/);
+  assert.match(css,/@media \(max-width:700px\)\{\.ndb-sum-row,\.ndb-idx-row\{grid-template-columns:1fr\}\}/);
+});
