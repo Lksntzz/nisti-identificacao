@@ -54,6 +54,8 @@ import {
   commerceSalesDashboardOverviewV1,
   commerceSalesReportNoSalesV1,
   commerceShopeeWhyStopped,
+  commerceProblemGroups,
+  commerceProblemPlatforms,
   commerceSalesDashboardMonthlyV1,
   commerceSalesDashboardMonthSeriesV1,
   commerceListingCohortsV1,
@@ -515,6 +517,11 @@ async function handleCommerceAdminRequestUncached(request, env) {
       const days=Number(query(url,'days')||14);
       if(![7,14,30].includes(days))return json({error:'Filtro inválido. Escolha 7, 14 ou 30 dias.'},400);
       return json(await commerceShopeeWhyStopped(env,{days}));
+    }
+    if(method==='GET'&&(pathname===BASE_PATH+'/problems/groups'||pathname===BASE_PATH+'/problems/platforms')){
+      const days=Number(query(url,'days')||30);
+      if(![30,60,90].includes(days))return json({error:'Filtro inválido. Escolha 30, 60 ou 90 dias.'},400);
+      return json(pathname.endsWith('/groups')?await commerceProblemGroups(env,{days}):await commerceProblemPlatforms(env,{days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/latest')
       return json(await commerceShopeePerformanceLatest(env));

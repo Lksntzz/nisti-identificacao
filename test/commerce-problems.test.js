@@ -58,3 +58,18 @@ test('diagnóstico: top 5, anúncios inativos marcados e % da perda vinda de ina
   assert.match(diagCode,/'inactive_share_pct'/);
   assert.match(diagCode,/'share_pct'/);
 });
+
+const store=read('src/ga/commerce-supabase-store.js'),router=read('src/ga/commerce-admin-router.js');
+test('store: funções de leitura chamam as duas funções SQL com p_days (padrão 30)',()=>{
+  assert.match(store,/export async function commerceProblemGroups\(/);
+  assert.match(store,/export async function commerceProblemPlatforms\(/);
+  assert.match(store,/'commerce_problem_groups_v1',\{p_days:/);
+  assert.match(store,/'commerce_platform_diagnosis_v1',\{p_days:/);
+  assert.match(store,/\[30,60,90\]\.includes\(Number\(days\)\)\?Number\(days\):30/);
+});
+test('router: rotas /problems/groups e /problems/platforms só aceitam 30, 60 ou 90',()=>{
+  assert.match(router,/\/problems\/groups/);assert.match(router,/\/problems\/platforms/);
+  assert.match(router,/\[30,60,90\]\.includes\(days\)/);
+  assert.match(router,/Filtro inválido\. Escolha 30, 60 ou 90 dias\./);
+  assert.match(router,/commerceProblemGroups\(env,\{days\}\)/);assert.match(router,/commerceProblemPlatforms\(env,\{days\}\)/);
+});
