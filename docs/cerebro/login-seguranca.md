@@ -8,7 +8,7 @@ Quem pode entrar onde, como as sessões funcionam e o que protege o sistema. Tud
 |---|---|---|
 | **Admin** | Senha única (segredo `ADMIN_PASSWORD` no Cloudflare) em `/admin-login`; vira cookie `nisti_admin_session` | `/admin`, `/api/admin/*`, `/api/products*`, `/api/sku/*` |
 | **Operador** (scanner, Mural) | Sem senha. Cada aparelho ganha um cookie assinado `nisti_operator_session` com id `op_<uuid>` | resto de `/api/*` |
-| **Equipe de expedição** | Link privado `/convite-expedicao/<chave>`; guarda cookie `__Host-nisti_dispatch_sender` por 30 dias | só `/api/dispatch/*` |
+| **Equipe de expedição** | Link privado `/convite-expedicao/<chave>`; guarda cookie `__Host-nisti_dispatch_sender` por 400 dias, renovado a cada abertura do painel | só `/api/dispatch/*` |
 | **Monitor de notificações** | Página sem dados; as operações exigem o cookie acima | `/monitor-notificacoes`, `/painel-expedicao` |
 
 ## Como funciona (pelo código)

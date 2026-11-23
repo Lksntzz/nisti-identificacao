@@ -35,7 +35,7 @@ test('private sender token grants persistent HttpOnly dispatch-only session',asy
   const cookie=activate.headers.get('set-cookie')||'';
   assert.match(cookie,/__Host-nisti_dispatch_sender=/);
   assert.match(cookie,/HttpOnly; Secure; SameSite=Strict/);
-  assert.match(cookie,/Max-Age=2592000/);
+  assert.match(cookie,/Max-Age=34560000/);
   const session=await query('/api/expedition-panel/session',{headers:{cookie:cookie.split(';')[0]}});
   assert.deepEqual(await session.json(),{authorized:true});
 
@@ -209,4 +209,50 @@ test('incomplete invitation routes never fall through to Scanner and cannot auth
   const sharedInvite=await query('/convite-expedicao/'+token);
   assert.equal(sharedInvite.status,200);
   assert.match(sharedInvite.headers.get('set-cookie')||'',/HttpOnly/);
+});
+
+
+test('opening the panel renews the sender cookie, including old 30-day ones',async()=>{
+  const cookie='__Host-nisti_dispatch_sender='+token;
+  const session=await query('/api/expedition-panel/session',{headers:{cookie}});
+  assert.deepEqual(await session.json(),{authorized:true});
+  const renewed=session.headers.get('set-cookie')||'';
+  assert.match(renewed,/__Host-nisti_dispatch_sender=b{64}/);
+  assert.match(renewed,/HttpOnly; Secure; SameSite=Strict/);
+  assert.match(renewed,/Max-Age=34560000/);
+  const anonymous=await query('/api/expedition-panel/session');
+  assert.deepEqual(await anonymous.json(),{authorized:false});
+  assert.equal(anonymous.headers.get('set-cookie'),null,'sem acesso valido nao grava cookie');
+});
+
+const envio='https://envio.sistemanistiid.online';
+function envioQuery(path,init={}){return edgeRouter.fetch(new Request(envio+path,init),env,{})}
+
+test('envio host serves only the sender panel',async()=>{
+  const root=await envioQuery('/');
+  assert.equal(root.status,302);
+  assert.equal(root.headers.get('location'),envio+'/painel-expedicao');
+  const panel=await envioQuery('/painel-expedicao');
+  assert.equal(panel.status,200);
+  assert.match(await panel.text(),/id="root"/);
+  for(const path of ['/assets/app.js','/nisti-logo.png','/platform-logos/shopee.svg','/sw.js']){
+    assert.equal((await envioQuery(path)).status,200,path);
+  }
+  const session=await envioQuery('/api/expedition-panel/session');
+  assert.deepEqual(await session.json(),{authorized:false});
+  const invite=await envioQuery('/convite-expedicao/'+token);
+  assert.equal(invite.status,200);
+  assert.match(invite.headers.get('set-cookie')||'',/Max-Age=34560000/);
+});
+
+test('envio host never exposes scanner, admin, monitor or general APIs',async()=>{
+  for(const path of ['/admin','/admin-login','/admin-commerce','/monitor-notificacoes','/mural','/index.html.bak','/api/admin/dispatch','/api/dispatch/view','/api/products','/api/mural']){
+    const r=await envioQuery(path);
+    assert.equal(r.status,404,path);
+    assert.match(await r.text(),/exclusiva do painel de envio/);
+  }
+  const post=await envioQuery('/admin-login',{method:'POST',headers:{origin:envio},body:'x=1'});
+  assert.equal(post.status,404);
+  const asset=await envioQuery('/assets/app.js',{method:'POST',headers:{origin:envio}});
+  assert.equal(asset.status,404,'assets so por leitura');
 });

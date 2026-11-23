@@ -7,7 +7,7 @@ import { handleCommerceProductStateRequest } from './ga/commerce-product-state-r
 import { handleCommerceListingEditorRequest } from './ga/commerce-listing-editor-router.js';
 import { handleMuralRequest } from './mural/mural-router.js';
 import { handleNotificationDispatchRequest } from './expedicao/notification-dispatch-router.js';
-import { handleDispatchSenderRequest, activateDispatchSenderLink } from './expedicao/expedition-dispatch-sender-router.js';
+import { handleDispatchSenderRequest, activateDispatchSenderLink, senderHostGate } from './expedicao/expedition-dispatch-sender-router.js';
 import { handleCanvaBridgeRequest } from './imagens/canva-bridge-entry.js';
 import { GA_HOST, handleGaHostRequest } from './ga/ga-access.js';
 
@@ -491,6 +491,10 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
+
+    // Endereço próprio do painel de envio da expedição: só o painel passa, o resto é recusado.
+    const senderHostResponse = senderHostGate(request);
+    if (senderHostResponse) return withSecurityHeaders(senderHostResponse);
 
     // GA - Gestor de Anúncio: hostname próprio, login próprio e só o Painel Comercial.
     if (url.hostname === GA_HOST) {
