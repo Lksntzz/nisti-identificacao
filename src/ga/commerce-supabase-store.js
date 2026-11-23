@@ -209,26 +209,11 @@ export async function commerceShopeePerformanceLatest(env) {
   const data=await supabaseRpc(env,'commerce_shopee_performance_latest_v1',{},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:{}};
 }
-// Tela "Desempenho Shopee": funil por anuncio de um relatorio importado (+ comparacao opcional). Somente leitura.
-export async function commerceShopeePerformanceOverview(env,{report=null,compare=null}={}) {
-  const idOrNull=v=>/^[0-9]{1,12}$/.test(String(v??''))?Number(v):null;
-  const data=await supabaseRpc(env,'commerce_shopee_performance_overview_v1',{
-    p_report_id:idOrNull(report),p_compare_id:idOrNull(compare)
-  },{timeoutMs:15000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[],totals:{}};
-}
-// Anuncios ativos com boa performance no relatorio (vendeu bem ou muito trafego) que pararam de vender. Somente leitura.
-export async function commerceShopeePerformanceStalled(env,{report=null,days=7}={}) {
-  const id=/^[0-9]{1,12}$/.test(String(report??''))?Number(report):null;
-  const d=[3,7,14,30].includes(Number(days))?Number(days):7;
-  const data=await supabaseRpc(env,'commerce_shopee_performance_stalled_v1',{p_report_id:id,p_days:d},{timeoutMs:15000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[]};
-}
-export async function commerceShopeePerformanceFalling(env,{report=null,days=14}={}) {
-  const id=/^[0-9]{1,12}$/.test(String(report??''))?Number(report):null;
+// Painel "Por que parou" (Shopee): anuncios ativos que pararam ou cairam e o motivo provavel pelo funil. Somente leitura.
+export async function commerceShopeeWhyStopped(env,{days=14}={}) {
   const d=[7,14,30].includes(Number(days))?Number(days):14;
-  const data=await supabaseRpc(env,'commerce_shopee_performance_falling_v1',{p_report_id:id,p_days:d},{timeoutMs:15000});
-  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[]};
+  const data=await supabaseRpc(env,'commerce_shopee_why_stopped_v1',{p_days:d},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{items:[],kpis:{}};
 }
 export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);

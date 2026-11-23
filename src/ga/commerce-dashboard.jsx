@@ -6,7 +6,6 @@ import PeriodPicker from './commerce-period-picker.jsx';
 import CohortsTab from './commerce-cohorts.jsx';
 import CategoriesSummary from './commerce-dashboard-categories.jsx';
 import SalesReport from './commerce-sales-report.jsx';
-import ShopeePerformanceView from './commerce-shopee-performance-view.jsx';
 import {SalesTrend,MonthsTrend,MonthMatrix,PlatformSplit,PlatformTable,SummaryList} from './commerce-dashboard-charts.jsx';
 import './commerce-dashboard.css';
 import { maskMoney, isPrivate } from './commerce-privacy.js';
@@ -381,7 +380,6 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [helpOpen,setHelpOpen]=useState(false);
   const [monthly,setMonthly]=useState(null);
   const [reportOpen,setReportOpen]=useState(false);
-  const [perfViewOpen,setPerfViewOpen]=useState(false);
   const [platTab,setPlatTab]=useState('compare');
   // O resumo de Categorias é pesado: só começa 2,5 s depois do resto carregar, para não estourar o limite de 8 s do banco.
   const [lateOk,setLateOk]=useState(false);
@@ -637,11 +635,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         <small>{updated?'Última importação: '+when(updated):hasData?'Dados até '+fmtDayFull(data.last_day):''}</small>
         <button type="button" className="ndb-help-btn" onClick={()=>setHelpOpen(true)}>Definições e dados</button>
         {mode==='overview'&&<button type="button" className="ndb-help-btn" onClick={()=>setReportOpen(true)}>Relatório de anúncios sem vendas</button>}
-        {platform==='SHOPEE'&&<button type="button" className="ndb-help-btn" onClick={()=>setPerfViewOpen(true)}>Desempenho Shopee</button>}
       </div>
     </header>
     {reportOpen&&<SalesReport platform={platform} days={days} onClose={()=>setReportOpen(false)}/>}
-    {perfViewOpen&&<ShopeePerformanceView onClose={()=>setPerfViewOpen(false)}/>}
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-sum-row" role="group" aria-label="Resumo do período">

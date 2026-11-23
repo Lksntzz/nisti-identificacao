@@ -53,9 +53,7 @@ import {
   commerceSalesDashboardSegmentSeriesV1,
   commerceSalesDashboardOverviewV1,
   commerceSalesReportNoSalesV1,
-  commerceShopeePerformanceOverview,
-  commerceShopeePerformanceStalled,
-  commerceShopeePerformanceFalling,
+  commerceShopeeWhyStopped,
   commerceSalesDashboardMonthlyV1,
   commerceSalesDashboardMonthSeriesV1,
   commerceListingCohortsV1,
@@ -513,23 +511,10 @@ async function handleCommerceAdminRequestUncached(request, env) {
         return json({error:'Relatório de desempenho inválido.'},400);
       return json(await commerceImportMlPerformance(env,input));
     }
-    if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/falling'){
-      const report=String(query(url,'report')||''),days=Number(query(url,'days')||14);
-      if((report&&!/^[0-9]{1,12}$/.test(report))||![7,14,30].includes(days))
-        return json({error:'Filtro de desempenho inválido.'},400);
-      return json(await commerceShopeePerformanceFalling(env,{report,days}));
-    }
-    if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/stalled'){
-      const report=String(query(url,'report')||''),days=Number(query(url,'days')||7);
-      if((report&&!/^[0-9]{1,12}$/.test(report))||![3,7,14,30].includes(days))
-        return json({error:'Filtro de desempenho inválido.'},400);
-      return json(await commerceShopeePerformanceStalled(env,{report,days}));
-    }
-    if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/overview'){
-      const report=String(query(url,'report')||''),compare=String(query(url,'compare')||'');
-      if((report&&!/^[0-9]{1,12}$/.test(report))||(compare&&!/^[0-9]{1,12}$/.test(compare)))
-        return json({error:'Filtro de desempenho inválido.'},400);
-      return json(await commerceShopeePerformanceOverview(env,{report,compare}));
+    if(method==='GET'&&pathname===BASE_PATH+'/shopee/why-stopped'){
+      const days=Number(query(url,'days')||14);
+      if(![7,14,30].includes(days))return json({error:'Filtro inválido. Escolha 7, 14 ou 30 dias.'},400);
+      return json(await commerceShopeeWhyStopped(env,{days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/latest')
       return json(await commerceShopeePerformanceLatest(env));
