@@ -11,7 +11,7 @@ O navegador nunca fala com o banco. Toda função SQL do GA termina em `_vN` e s
 
 ## Telas
 
-- **Dashboard** (`commerce-dashboard.jsx`): faturamento por mês/plataforma, quedas, ABC, Ads.
+- **Dashboard** (`commerce-dashboard.jsx`): faturamento por mês/plataforma, quedas, ABC, Ads. Com plataforma Shopee, botão **Desempenho Shopee** (`commerce-shopee-performance-view.jsx`): funil impressões→cliques→visitantes→carrinho→pedidos por anúncio, de um relatório importado, com comparação entre dois relatórios (só leitura, `commerce_shopee_performance_overview_v1`).
 - **Painel Comercial** (`commerce-ad-manager.jsx`): lista de anúncios, vínculo por SKU, botão "Importar arquivo".
 - **Planejamento de Produtos** (`commerce-products-view.jsx`): ativo, rascunho, desativado.
 - **Histórico de importações** (`commerce-import-history.jsx`).

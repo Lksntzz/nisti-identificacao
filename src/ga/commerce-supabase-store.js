@@ -209,6 +209,14 @@ export async function commerceShopeePerformanceLatest(env) {
   const data=await supabaseRpc(env,'commerce_shopee_performance_latest_v1',{},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:{}};
 }
+// Tela "Desempenho Shopee": funil por anuncio de um relatorio importado (+ comparacao opcional). Somente leitura.
+export async function commerceShopeePerformanceOverview(env,{report=null,compare=null}={}) {
+  const idOrNull=v=>/^[0-9]{1,12}$/.test(String(v??''))?Number(v):null;
+  const data=await supabaseRpc(env,'commerce_shopee_performance_overview_v1',{
+    p_report_id:idOrNull(report),p_compare_id:idOrNull(compare)
+  },{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[],totals:{}};
+}
 export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {diagnosis:{}};
