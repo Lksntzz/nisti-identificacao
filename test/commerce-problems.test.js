@@ -40,3 +40,21 @@ test('grupos: prioridade Parou > Em queda > Pior performance > Nunca vendeu em u
   const m=/case\s+when\s+is_parou\s+then\s+'PAROU'\s+when\s+is_queda\s+then\s+'QUEDA'\s+when\s+is_pior\s+then\s+'PIOR'\s+when\s+is_nunca\s+then\s+'NUNCA'/.exec(groupsCode);
   assert.ok(m,'case de prioridade');
 });
+
+const DIAG_SQL='supabase/migrations/20261123190000_commerce_platform_diagnosis_v1.sql';
+const diag=read(DIAG_SQL),diagCode=code(diag);
+test('diagnóstico: função segura, somente leitura e só com janelas 30/60/90',()=>{
+  assertReadOnlySecure(diag,'commerce_platform_diagnosis_v1');
+  assert.match(diagCode,/p_days is null or p_days not in \(30,\s*60,\s*90\)/);
+});
+test('diagnóstico: régua sem dados nunca vira queda (base_ok) e ano passado só com cobertura (ly_ok)',()=>{
+  assert.match(diagCode,/'base_ok'/);assert.match(diagCode,/'ly_ok'/);
+  assert.match(diagCode,/case when ok then round\(/);
+  assert.match(diagCode,/first_day<=w\.ly_start/);
+});
+test('diagnóstico: top 5, anúncios inativos marcados e % da perda vinda de inativos',()=>{
+  assert.match(diagCode,/rn<=5/);
+  assert.match(diagCode,/'active'/);
+  assert.match(diagCode,/'inactive_share_pct'/);
+  assert.match(diagCode,/'share_pct'/);
+});
