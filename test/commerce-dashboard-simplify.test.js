@@ -52,3 +52,8 @@ test('cards do Dashboard: as duas linhas de 3 cards ocupam a largura toda (3 col
 test('Resumo do período só aparece com uma plataforma selecionada',()=>{
   assert.match(dash,/mode==='overview'&&platform!=='TODAS'&&<Panel title="Resumo do período"/);
 });
+test('Atenção: mostra anúncios parados/em queda por plataforma mesmo quando o total da plataforma não caiu',()=>{
+  assert.match(probs,/listingsNote\(/);
+  assert.match(probs,/counts/);
+  assert.match(dash,/counts=\{problems\?\.groups\?\.counts\}/);
+});

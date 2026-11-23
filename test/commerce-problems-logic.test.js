@@ -41,3 +41,13 @@ test('windowWarning: avisa também quando a RÉGUA (meses anteriores) contém ca
   assert.equal(windowWarning({start:'2026-03-01',end:'2026-03-30',base_start:'2025-12-01',base_end:'2026-02-28'}),null);
   assert.match(windowWarning({start:'2026-11-01',end:'2026-11-22',base_start:'2026-07-01',base_end:'2026-09-30'}),/Este período contém 11\.11/);
 });
+
+import {listingsNote} from '../src/ga/commerce-problems-logic.js';
+test('listingsNote: plataforma pode crescer no total e ainda ter anúncios parados — a frase mostra os dois',()=>{
+  assert.equal(listingsNote({PAROU:79,QUEDA:27}),'79 anúncios pararam de vender e 27 anúncios caíram');
+  assert.equal(listingsNote({PAROU:1,QUEDA:0}),'1 anúncio parou de vender');
+  assert.equal(listingsNote({PAROU:0,QUEDA:3}),'3 anúncios caíram');
+  assert.equal(listingsNote({PAROU:0,QUEDA:1}),'1 anúncio caiu');
+  assert.equal(listingsNote({PAROU:0,QUEDA:0}),'');
+  assert.equal(listingsNote(null),'');
+});

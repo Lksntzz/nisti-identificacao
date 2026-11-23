@@ -1,14 +1,14 @@
 import React from 'react';
 import {maskMoney} from './commerce-privacy.js';
 import {PLATS} from './commerce-dashboard-charts.jsx';
-import {PLATFORM_LABEL,PROBLEM_PCT,headline,windowWarning} from './commerce-problems-logic.js';
+import {PLATFORM_LABEL,PROBLEM_PCT,headline,windowWarning,listingsNote} from './commerce-problems-logic.js';
 
 const money=v=>maskMoney(v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}));
 const num=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
 const pct=(v,d=1)=>v==null?'—':(v>0?'+':'')+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:d})+'%';
 
 // Atenção: uma linha por plataforma, dizendo se está pior e quais anúncios explicam. Clicar abre o painel Anúncios com problema.
-export function AttentionByPlatform({plats,window:win,unavailable,error,onOpen}){
+export function AttentionByPlatform({plats,counts,window:win,unavailable,error,onOpen}){
   if(unavailable)return <p className="ndb-empty">Para ver quem está piorando, escolha 30, 60 ou 90 dias.</p>;
   if(error)return <p className="ndb-empty">Consulta indisponível agora. Tente de novo em instantes.</p>;
   if(!plats)return <p className="ndb-empty">Carregando…</p>;
@@ -16,8 +16,9 @@ export function AttentionByPlatform({plats,window:win,unavailable,error,onOpen})
   return <>
     {warn&&<p className="ndb-warn">{warn}</p>}
     <ul className="ndb-alert-list">{plats.map(p=>{const bad=p.base_ok&&Number(p.var_pct)<=PROBLEM_PCT;
-      return <li key={p.platform}><button type="button" className={bad?'tone-bad':'tone-muted'} onClick={onOpen} title="Abrir Anúncios com problema">
-        <span className="ndb-alert-txt"><strong>{PLATFORM_LABEL[p.platform]} {p.base_ok?pct(p.var_pct):''}</strong><small>{headline(p)}</small></span>
+      const note=listingsNote(counts?.[p.platform]);
+      return <li key={p.platform}><button type="button" className={bad?'tone-bad':note?'tone-warn':'tone-muted'} onClick={onOpen} title="Abrir Anúncios com problema">
+        <span className="ndb-alert-txt"><strong>{PLATFORM_LABEL[p.platform]} {p.base_ok?pct(p.var_pct):''}</strong><small>{headline(p)}{note&&!bad?' Mas '+note+'.':''}{note&&bad?' Além disso, '+note+'.':''}</small></span>
         <span className="ndb-alert-go" aria-hidden="true">›</span></button></li>;})}</ul>
   </>;
 }

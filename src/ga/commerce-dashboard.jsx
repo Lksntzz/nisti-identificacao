@@ -759,7 +759,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       </div>
       <aside className="ndb-right">
         {mode==='overview'&&<Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
-          <AttentionByPlatform plats={problems?.plats?.platforms} window={problems?.plats?.window} unavailable={!problemDays} error={problemsError} onOpen={onOpenProblems||(()=>goTab('drops'))}/>
+          <AttentionByPlatform plats={problems?.plats?.platforms} counts={problems?.groups?.counts} window={problems?.plats?.window} unavailable={!problemDays} error={problemsError} onOpen={onOpenProblems||(()=>goTab('drops'))}/>
         </Panel>}
         {mode==='overview'&&platform!=='TODAS'&&<Panel title="Resumo do período" icon="list" source="summary">
           <PlatformSummary daily={splitRows} platform={platform} all={all||yearSel}/>
