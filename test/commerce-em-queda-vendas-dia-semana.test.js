@@ -41,7 +41,7 @@ test('Pararam e Sem vendas usam ancora last_sale', () => {
 });
 
 test('Dashboard: indices de performance no lugar dos cards de faturamento', () => {
-  for (const l of ['Em queda', 'Vendia e parou', 'Não vendeu']) assert.match(dash, new RegExp('label="' + l + '"'));
+  for (const l of ['Em queda', 'Vendia e parou', 'Nunca vendeu']) assert.match(dash, new RegExp('label="' + l + '"'));
   assert.doesNotMatch(dash, /label="Faturamento total"|label="Investimento em anúncios"|label="ROAS dos anúncios"/);
 });
 
