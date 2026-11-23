@@ -27,39 +27,34 @@ function ProblemCard({r,diag,store}){
   const d=diag&&diag[String(r.listing_id)];
   const cause=causeOf(d&&d.driver&&DRIVER[d.driver]?DRIVER[d.driver]:'SEM_SINAL');
   const chips=d?[['Impressões',d.impressions_pct,'IMPRESSIONS'],['CTR',d.ctr_pct,'CTR'],['Conversão',d.conversion_pct,'CONVERSION']]:[];
-  const big=g==='PAROU'?'parou':g==='QUEDA'?pct(-Number(r.drop_pct)):g==='PIOR'?pct(r.conv_pct,1).replace('+','')+' conv.':'sem venda';
-  const sales=g==='PAROU'?num(Math.round(Number(r.units_base)))+' un. esperadas no período → 0'+(r.last_sale?' · última venda '+dm(r.last_sale):'')
-    :g==='QUEDA'?num(Math.round(Number(r.units_base)))+' → '+num(r.units_cur)+' un.'
-    :g==='PIOR'?num(r.impressions)+' impressões · '+num(r.visitors)+' visitantes · loja converte '+String(store).replace('.',',')+'%'
-    :'sem venda desde jan/2025 · no relatório há '+num(r.age_days_min)+'+ dias';
-  const why=g==='NUNCA'?'Candidato a desativar':g==='PIOR'?'Aparece, mas não converte'
-    :shopee?cause.label:'Queda só nas vendas (sem relatório de desempenho do ML)';
-  return <article className={'nwy-item tone-'+TONE[g]}>
-    <header>
-      <div className="nwy-item-title">
-        <span className={'nwy-kind '+(g==='PAROU'?'is-stop':'is-fall')}>{GROUPS.find(x=>x[0]===g)[1].toUpperCase()}</span>
-        {url?<a href={url} target="_blank" rel="noreferrer" title={r.title}>{r.title}</a>:<b title={r.title}>{r.title}</b>}
-      </div>
-      <span className="nwy-drop">{big}</span>
-    </header>
-    <p className="nwy-sales">{sales}{Number(r.lost_revenue)>0&&<> · <b>{money(r.lost_revenue)}</b> a menos</>}</p>
-    <div className="nwy-why"><span className="nwy-dot" aria-hidden="true"/><strong>{why}</strong>
-      <span className="nwy-tag">{PLATFORM_LABEL[r.platform]}</span>
-      {r.also_low_conv&&<span className="nwy-tag">também converte mal</span>}
-      {d&&Number(d.price_pct)>=10&&<span className="nwy-tag is-price">Preço {pct(d.price_pct)}</span>}
-      {d&&d.driver==='INSUFFICIENT'&&<span className="nwy-tag">pouco volume</span>}
+  const sales=g==='PAROU'?num(Math.round(Number(r.units_base)))+' → 0'
+    :g==='QUEDA'?num(Math.round(Number(r.units_base)))+' → '+num(r.units_cur)+' ('+pct(-Number(r.drop_pct))+')'
+    :g==='PIOR'?pct(r.conv_pct,1).replace('+','')+' conv.'
+    :'0 vendas';
+  const why=g==='NUNCA'?'Desativar?':g==='PIOR'?'Converte mal':shopee?cause.label:'—';
+  const detail=g==='PAROU'?'Última venda '+(r.last_sale?dm(r.last_sale):'—')+'. '
+    :g==='PIOR'?num(r.impressions)+' impressões · '+num(r.visitors)+' visitantes · a loja converte '+String(store).replace('.',',')+'%. '
+    :g==='NUNCA'?'Sem venda desde jan/2025 · no relatório há '+num(r.age_days_min)+'+ dias. ':'';
+  return <li className={'npr-row tone-'+TONE[g]}>
+    <div className="npr-line">
+      {url?<a className="npr-title" href={url} target="_blank" rel="noreferrer" title={r.title}>{r.title}</a>:<b className="npr-title" title={r.title}>{r.title}</b>}
+      <span className="npr-plat-tag">{PLATFORM_LABEL[r.platform]}</span>
+      <span className="npr-sales">{sales}</span>
+      <b className="npr-loss">{Number(r.lost_revenue)>0?money(r.lost_revenue):'—'}</b>
+      <span className="npr-why" title={why}>{why}</span>
+      <button type="button" className="npr-toggle" onClick={()=>setOpen(o=>!o)} aria-expanded={open} aria-label={(open?'Esconder':'Ver')+' detalhes: '+r.title}>{open?'▴':'▾'}</button>
     </div>
-    {chips.length>0&&<ul className="nwy-chips" aria-label="Variação por etapa">
-      {chips.map(([n,v,k])=><li key={k} className={(v!=null&&v<=-10?'is-bad':'')+(d.driver===k?' is-main':'')}><span>{n}</span><b>{pct(v)}</b></li>)}
-    </ul>}
-    <button type="button" className="nwy-more" onClick={()=>setOpen(o=>!o)} aria-expanded={open}>{open?'Esconder detalhes':'Ver detalhes e o que conferir'}</button>
-    {open&&<div className="nwy-detail">
-      {g==='NUNCA'&&<p>Nenhuma venda desde o início dos dados (jan/2025) e o anúncio já aparece em relatórios há mais de 90 dias. Confira na Shopee antes de desativar: o GA só sugere.</p>}
-      {g==='PIOR'&&<p>{cause.check.length?'Confira: ':''}{causeOf('CONVERSAO').check.join(' · ')}</p>}
+    {open&&<div className="npr-detail">
+      <p>{detail}{r.also_low_conv&&'Também converte mal. '}{d&&Number(d.price_pct)>=10&&'Preço '+pct(d.price_pct)+'. '}{d&&d.driver==='INSUFFICIENT'&&'Pouco volume para concluir. '}</p>
+      {chips.length>0&&<ul className="nwy-chips" aria-label="Variação por etapa">
+        {chips.map(([n,v,k])=><li key={k} className={(v!=null&&v<=-10?'is-bad':'')+(d.driver===k?' is-main':'')}><span>{n}</span><b>{pct(v)}</b></li>)}
+      </ul>}
+      {g==='NUNCA'&&<p>Confira na Shopee antes de desativar: o GA só sugere.</p>}
+      {g==='PIOR'&&<p><b>O que conferir:</b> {causeOf('CONVERSAO').check.join(' · ')}</p>}
       {(g==='PAROU'||g==='QUEDA')&&shopee&&<p>{cause.why} <b>O que conferir:</b> {cause.check.join(' · ')}</p>}
       {(g==='PAROU'||g==='QUEDA')&&!shopee&&<p>O GA mostra quanto e quando caiu, mas não o motivo: ainda não existe relatório de desempenho do Mercado Livre no sistema.</p>}
     </div>}
-  </article>;
+  </li>;
 }
 
 export default function CommerceProblems(){
@@ -121,12 +116,14 @@ export default function CommerceProblems(){
       <div className="ndb-kpis nwy-kpis">
         {GROUPS.map(([k,label])=>hidePior&&k==='PIOR'?null:<Card key={k} icon={ICON[k]} label={label} value={num(counts[k])} foot={FOOT[k]} tone={TONE[k]} active={current===k} onClick={()=>{setGroup(k);setLimit(20);}} info={SRC}/>)}
       </div>
-      {platform!=='SHOPEE'&&(counts.SEM_IDADE>0)&&<p className="nwy-note npr-note">{num(counts.SEM_IDADE)} anúncios ativos do ML sem nenhuma venda: sem data de criação não dá para saber se são candidatos a desativar.</p>}
+      {platform!=='SHOPEE'&&current==='NUNCA'&&(counts.SEM_IDADE>0)&&<p className="nwy-note npr-note">{num(counts.SEM_IDADE)} anúncios ativos do ML sem nenhuma venda: sem data de criação não dá para saber se são candidatos a desativar.</p>}
       {counts.EM_TESTE>0&&current==='NUNCA'&&<p className="nwy-note npr-note">Mais {num(counts.EM_TESTE)} anúncios da Shopee sem venda são recentes (menos de 90 dias ou idade desconhecida): em teste, aguardar.</p>}
-      <div className="nwy-list">
-        {rows.slice(0,limit).map(r=><ProblemCard key={r.platform+r.external_listing_id} r={r} diag={diag} store={data.store_conv_pct}/>)}
-        {!rows.length&&<p className="ndb-empty">Nenhum anúncio neste grupo{platform==='TODAS'?'':' para esta plataforma'}.</p>}
-      </div>
+      {rows.length>0&&<div className="npr-table" role="table" aria-label="Anúncios do grupo">
+        <div className="npr-head" role="row"><span>Anúncio</span><span>Plataforma</span><span>{current==='PIOR'?'Conversão':current==='NUNCA'?'Vendas':'Esperado → agora'}</span><span>Perdeu</span><span>Motivo</span><span/></div>
+        <ul>{rows.slice(0,limit).map(r=><ProblemCard key={r.platform+r.external_listing_id} r={r} diag={diag} store={data.store_conv_pct}/>)}</ul>
+      </div>}
+      {!rows.length&&<p className="ndb-empty">Nenhum anúncio neste grupo{platform==='TODAS'?'':' para esta plataforma'}.</p>}
+      {rows.some(r=>r.platform!=='SHOPEE')&&(current==='PAROU'||current==='QUEDA')&&<p className="nwy-note npr-note">Motivo indisponível no ML: sem relatório de desempenho do ML no sistema, aparece só quanto caiu.</p>}
       {rows.length>limit&&<button type="button" className="nwy-more npr-more" onClick={()=>setLimit(l=>l+20)}>Ver mais {Math.min(20,rows.length-limit)} de {rows.length-limit} restantes</button>}
     </>}
   </section>;

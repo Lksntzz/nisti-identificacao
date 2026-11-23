@@ -8,3 +8,20 @@
 .ga-dark .npr-plat{background:#111a2e;border-color:#25324d;color:#e5ecf7}
 .ga-dark .npr-plat span{color:#c4d0e4}.ga-dark .npr-plat small,.ga-dark .npr-plat b{color:#9fb0cc}
 .ga-dark .npr-plat.is-bad b{color:#ff8a8a}
+
+/* Lista compacta: uma linha por anúncio, detalhe só ao abrir. */
+.npr-table{background:#fff;border:1px solid #e3e9f3;border-radius:12px;overflow:hidden}
+.npr-table ul{list-style:none;margin:0;padding:0}
+.npr-head,.npr-line{display:grid;grid-template-columns:minmax(0,1fr) 84px 140px 80px 150px 32px;gap:12px;align-items:center;padding:8px 14px}
+.npr-head{font-size:11px;font-weight:700;color:#52637b;text-transform:uppercase;letter-spacing:.03em;background:#f6f8fc;border-bottom:1px solid #e3e9f3}
+.npr-row{border-bottom:1px solid #eef2f9}.npr-row:last-child{border-bottom:0}
+.npr-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;font-weight:600;color:#0f1b3d;text-decoration:none}
+a.npr-title:hover{text-decoration:underline}
+.npr-plat-tag{font-size:11px;color:#52637b}.npr-sales{font-size:12.5px;color:#334155}
+.npr-loss{font-size:13px;color:#c03030}.npr-why{font-size:12.5px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.npr-toggle{background:none;border:0;cursor:pointer;color:#52637b;font-size:12px}
+.npr-detail{padding:2px 14px 12px;font-size:12.5px;color:#334155}.npr-detail p{margin:4px 0}
+@media (max-width:900px){.npr-head{display:none}.npr-line{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}.npr-title{grid-column:1/-1}.npr-plat-tag,.npr-why{display:none}}
+.ga-dark .npr-table{background:#111a2e;border-color:#25324d}.ga-dark .npr-head{background:#0f1830;border-color:#25324d;color:#9fb0cc}
+.ga-dark .npr-title{color:#e5ecf7}.ga-dark .npr-sales,.ga-dark .npr-why,.ga-dark .npr-detail{color:#c4d0e4}.ga-dark .npr-row{border-color:#25324d}
+.ga-dark .npr-loss{color:#ff8a8a}
