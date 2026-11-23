@@ -56,16 +56,16 @@ export function sortRows(rows,key='revenue_paid',dir='desc'){
   });
 }
 const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
-export function filterRows(rows,{q='',activeOnly=true,weakOnly=false}={}){
+export function filterRows(rows,{q='',weakOnly=false}={}){
   const t=norm(q).trim();
-  return rows.filter(r=>(!activeOnly||r.status==='ACTIVE')&&(!weakOnly||r.weak)
+  return rows.filter(r=>(!weakOnly||r.weak)
     &&(!t||norm(r.title).includes(t)||String(r.item_id).includes(t)));
 }
 
 const csvCell=v=>{const s=v==null?'':String(v);return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
 const dec=(v,d=2)=>v==null?'':Number(v).toFixed(d).replace('.',',');
 export function toCsv(rows){
-  const head=['ID do item','Anúncio','Status no GA','Impressões','Cliques','CTR %','Visitantes','Carrinho','Carrinho % visitantes','Pedidos feitos','Conversão %','Vendas pagas (R$)','Atenção'];
-  const lines=[head.join(';')].concat(rows.map(r=>[r.item_id,r.title,r.status||'fora do GA',r.impressions,r.clicks,dec(r.ctr),r.visitors,r.add_cart,dec(r.cart),r.orders,dec(r.conv),dec(r.revenue_paid),r.weak?.label||''].map(csvCell).join(';')));
+  const head=['ID do item','Anúncio','Impressões','Cliques','CTR %','Visitantes','Carrinho','Carrinho % visitantes','Pedidos feitos','Conversão %','Vendas pagas (R$)','Atenção'];
+  const lines=[head.join(';')].concat(rows.map(r=>[r.item_id,r.title,r.impressions,r.clicks,dec(r.ctr),r.visitors,r.add_cart,dec(r.cart),r.orders,dec(r.conv),dec(r.revenue_paid),r.weak?.label||''].map(csvCell).join(';')));
   return '﻿'+lines.join('\r\n');
 }
