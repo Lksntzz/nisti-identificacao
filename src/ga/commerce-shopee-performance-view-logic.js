@@ -90,3 +90,12 @@ export function stalledCsv(rows){
   const lines=[head.join(';')].concat((rows||[]).map(r=>[r.item_id,r.title,stallTags(r).join(' + '),r.impressions,r.clicks,r.visitors,r.add_cart,r.orders,dec(r.revenue_paid),dBr(r.last_sale),r.days_since==null?'':r.days_since].map(csvCell).join(';')));
   return '﻿'+lines.join('\r\n');
 }
+
+// "Em queda": anuncio bom que continua vendendo, mas menos que no periodo anterior de mesma duracao.
+export const FALL_DAYS=[7,14,30];
+export const fallLabel=r=>r.drop_pct==null?'—':'-'+Number(r.drop_pct).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+export function fallingCsv(rows){
+  const head=['ID do item','Anúncio','Boa performance','Unidades no período anterior','Unidades no período atual','Queda %','Unidades perdidas','Vendas anterior (R$)','Vendas atual (R$)'];
+  const lines=[head.join(';')].concat((rows||[]).map(r=>[r.item_id,r.title,stallTags(r).join(' + '),r.units_prev,r.units_cur,dec(r.drop_pct,1),r.lost_units,dec(r.revenue_prev),dec(r.revenue_cur)].map(csvCell).join(';')));
+  return '﻿'+lines.join('\r\n');
+}

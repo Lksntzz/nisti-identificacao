@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
-import {funnelSteps,rates,deltaPct,enrichRows,sortRows,filterRows,toCsv,STALL_DAYS,stallTags,filterStalled,sinceLabel,stalledCsv} from './commerce-shopee-performance-view-logic.js';
+import {funnelSteps,rates,deltaPct,enrichRows,sortRows,filterRows,toCsv,STALL_DAYS,stallTags,filterStalled,sinceLabel,stalledCsv,FALL_DAYS,fallLabel,fallingCsv} from './commerce-shopee-performance-view-logic.js';
 import './commerce-shopee-performance-view.css';
 
 const dateBr=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||''));return m?m[3]+'/'+m[2]+'/'+m[1]:'—';};
@@ -26,17 +26,23 @@ export default function ShopeePerformanceView({onClose}){
   const [tab,setTab]=useState('pararam');
   const [report,setReport]=useState('');const [compare,setCompare]=useState('');
   const [data,setData]=useState(null);const [error,setError]=useState('');
-  const [stall,setStall]=useState(null);const [stallDays,setStallDays]=useState(7);const [kind,setKind]=useState('todos');
+  const [stall,setStall]=useState(null);const [fall,setFall]=useState(null);const [fallDays,setFallDays]=useState(14);const [stallDays,setStallDays]=useState(7);const [kind,setKind]=useState('todos');
   const [q,setQ]=useState('');const [weakOnly,setWeakOnly]=useState(false);
   const [sort,setSort]=useState({key:'revenue_paid',dir:'desc'});
   useEffect(()=>{
-    if(tab!=='pararam')return;
     const c=new AbortController();
     const qs=new URLSearchParams({days:String(stallDays)});if(report)qs.set('report',report);
     fetchCommercialManager('/api/admin/commerce/shopee/performance/stalled?'+qs,{signal:c.signal})
       .then(d=>{setError('');setStall(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível carregar a lista.');});
     return()=>c.abort();
-  },[tab,report,stallDays]);
+  },[report,stallDays]);
+  useEffect(()=>{
+    const c=new AbortController();
+    const qs=new URLSearchParams({days:String(fallDays)});if(report)qs.set('report',report);
+    fetchCommercialManager('/api/admin/commerce/shopee/performance/falling?'+qs,{signal:c.signal})
+      .then(d=>{setError('');setFall(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível carregar a lista.');});
+    return()=>c.abort();
+  },[report,fallDays]);
   useEffect(()=>{
     if(tab!=='funil')return;
     const c=new AbortController();
@@ -45,10 +51,12 @@ export default function ShopeePerformanceView({onClose}){
       .then(d=>{setError('');setData(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível carregar o desempenho.');});
     return()=>c.abort();
   },[tab,report,compare]);
-  const reports=(tab==='pararam'?stall:data)?.reports||[];
-  const selectedId=(tab==='pararam'?stall:data)?.selected_id;
+  const src=tab==='funil'?(data||stall||fall):(tab==='queda'?(fall||stall):(stall||fall));
+  const reports=src?.reports||[];
+  const selectedId=src?.selected_id;
   const cur=reports.find(r=>r.id===data?.selected_id),prev=reports.find(r=>r.id===data?.compare_id);
   const rows=useMemo(()=>data?enrichRows(data.items,data.totals):[],[data]);
+  const fallRows=useMemo(()=>filterStalled(fall?.items,{q,kind}),[fall,q,kind]);
   const stalledRows=useMemo(()=>filterStalled(stall?.items,{q,kind}),[stall,q,kind]);
   const shown=useMemo(()=>sortRows(filterRows(rows,{q,weakOnly}),sort.key,sort.dir),[rows,q,weakOnly,sort]);
   const t=data?.totals,ct=data?.compare_totals;
@@ -60,19 +68,21 @@ export default function ShopeePerformanceView({onClose}){
   return createPortal(<div className="nspv-overlay" role="dialog" aria-label="Desempenho Shopee">
     <div className="nspv-toolbar">
       <div className="nspv-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab==='pararam'} className={tab==='pararam'?'is-on':''} onClick={()=>{setError('');setTab('pararam');}}>Bons que pararam</button>
+        <button type="button" role="tab" aria-selected={tab==='pararam'} className={tab==='pararam'?'is-on':''} onClick={()=>{setError('');setTab('pararam');}}>Bons que pararam{stall?' ('+stall.items.length+')':''}</button>
+        <button type="button" role="tab" aria-selected={tab==='queda'} className={tab==='queda'?'is-on':''} onClick={()=>{setError('');setTab('queda');}}>Em queda{fall?' ('+fall.items.length+')':''}</button>
         <button type="button" role="tab" aria-selected={tab==='funil'} className={tab==='funil'?'is-on':''} onClick={()=>{setError('');setTab('funil');}}>Funil por anúncio</button>
       </div>
-      <label>Período do relatório <select value={report||String(selectedId||'')} onChange={e=>{setData(null);setStall(null);setReport(e.target.value);}}>
+      <label>Período do relatório <select value={report||String(selectedId||'')} onChange={e=>{setData(null);setStall(null);setFall(null);setReport(e.target.value);}}>
         {reports.map(r=><option key={r.id} value={String(r.id)}>{periodOf(r)}</option>)}</select></label>
       {tab==='funil'&&<label>Comparar com <select value={compare} onChange={e=>{setData(null);setCompare(e.target.value);}}>
         <option value="">Sem comparação</option>{reports.filter(r=>r.id!==data?.selected_id).map(r=><option key={r.id} value={String(r.id)}>{periodOf(r)}</option>)}</select></label>}
       <span className="nspv-gap"/>
-      <button type="button" onClick={()=>{const rows=tab==='pararam'?stalledRows:shown;const csv=tab==='pararam'?stalledCsv(rows):toCsv(rows);const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=tab==='pararam'?'bons-que-pararam-shopee.csv':'desempenho-shopee.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}} disabled={tab==='pararam'?!stall:!data}>Baixar planilha</button>
+      <button type="button" onClick={()=>{const rows=tab==='pararam'?stalledRows:tab==='queda'?fallRows:shown;const csv=tab==='pararam'?stalledCsv(rows):tab==='queda'?fallingCsv(rows):toCsv(rows);const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=tab==='pararam'?'bons-que-pararam-shopee.csv':tab==='queda'?'bons-em-queda-shopee.csv':'desempenho-shopee.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}} disabled={tab==='pararam'?!stall:tab==='queda'?!fall:!data}>Baixar planilha</button>
       <button type="button" className="is-ghost" onClick={onClose}>Fechar</button>
     </div>
     <article className="nspv-page">
       <header><p>NISTI ID · Gestor de Anúncios</p><h1>Desempenho Shopee <small>só anúncios ativos</small></h1>
+        {tab==='queda'&&<small>{reports.find(x=>x.id===selectedId)?'Desempenho de '+periodOf(reports.find(x=>x.id===selectedId))+' · vendas completas até '+dateBr(fall?.window_end):'Carregando…'}</small>}
         {tab==='pararam'&&<small>{reports.find(x=>x.id===selectedId)?'Desempenho de '+periodOf(reports.find(x=>x.id===selectedId))+' · vendas até '+dateBr(stall?.data_through):'Carregando…'}</small>}
         {tab==='funil'&&<small>{cur?'Relatório de '+periodOf(cur)+' ('+days(cur)+' dias)':'Carregando…'}{prev?' · comparando com '+periodOf(prev)+' ('+days(prev)+' dias)':''}</small>}</header>
       {error&&<p className="nspv-error" role="alert">{error}</p>}
@@ -94,6 +104,24 @@ export default function ShopeePerformanceView({onClose}){
             <td>{dateBr(r.last_sale)}</td><td className="num"><strong>{sinceLabel(r)}</strong></td></tr>)}
             {!stalledRows.length&&<tr><td colSpan="8">Nenhum anúncio ativo com boa performance está parado há {stallDays} dias ou mais. Tente menos dias.</td></tr>}</tbody></table></div>
         <footer>Fontes: relatório "parentskudetail" da Shopee (visitantes, carrinho, pedidos) e vendas importadas (última venda). Quem não tem nenhuma venda no histórico aparece como "sem venda no histórico". Confira o anúncio na Shopee antes de agir: pode estar sem estoque, com preço alto ou fora da busca.</footer>
+      </>}
+      {tab==='queda'&&!fall&&!error&&<p>Carregando…</p>}
+      {tab==='queda'&&fall&&reports.length>0&&<>
+        <p className="nspv-explain">Anúncios <strong>ativos</strong> com <strong>boa performance</strong> no relatório que <strong>continuam vendendo, mas {'\u2265'}30% menos</strong> que no período anterior de mesma duração. Compara os últimos {fallDays} dias completos (até {dateBr(fall.window_end)}) com os {fallDays} dias antes deles. Só entra quem vendeu pelo menos {fall.min_prev} unidades no período anterior. Quem zerou as vendas aparece em "Bons que pararam". Atenção: o período anterior pode ter sido inflado por promoções (ex.: 11.11), o que aumenta a queda aparente.</p>
+        <div className="nspv-filters">
+          <label>Comparar últimos <select value={fallDays} onChange={e=>{setFall(null);setFallDays(Number(e.target.value));}}>{FALL_DAYS.map(n=><option key={n} value={n}>{n} dias</option>)}</select></label>
+          <label>Mostrar <select value={kind} onChange={e=>setKind(e.target.value)}><option value="todos">Todos</option><option value="vendas">Só os que vendiam bem</option><option value="trafego">Só os com muito tráfego</option></select></label>
+          <input type="search" placeholder="Buscar por nome ou ID do anúncio" value={q} onChange={e=>setQ(e.target.value)}/>
+          <span>{fallRows.length} de {fall.items.length} · {fall.active_items} anúncios ativos no relatório</span>
+        </div>
+        <div className="nspv-table-wrap"><table className="nspv-table"><thead><tr><th>Anúncio</th><th>Boa performance</th><th className="num">Unidades antes</th><th className="num">Unidades agora</th><th className="num">Queda</th><th className="num">Vendas antes</th><th className="num">Vendas agora</th></tr></thead>
+          <tbody>{fallRows.map(r=><tr key={r.item_id}>
+            <td className="nspv-name">{r.title||'(sem título)'}<small>{r.item_id}</small></td>
+            <td>{stallTags(r).map(t=><span key={t} className={'nspv-badge '+(t==='Vendeu bem'?'is-sales':'is-traffic')}>{t}</span>)}</td>
+            <td className="num">{int(r.units_prev)}</td><td className="num">{int(r.units_cur)}</td><td className="num"><strong className="nspv-delta is-bad">{fallLabel(r)}</strong></td>
+            <td className="num">{brl(r.revenue_prev)}</td><td className="num">{brl(r.revenue_cur)}</td></tr>)}
+            {!fallRows.length&&<tr><td colSpan="7">Nenhum anúncio bom com queda de 30% ou mais nos últimos {fallDays} dias.</td></tr>}</tbody></table></div>
+        <footer>Fontes: relatório "parentskudetail" (define quem tem boa performance) e vendas importadas da Shopee (compara os dois períodos). Queda não é diagnóstico: confira estoque, preço, posição na busca e anúncios patrocinados.</footer>
       </>}
       {tab==='funil'&&!data&&!error&&<p>Carregando desempenho…</p>}
       {tab==='funil'&&data&&!reports.length&&<p>Nenhum relatório de desempenho da Shopee foi importado ainda. Use a Central de Importações.</p>}
