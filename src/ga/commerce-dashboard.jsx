@@ -758,7 +758,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         {mode==='overview'&&<Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
           <AttentionByPlatform plats={problems?.plats?.platforms} window={problems?.plats?.window} unavailable={!problemDays} error={problemsError} onOpen={onOpenProblems||(()=>goTab('drops'))}/>
         </Panel>}
-        {mode==='overview'&&<Panel title="Resumo do período" icon="list" source="summary">
+        {mode==='overview'&&platform!=='TODAS'&&<Panel title="Resumo do período" icon="list" source="summary">
           <PlatformSummary daily={splitRows} platform={platform} all={all||yearSel}/>
         </Panel>}
         {<Panel title={'ABC · '+abcLabel} icon="pie" source="abc" className="ndb-abc-panel" aside={<button type="button" className="ndb-link" onClick={()=>openAbc(null,true)}>Ver curva</button>}>
