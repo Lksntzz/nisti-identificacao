@@ -54,6 +54,7 @@ import {
   commerceSalesDashboardOverviewV1,
   commerceSalesReportNoSalesV1,
   commerceShopeePerformanceOverview,
+  commerceShopeePerformanceStalled,
   commerceSalesDashboardMonthlyV1,
   commerceSalesDashboardMonthSeriesV1,
   commerceListingCohortsV1,
@@ -510,6 +511,12 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(!input||!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>5000)
         return json({error:'Relatório de desempenho inválido.'},400);
       return json(await commerceImportMlPerformance(env,input));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/stalled'){
+      const report=String(query(url,'report')||''),days=Number(query(url,'days')||7);
+      if((report&&!/^[0-9]{1,12}$/.test(report))||![3,7,14,30].includes(days))
+        return json({error:'Filtro de desempenho inválido.'},400);
+      return json(await commerceShopeePerformanceStalled(env,{report,days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/shopee/performance/overview'){
       const report=String(query(url,'report')||''),compare=String(query(url,'compare')||'');

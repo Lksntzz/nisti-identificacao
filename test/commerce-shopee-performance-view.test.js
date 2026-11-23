@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {pct,deltaPct,rates,funnelSteps,weakStep,enrichRows,sortRows,filterRows,toCsv} from '../src/ga/commerce-shopee-performance-view-logic.js';
+import {pct,deltaPct,rates,funnelSteps,weakStep,enrichRows,sortRows,filterRows,toCsv,stallTags,filterStalled,sinceLabel,stalledCsv,STALL_DAYS} from '../src/ga/commerce-shopee-performance-view-logic.js';
 
 const sql=fs.readFileSync('supabase/migrations/20261123130000_commerce_shopee_performance_overview_v1.sql','utf8');
 const sqlAtivos=fs.readFileSync('supabase/migrations/20261123140000_commerce_shopee_performance_overview_active_only_v1.sql','utf8');
 const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
 const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
+const sqlStalled=fs.readFileSync('supabase/migrations/20261123150000_commerce_shopee_performance_stalled_v1.sql','utf8');
 const dash=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
 const view=fs.readFileSync('src/ga/commerce-shopee-performance-view.jsx','utf8');
 
@@ -64,4 +65,27 @@ test('rota valida ids numericos e o botao abre a tela so com plataforma Shopee',
   assert.match(dash,/ShopeePerformanceView/);
   assert.match(dash,/platform==='SHOPEE'/);
   assert.match(view,/\/api\/admin\/commerce\/shopee\/performance\/overview/);
+});
+
+test('bons que pararam: selos, filtros, rotulo de dias e CSV',()=>{
+  const rows=[{item_id:'1',title:'Caderneta Safari',good_sales:true,good_traffic:true,days_since:9,last_sale:'2026-11-14',impressions:10,clicks:1,visitors:5,add_cart:1,orders:30,revenue_paid:900},
+    {item_id:'2',title:'Agenda',good_sales:false,good_traffic:true,days_since:null,orders:0,revenue_paid:0}];
+  assert.deepEqual(stallTags(rows[0]),['Vendeu bem','Muito tráfego']);
+  assert.deepEqual(stallTags(rows[1]),['Muito tráfego']);
+  assert.equal(filterStalled(rows,{kind:'vendas'}).length,1);
+  assert.equal(filterStalled(rows,{kind:'trafego'}).length,2);
+  assert.equal(filterStalled(rows,{q:'cadernéta'}).length,1);
+  assert.equal(filterStalled(rows,{q:'caderneta'}).length,1);
+  assert.equal(sinceLabel(rows[0]),'9 dias');assert.equal(sinceLabel(rows[1]),'sem venda no histórico');
+  const csv=stalledCsv(rows);assert.match(csv,/Vendeu bem \+ Muito tráfego/);assert.match(csv,/14\/11\/2026;9/);
+  assert.deepEqual(STALL_DAYS,[3,7,14,30]);
+});
+test('SQL bons que pararam: so ativos, so leitura, dias validados e privilegios',()=>{
+  assert.match(sqlStalled,/commerce_shopee_performance_stalled_v1/);
+  assert.match(sqlStalled,/listing_status='ACTIVE'/);
+  assert.match(sqlStalled,/p_days in \(3,7,14,30\)/);
+  assert.match(sqlStalled,/from public,anon,authenticated/);assert.match(sqlStalled,/to service_role/);
+  assert.doesNotMatch(sqlStalled,/\b(insert into|update public|delete from|drop table|alter table)\b/i);
+  assert.match(router,/\/shopee\/performance\/stalled/);assert.match(store,/commerce_shopee_performance_stalled_v1/);
+  assert.match(view,/\/api\/admin\/commerce\/shopee\/performance\/stalled/);
 });
