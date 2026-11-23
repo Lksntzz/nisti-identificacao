@@ -25,7 +25,7 @@ const HEAD=[['revenue_paid','Vendas pagas'],['impressions','Impressões'],['clic
 export default function ShopeePerformanceView({onClose}){
   const [report,setReport]=useState('');const [compare,setCompare]=useState('');
   const [data,setData]=useState(null);const [error,setError]=useState('');
-  const [q,setQ]=useState('');const [activeOnly,setActiveOnly]=useState(true);const [weakOnly,setWeakOnly]=useState(false);
+  const [q,setQ]=useState('');const [weakOnly,setWeakOnly]=useState(false);
   const [sort,setSort]=useState({key:'revenue_paid',dir:'desc'});
   useEffect(()=>{
     const c=new AbortController();
@@ -37,7 +37,7 @@ export default function ShopeePerformanceView({onClose}){
   const reports=data?.reports||[];
   const cur=reports.find(r=>r.id===data?.selected_id),prev=reports.find(r=>r.id===data?.compare_id);
   const rows=useMemo(()=>data?enrichRows(data.items,data.totals):[],[data]);
-  const shown=useMemo(()=>sortRows(filterRows(rows,{q,activeOnly,weakOnly}),sort.key,sort.dir),[rows,q,activeOnly,weakOnly,sort]);
+  const shown=useMemo(()=>sortRows(filterRows(rows,{q,weakOnly}),sort.key,sort.dir),[rows,q,weakOnly,sort]);
   const t=data?.totals,ct=data?.compare_totals;
   const rt=t?rates(t):{},rc=ct?rates(ct):{};
   const hasCmp=!!ct;
@@ -56,7 +56,7 @@ export default function ShopeePerformanceView({onClose}){
       <button type="button" className="is-ghost" onClick={onClose}>Fechar</button>
     </div>
     <article className="nspv-page">
-      <header><p>NISTI ID · Gestor de Anúncios</p><h1>Desempenho Shopee</h1>
+      <header><p>NISTI ID · Gestor de Anúncios</p><h1>Desempenho Shopee <small>só anúncios ativos</small></h1>
         <small>{cur?'Relatório de '+periodOf(cur)+' ('+days(cur)+' dias)':'Carregando…'}{prev?' · comparando com '+periodOf(prev)+' ('+days(prev)+' dias)':''}</small></header>
       {error&&<p className="nspv-error" role="alert">{error}</p>}
       {!data&&!error&&<p>Carregando desempenho…</p>}
@@ -78,15 +78,14 @@ export default function ShopeePerformanceView({onClose}){
         </section>
         <div className="nspv-filters">
           <input type="search" placeholder="Buscar por nome ou ID do anúncio" value={q} onChange={e=>setQ(e.target.value)}/>
-          <label><input type="checkbox" checked={activeOnly} onChange={e=>setActiveOnly(e.target.checked)}/> Só anúncios ativos no GA</label>
           <label><input type="checkbox" checked={weakOnly} onChange={e=>setWeakOnly(e.target.checked)}/> Só os que pedem atenção</label>
-          <span>{shown.length} de {rows.length} anúncios</span>
+          <span>{shown.length} de {rows.length} anúncios ativos</span>
         </div>
         <div className="nspv-table-wrap"><table className="nspv-table"><thead><tr><th>Anúncio</th>
           {HEAD.map(([k,l])=><th key={k} className="num"><button type="button" onClick={()=>sortBy(k)} aria-label={'Ordenar por '+l}>{l}{sort.key===k?(sort.dir==='desc'?' ▼':' ▲'):''}</button></th>)}
           <th>Atenção</th></tr></thead>
           <tbody>{shown.map(r=><tr key={r.item_id}>
-            <td className="nspv-name">{r.title||'(sem título)'}<small>{r.item_id}{r.status!=='ACTIVE'?' · fora do GA ou inativo':''}</small></td>
+            <td className="nspv-name">{r.title||'(sem título)'}<small>{r.item_id}</small></td>
             <td className="num">{brl(r.revenue_paid)}{hasCmp&&<Delta value={r.revenue_delta}/>}</td>
             <td className="num">{int(r.impressions)}</td><td className="num">{int(r.clicks)}</td><td className="num">{pc(r.ctr)}</td>
             <td className="num">{int(r.visitors)}{hasCmp&&<Delta value={r.visitors_delta}/>}</td><td className="num">{pc(r.cart)}</td>

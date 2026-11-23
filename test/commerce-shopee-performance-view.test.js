@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {pct,deltaPct,rates,funnelSteps,weakStep,enrichRows,sortRows,filterRows,toCsv} from '../src/ga/commerce-shopee-performance-view-logic.js';
 
 const sql=fs.readFileSync('supabase/migrations/20261123130000_commerce_shopee_performance_overview_v1.sql','utf8');
+const sqlAtivos=fs.readFileSync('supabase/migrations/20261123140000_commerce_shopee_performance_overview_active_only_v1.sql','utf8');
 const router=fs.readFileSync('src/ga/commerce-admin-router.js','utf8');
 const store=fs.readFileSync('src/ga/commerce-supabase-store.js','utf8');
 const dash=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
@@ -27,7 +28,7 @@ test('weakStep so marca com volume minimo e abaixo de 70% da media da loja',()=>
   assert.equal(weakStep({impressions:5000,clicks:200,visitors:300,add_cart:60,orders:3},store1)?.key,'conv');
   assert.equal(weakStep({impressions:5000,clicks:200,visitors:300,add_cart:60,orders:15},store1),null);
 });
-test('ordenacao poe nulos no fim e filtro ignora acento e respeita ativos',()=>{
+test('ordenacao poe nulos no fim e filtro ignora acento',()=>{
   const rows=enrichRows([
     {item_id:'1',title:'Caderneta de Vacinação',status:'ACTIVE',impressions:1000,clicks:50,visitors:40,add_cart:8,orders:4,revenue_paid:100},
     {item_id:'2',title:'Agenda',status:null,impressions:0,clicks:0,visitors:0,add_cart:0,orders:0,revenue_paid:900},
@@ -36,8 +37,8 @@ test('ordenacao poe nulos no fim e filtro ignora acento e respeita ativos',()=>{
   assert.deepEqual(sortRows(rows,'ctr','desc').map(r=>r.item_id),['1','3','2']);
   assert.deepEqual(sortRows(rows,'revenue_paid','desc').map(r=>r.item_id),['2','1','3']);
   assert.deepEqual(filterRows(rows,{q:'vacinacao'}).map(r=>r.item_id),['1']);
-  assert.equal(filterRows(rows,{activeOnly:false}).length,3);
-  assert.equal(filterRows(rows,{}).length,2);
+  assert.equal(filterRows(rows,{}).length,3);
+  assert.equal(filterRows(rows,{weakOnly:true}).every(r=>r.weak),true);
   assert.equal(rows[2].visitors_delta,-50);
 });
 test('CSV usa ponto e virgula, virgula decimal e escapa aspas',()=>{
@@ -50,6 +51,11 @@ test('SQL: so leitura, sem escrita, privilegios restritos e funcao _v1',()=>{
   assert.match(sql,/stable security invoker set search_path=public/);
   assert.match(sql,/from public,anon,authenticated/);assert.match(sql,/to service_role/);
   assert.doesNotMatch(sql,/\b(insert into|update public|delete from|drop table|alter table)\b/i);
+});
+test('SQL: so anuncios ativos entram nos totais, na lista e na comparacao',()=>{
+  assert.match(sqlAtivos,/join public\.commerce_listings l on l\.id=r\.listing_id and l\.listing_status='ACTIVE'/);
+  assert.match(sqlAtivos,/external_item_id in \(select external_item_id from cur\)/);
+  assert.doesNotMatch(sqlAtivos,/\b(insert into|update public|delete from|drop table|alter table)\b/i);
 });
 test('rota valida ids numericos e o botao abre a tela so com plataforma Shopee',()=>{
   assert.match(router,/\/shopee\/performance\/overview/);

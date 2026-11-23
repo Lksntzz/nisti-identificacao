@@ -11,6 +11,7 @@
 .nspv-page header p{margin:0;color:#1f3a8a;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
 .nspv-page h1{margin:4px 0 4px;font-size:22px}
 .nspv-page header small{color:#4b5563}
+.nspv-page h1 small{font-size:12px;font-weight:600;color:#1f3a8a;background:#eff6ff;border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle}
 .nspv-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
 .nspv-kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .nspv-kpi span{font-size:11px;color:#6b7280;font-weight:600}
