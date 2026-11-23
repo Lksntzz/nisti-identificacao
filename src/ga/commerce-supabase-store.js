@@ -215,6 +215,16 @@ export async function commerceShopeeWhyStopped(env,{days=14}={}) {
   const data=await supabaseRpc(env,'commerce_shopee_why_stopped_v1',{p_days:d},{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{items:[],kpis:{}};
 }
+// Painel "Anuncios com problema": grupos Parou/Em queda/Pior performance/Nunca vendeu e diagnostico por plataforma. Somente leitura.
+const problemDays=days=>[30,60,90].includes(Number(days))?Number(days):30;
+export async function commerceProblemGroups(env,{days=30}={}) {
+  const data=await supabaseRpc(env,'commerce_problem_groups_v1',{p_days:problemDays(days)},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{items:[],counts:{}};
+}
+export async function commerceProblemPlatforms(env,{days=30}={}) {
+  const data=await supabaseRpc(env,'commerce_platform_diagnosis_v1',{p_days:problemDays(days)},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{platforms:[]};
+}
 export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {diagnosis:{}};

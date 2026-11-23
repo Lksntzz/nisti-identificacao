@@ -18,7 +18,7 @@ const SRC={
   cause:'Motivo provável: compara o relatório de desempenho (parentskudetail) mais recente com o anterior, por dia. A etapa que mais caiu (20% ou mais) define o motivo: impressões = visibilidade, CTR = cliques, pedidos ÷ visitantes = conversão. É uma pista para conferir, não um veredito.'
 };
 
-function Ico({name}){
+export function Ico({name}){
   const p={viewBox:'0 0 24 24',width:22,height:22,fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true};
   if(name==='down')return <svg {...p}><path d="m22 17-8.5-8.5-5 5L2 7M16 17h6v-6"/></svg>;
   if(name==='money')return <svg {...p}><path d="M12 2v20M17 6.5C16 5 14.2 4 12 4c-2.8 0-5 1.4-5 3.5S9.2 10.5 12 11s5 1.4 5 3.5S14.8 18 12 18c-2.3 0-4.2-1-5.2-2.6"/></svg>;
@@ -28,7 +28,7 @@ function Ico({name}){
   if(name==='tag')return <svg {...p}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>;
   return <svg {...p}><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>;
 }
-function Card({icon,label,value,foot,tone='neutral',active,onClick,info}){
+export function Card({icon,label,value,foot,tone='neutral',active,onClick,info}){
   const Tag=onClick?'button':'article';
   return <Tag type={onClick?'button':undefined} className={'ndb-kpi'+(onClick?' ndb-idx':'')+' tone-'+tone+(active?' is-active':'')} onClick={onClick} aria-pressed={onClick?!!active:undefined}>
     <span className="ndb-kpi-ico"><Ico name={icon}/></span>

@@ -40,8 +40,8 @@ test('Pararam e Sem vendas usam ancora last_sale', () => {
   assert.match(sql, /p_anchor='last_sale'/);
 });
 
-test('Dashboard: 4 indices de performance no lugar dos cards de faturamento', () => {
-  for (const l of ['Vendendo', 'Em queda', 'Vendia e parou', 'Não vendeu']) assert.match(dash, new RegExp('label="' + l + '"'));
+test('Dashboard: indices de performance no lugar dos cards de faturamento', () => {
+  for (const l of ['Em queda', 'Vendia e parou', 'Nunca vendeu']) assert.match(dash, new RegExp('label="' + l + '"'));
   assert.doesNotMatch(dash, /label="Faturamento total"|label="Investimento em anúncios"|label="ROAS dos anúncios"/);
 });
 

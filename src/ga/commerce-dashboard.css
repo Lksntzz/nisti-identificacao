@@ -703,3 +703,7 @@
 .ndb-ship em{font-style:normal;opacity:.75}
 
 .ndb-pp-menu.is-left{left:0;right:auto;max-width:calc(100vw - 16px)}
+
+.ndb-collapse{margin-left:auto;background:none;border:0;cursor:pointer;color:#52637b;padding:2px 4px;display:inline-flex}
+.ndb-pie{flex:none}
+.ndb-split{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
