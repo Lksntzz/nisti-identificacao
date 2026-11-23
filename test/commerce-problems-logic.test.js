@@ -32,3 +32,12 @@ test('campaignWarning: 11.11, Black Friday e período limpo',()=>{
   assert.equal(campaignWarning('2026-09-01','2026-09-30'),null);
   assert.match(campaignWarning('2026-10-05','2026-10-12'),/10\.10/);
 });
+
+import {windowWarning} from '../src/ga/commerce-problems-logic.js';
+test('windowWarning: avisa também quando a RÉGUA (meses anteriores) contém campanha',()=>{
+  const w={start:'2026-12-06',end:'2027-01-04',base_start:'2026-09-01',base_end:'2026-11-30'};
+  assert.match(windowWarning(w),/régua|meses usados como base/i);
+  assert.match(windowWarning(w),/11\.11/);
+  assert.equal(windowWarning({start:'2026-03-01',end:'2026-03-30',base_start:'2025-12-01',base_end:'2026-02-28'}),null);
+  assert.match(windowWarning({start:'2026-11-01',end:'2026-11-22',base_start:'2026-07-01',base_end:'2026-09-30'}),/Este período contém 11\.11/);
+});

@@ -4,7 +4,7 @@ import {Dropdown,InfoIcon,listingUrl} from './commerce-dashboard.jsx';
 import {Card} from './commerce-why-stopped.jsx';
 import {maskMoney} from './commerce-privacy.js';
 import {causeOf} from './commerce-why-stopped-logic.js';
-import {GROUPS,PROBLEM_PCT,PLATFORM_LABEL,headline,campaignWarning} from './commerce-problems-logic.js';
+import {GROUPS,PROBLEM_PCT,PLATFORM_LABEL,headline,windowWarning} from './commerce-problems-logic.js';
 import './commerce-dashboard.css';
 import './commerce-why-stopped.css';
 import './commerce-problems.css';
@@ -94,7 +94,7 @@ export default function CommerceProblems(){
   },[data,platform]);
   const current=group&&groups.some(([k])=>k===group)?group:(groups.find(([k])=>counts[k]>0)||groups[0])[0];
   const rows=useMemo(()=>(data?.items||[]).filter(i=>i.group===current&&(platform==='TODAS'||i.platform===platform)),[data,current,platform]);
-  const w=data?.window,warn=w?campaignWarning(w.start,w.end):null;
+  const w=data?.window,warn=windowWarning(w);
   const plist=(plats?.platforms||[]);
   return <section className="nwy-root" aria-label="Anúncios com problema">
     <header className="ndb-head">

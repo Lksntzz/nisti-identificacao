@@ -21,7 +21,7 @@ test('PlatformSplit: pizza em SVG com fatias clicáveis',()=>{
 const probs=fs.readFileSync('src/ga/commerce-dashboard-problems.jsx','utf8');
 test('Atenção: uma linha por plataforma com headline(), aviso de campanha e "escolha 30, 60 ou 90 dias"',()=>{
   assert.match(probs,/export function AttentionByPlatform/);
-  assert.match(probs,/headline\(/);assert.match(probs,/campaignWarning\(/);
+  assert.match(probs,/headline\(/);assert.match(probs,/windowWarning\(/);
   assert.match(probs,/escolha 30, 60 ou 90 dias/);
   assert.match(dash,/<AttentionByPlatform /);
   assert.match(dash,/\/api\/admin\/commerce\/problems\/platforms\?days=/);
@@ -36,4 +36,10 @@ test('Resumo do período: um bloco por plataforma, sem totais globais',()=>{
   assert.match(probs,/PLATS\.filter\(/);
   assert.match(dash,/<PlatformSummary /);
   assert.doesNotMatch(dash,/<SummaryList /);
+});
+test('Atenção/Nunca vendeu: falha da consulta mostra "consulta indisponível" e "escolha 30, 60 ou 90" só sem janela válida',()=>{
+  assert.match(dash,/problemsError/);
+  assert.match(dash,/consulta indisponível/);
+  assert.match(dash,/problemDays\?\(problems\?.*consultando….*\):'escolha 30, 60 ou 90 dias'/);
+  assert.match(probs,/error/);
 });

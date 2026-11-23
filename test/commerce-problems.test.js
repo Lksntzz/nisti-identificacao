@@ -89,7 +89,7 @@ test('painel: busca grupos e diagnóstico, seletor 30/60/90 com padrão 30 e car
   assert.match(panel,/\[30,60,90\]/);
 });
 test('painel: avisos de campanha, relatório velho (30+ dias), Pior performance oculto (90+), sem venda desde jan/2025 e SEM_IDADE à parte',()=>{
-  assert.match(panel,/campaignWarning\(/);
+  assert.match(panel,/windowWarning\(/);
   assert.match(panel,/age_days\s*>=\s*30/);assert.match(panel,/age_days\s*>\s*90/);
   assert.match(panel,/sem venda desde jan\/2025/);
   assert.match(panel,/SEM_IDADE/);assert.match(panel,/EM_TESTE/);

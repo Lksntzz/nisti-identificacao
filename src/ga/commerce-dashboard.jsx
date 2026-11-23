@@ -455,15 +455,15 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const abcP=platform==='TODAS'?abcPlat:platform;
   const all=days===0&&!month;
   const problemDays=[30,60,90].includes(days)&&!month?days:null;
-  const [problems,setProblems]=useState(null);
+  const [problems,setProblems]=useState(null);const [problemsError,setProblemsError]=useState(false);
   useEffect(()=>{
-    setProblems(null);
+    setProblems(null);setProblemsError(false);
     if(!problemDays||mode!=='overview')return;
     const c=new AbortController();
     Promise.all([
       fetchCommercialManager('/api/admin/commerce/problems/platforms?days='+problemDays,{signal:c.signal}),
       fetchCommercialManager('/api/admin/commerce/problems/groups?days='+problemDays,{signal:c.signal})
-    ]).then(([p,g])=>setProblems({plats:p,groups:g})).catch(()=>{});
+    ]).then(([p,g])=>setProblems({plats:p,groups:g})).catch(()=>{if(!c.signal.aborted)setProblemsError(true);});
     return()=>c.abort();
   },[problemDays,mode]);
   const never=(()=>{let n=0,t=0;for(const c of Object.values(problems?.groups?.counts||{})){n+=Number(c.NUNCA)||0;t+=Number(c.EM_TESTE)||0;}return {n,t};})();
@@ -664,7 +664,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     {hasData&&mode==='overview'&&<div className="ndb-kpis ndb-idx-row" role="group" aria-label="Índices de performance">
       <IndexCard icon="down" tone="bad" label="Em queda" value={all?'—':num(data?.drops?.total||0)} foot={all?'escolha um período':'vendem menos que no período anterior'} active={tab==='drops'&&focus} disabled={all} onClick={()=>goTab('drops')} title="Anúncios ativos que venderam pelo menos 15% menos que no período anterior."/>
       <IndexCard icon="pause" tone="warn" label="Vendia e parou" value={all||!overview?'—':num(stoppedCount)} foot={all?'escolha um período':overview?'já venderam e estão sem vender no período':'consulta indisponível'} active={tab==='nosales'&&focus&&nsf==='stopped'} disabled={all||!overview} onClick={()=>goTab('stopped')} title="Anúncios ativos que já venderam 3 ou mais unidades e não tiveram nenhuma venda no período."/>
-      <IndexCard icon="eye" tone="muted" label="Nunca vendeu" value={problems?num(never.n):'—'} foot={problems?'candidatos a desativar · '+num(never.t)+' em teste':'escolha 30, 60 ou 90 dias'} disabled={!problems} onClick={onOpenProblems||(()=>goTab('never'))} title="Anúncios ativos da Shopee sem nenhuma venda desde jan/2025 e com mais de 90 dias nos relatórios (candidatos). Em teste = sem venda, mas recentes. O GA só sugere, não desativa."/>
+      <IndexCard icon="eye" tone="muted" label="Nunca vendeu" value={problems?num(never.n):'—'} foot={problemDays?(problems?'candidatos a desativar · '+num(never.t)+' em teste':(problemsError?'consulta indisponível':'consultando…')):'escolha 30, 60 ou 90 dias'} disabled={!problems} onClick={onOpenProblems||(()=>goTab('never'))} title="Anúncios ativos da Shopee sem nenhuma venda desde jan/2025 e com mais de 90 dias nos relatórios (candidatos). Em teste = sem venda, mas recentes. O GA só sugere, não desativa."/>
     </div>}
     <div className="ndb-main">
       <div className="ndb-left">
@@ -756,7 +756,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       </div>
       <aside className="ndb-right">
         {mode==='overview'&&<Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
-          <AttentionByPlatform plats={problems?.plats?.platforms} window={problems?.plats?.window} unavailable={!problemDays} onOpen={onOpenProblems||(()=>goTab('drops'))}/>
+          <AttentionByPlatform plats={problems?.plats?.platforms} window={problems?.plats?.window} unavailable={!problemDays} error={problemsError} onOpen={onOpenProblems||(()=>goTab('drops'))}/>
         </Panel>}
         {mode==='overview'&&<Panel title="Resumo do período" icon="list" source="summary">
           <PlatformSummary daily={splitRows} platform={platform} all={all||yearSel}/>

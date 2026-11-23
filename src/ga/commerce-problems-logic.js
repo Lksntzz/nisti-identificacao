@@ -39,3 +39,12 @@ export function campaignWarning(start,end){
   }
   return found.length?'Este período contém '+found.join(' e ')+': a comparação pode parecer maior ou menor do que é.':null;
 }
+
+// Aviso para a janela atual e também para os meses usados como base (campanha na base infla a comparação).
+export function windowWarning(w){
+  if(!w)return null;
+  const cur=campaignWarning(w.start,w.end);
+  if(cur)return cur;
+  const base=campaignWarning(w.base_start,w.base_end);
+  return base?base.replace('Este período contém','Os meses usados como base contêm')+' Isso pode inflar a base e mostrar queda que não existe.':null;
+}
