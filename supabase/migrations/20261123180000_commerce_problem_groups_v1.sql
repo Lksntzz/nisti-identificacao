@@ -90,6 +90,7 @@ begin
              from win order by e desc limit 1),
    'per_platform',(select jsonb_object_agg(pc,jsonb_build_object('start',cur_start,'end',e,'base_start',base_start,'base_end',base_end,'base_ok',(first_day<=base_start))) from win),
    'report',(select jsonb_build_object('id',id,'start',period_start,'end',period_end,'age_days',age) from rep),
+   'store_conv_pct',(select round(conv*100,2) from store),
    'counts',(select jsonb_object_agg(w.pc,jsonb_build_object(
         'PAROU',(select count(*) from grp where pc=w.pc and g='PAROU'),
         'QUEDA',(select count(*) from grp where pc=w.pc and g='QUEDA'),
@@ -103,7 +104,8 @@ begin
         'drop_pct',case when g='PAROU' then 100 when g='QUEDA' then round((1-u_cur/(u_base::numeric/base_days*p_days))*100,1) end,
         'units_cur',u_cur,'units_base',round(u_base::numeric/base_days*p_days,1),
         'lost_revenue',case when g in ('PAROU','QUEDA') then greatest(0,round(r_base/base_days*p_days-r_cur,2)) else 0 end,
-        'last_sale',last_sale,'age_days_min',age,'also_low_conv',also_low)
+        'last_sale',last_sale,'age_days_min',age,'also_low_conv',also_low,
+        'impressions',l_imp,'visitors',l_vis,'conv_pct',case when l_vis>0 then round(l_ord::numeric/l_vis*100,2) end)
       order by case when g in ('PAROU','QUEDA') then greatest(0,r_base/base_days*p_days-r_cur) else 0 end desc,listing_id)
       from grp where g is not null),'[]'::jsonb)
  ) into r;

@@ -73,3 +73,10 @@ test('router: rotas /problems/groups e /problems/platforms só aceitam 30, 60 ou
   assert.match(router,/Filtro inválido\. Escolha 30, 60 ou 90 dias\./);
   assert.match(router,/commerceProblemGroups\(env,\{days\}\)/);assert.match(router,/commerceProblemPlatforms\(env,\{days\}\)/);
 });
+
+test('grupos: itens trazem impressões, visitantes e conversão da loja para o card de Pior performance',()=>{
+  assert.match(groupsCode,/'impressions',l_imp/);
+  assert.match(groupsCode,/'visitors',l_vis/);
+  assert.match(groupsCode,/'conv_pct'/);
+  assert.match(groupsCode,/'store_conv_pct'/);
+});
