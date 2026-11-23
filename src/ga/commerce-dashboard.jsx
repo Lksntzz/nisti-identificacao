@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {AttentionByPlatform,PlatformSummary} from './commerce-dashboard-problems.jsx';
+import {getSharedFilter,setSharedFilter} from './commerce-shared-filter.js';
 import {usePriceSignals,PriceSignalCell} from './commerce-price-signal.jsx';
 import {useSalesBreakdown,useSalesMonths,WeeklySalesCell,BestMonthCell,DailySalesRow,MonthsPanelRow} from './commerce-sales-breakdown.jsx';
 import PeriodPicker from './commerce-period-picker.jsx';
@@ -364,10 +365,12 @@ export function Dropdown({label,value,options,onChange}){
 }
 
 export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,onOpenProblems=null,onOpenCategories=null,actions=null,initialFilter=null}){
-  const [platform,setPlatform]=useState(initialFilter?.platform||'TODAS');
+  const [shared0]=useState(()=>getSharedFilter());
+  const [platform,setPlatform]=useState(initialFilter?.platform||shared0.platform);
   const [query,setQuery]=useState('');
-  const [days,setDays]=useState(initialFilter?.days??30);
-  const [month,setMonth]=useState(initialFilter?.month||'');
+  const [days,setDays]=useState(initialFilter?.days??shared0.days);
+  const [month,setMonth]=useState(initialFilter?.month??shared0.month);
+  useEffect(()=>{setSharedFilter({platform,days,month});},[platform,days,month]);
   const yearSel=/^20\d{2}$/.test(month);
   const [data,setData]=useState(null);
   const [overview,setOverview]=useState(null);
