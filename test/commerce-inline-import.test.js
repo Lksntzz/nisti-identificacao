@@ -19,7 +19,7 @@ test('operator chooses type first; relevant platform, account and file field the
   assert.match(importView,/disabled=\{catalogReading \|\| catalogImporting \|\| \(catalogPlatform === 'MERCADO_LIVRE' && !catalogAccount\)\}/);
   assert.match(importView,/FileDrop/);
   assert.match(importView,/readCommerceXlsx\(file, catalogPlatform/);
-  assert.match(importView,/readCommerceSalesXlsx\(file, salesPlatform, salesMonth\)/);
+  assert.match(importView,/readCommerceSalesXlsx\(file, salesPlatform\)/);
 });
 
 test('existing catalog staging, conflict review, decisions, status sync and history remain functional in same view',()=>{

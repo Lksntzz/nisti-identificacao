@@ -1,0 +1,131 @@
+// GA-019 — importação de vendas por DIA. Leitor (comportamento real com .xlsx fictício) e fiação estática.
+// O comportamento do banco é testado em test/db (npm run test:db).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { makeXlsx } from './helpers/make-xlsx.js';
+import { readCommerceSalesXlsx, isToShipFilename, orderKeyHex } from '../src/ga/commerce-sales-import-reader.js';
+
+const read = (p) => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+const HEAD = ['ID do pedido', 'Status do pedido', 'Hora do pagamento do pedido', 'Data de criação do pedido', 'Número de referência SKU', 'SKU', 'Quantidade', 'Subtotal do produto'];
+const line = (id, date, sku, qty, rev) => [id, 'Concluído', `${date} 10:00`, `${date} 09:00`, sku, sku, qty, rev];
+const shopeeFile = (rows, name = 'Order.all.xlsx') => new File([makeXlsx([HEAD, ...rows])], name);
+
+test('Shopee: linhas e resumos saem por dia real do pedido, com pedidos únicos pelo ID', async () => {
+  const parsed = await readCommerceSalesXlsx(shopeeFile([
+    line('o1', '2026-10-01', 'AAA', 2, '20,00'), line('o1', '2026-10-01', 'BBB', 1, '20,00'),
+    line('o2', '2026-10-02', 'AAA', 1, '10,00')]), 'SHOPEE');
+  assert.deepEqual(parsed.summaries.map((s) => [s.period_key, s.period_start, s.period_end, s.net_orders]),
+    [['2026-10-01', '2026-10-01', '2026-10-01', 1], ['2026-10-02', '2026-10-02', '2026-10-02', 1]]);
+  assert.equal(parsed.rows.length, 3);
+  assert.ok(parsed.rows.every((r) => r.period_start === r.period_end && r.period_key === r.period_start));
+  assert.equal(parsed.summary.net_orders, 2, 'pedido com 2 SKUs conta 1; nunca soma de pedidos por SKU');
+  assert.deepEqual(parsed.coverage, { start: '2026-10-01', end: '2026-10-02', days_with_sales: 2 });
+});
+
+test('Shopee: só chaves embaralhadas dos pedidos saem do navegador, iguais entre arquivos', async () => {
+  const a = await readCommerceSalesXlsx(shopeeFile([line('123456789', '2026-10-01', 'AAA', 1, '10,00')]), 'SHOPEE');
+  const b = await readCommerceSalesXlsx(shopeeFile([line('123456789', '2026-10-01', 'AAA', 1, '10,00'), line('987', '2026-10-02', 'AAA', 1, '10,00')], 'outro.xlsx'), 'SHOPEE');
+  assert.match(a.order_keys[0].k, /^[0-9a-f]{32}$/);
+  assert.equal(a.order_keys[0].k, b.order_keys.find((x) => x.d === '2026-10-01').k, 'mesmo pedido, mesma chave em arquivos diferentes');
+  assert.equal(a.order_keys[0].k, await orderKeyHex('SHOPEE', '123456789'));
+  assert.notEqual(await orderKeyHex('SHOPEE', '123456789'), await orderKeyHex('ML_NOVO', '123456789'));
+  assert.equal(JSON.stringify(a).includes('123456789'), false, 'o número real do pedido não aparece em nada que é enviado');
+});
+
+test('Shopee: arquivo que atravessa dois meses não vira um período mensal único', async () => {
+  const parsed = await readCommerceSalesXlsx(shopeeFile([
+    line('o1', '2026-10-31', 'AAA', 1, '10,00'), line('o2', '2026-11-01', 'AAA', 1, '10,00')]), 'SHOPEE');
+  assert.deepEqual(parsed.summaries.map((s) => s.period_key), ['2026-10-31', '2026-11-01']);
+  assert.equal(parsed.data_through, '2026-11-01');
+});
+
+test('Shopee: sem data do pedido ou sem ID do pedido a importação para (nunca usa nome do arquivo)', async () => {
+  await assert.rejects(readCommerceSalesXlsx(shopeeFile([['o1', 'Concluído', '2026-10-01 10:00', '', 'AAA', 'AAA', 1, '10,00']]), 'SHOPEE', '2026-10'), /sem data reconhecível/);
+  await assert.rejects(readCommerceSalesXlsx(shopeeFile([line('', '2026-10-01', 'AAA', 1, '10,00')]), 'SHOPEE'), /sem identificador/);
+});
+
+test('Order.toship é recusado no leitor, no servidor e no banco', async () => {
+  assert.equal(isToShipFilename('Order.toship.20261121.xlsx'), true);
+  assert.equal(isToShipFilename('order.TOSHIP.xlsx'), true);
+  assert.equal(isToShipFilename('Order.all.20261001_20261031.xlsx'), false);
+  await assert.rejects(readCommerceSalesXlsx(shopeeFile([line('o1', '2026-10-01', 'AAA', 1, '10,00')], 'Order.toship.20261121.xlsx'), 'SHOPEE'), /Order\.toship/);
+  assert.match(read('src/ga/commerce-admin-router.js'), /order\[\.\]toship/i);
+  assert.match(read('supabase/migrations/20261123210000_commerce_commit_sales_import_v2.sql'), /sales_import_toship_blocked/);
+});
+
+const ML_HEAD = ['N.º de venda', 'Data de venda', 'Depósito', 'Estado', 'Descrição do status', 'Pacote de diversos produtos', 'Pertence a um kit',
+  'Unidades', 'Receita por produtos (BRL)', 'Receita por acréscimo no preço (pago pelo comprador)', 'Taxa de parcelamento equivalente ao acréscimo',
+  'Tarifa de venda e impostos (BRL)', 'Receita por envio (BRL)', 'Tarifas de envio (BRL)', 'Custo de envio por troca de produto',
+  'Custo de envio com base nas medidas e peso declarados', 'Custo por diferenças nas medidas e no peso do pacote', 'Descontos e bônus',
+  'Cancelamentos e reembolsos (BRL)', 'Total (BRL)', 'Mês de faturamento das suas tarifas', 'Pedido de compra', 'Venda por publicidade',
+  'SKU', '# de anúncio', 'Loja oficial', 'Título do anúncio', 'Variação', 'Preço unitário de venda do anúncio (BRL)'];
+const mlLine = (id, day, sku, ad, qty, price) => {
+  const cells = Array.from({ length: 29 }, () => null);
+  cells[0] = id; cells[1] = day; cells[3] = 'Entregue'; cells[7] = qty; cells[8] = price * qty; cells[23] = sku; cells[24] = ad; cells[26] = 'Item'; cells[28] = price;
+  return cells;
+};
+
+test('Mercado Livre: pedidos por dia viram chaves embaralhadas e o número da venda não sai do navegador', async () => {
+  const data = [['Vendas BR'], [], [], [], [], ['Vendas'], ML_HEAD,
+    mlLine('2000001', '15 de outubro de 2026 17:40 hs.', 'MMM', 'MLB1', 1, 30),
+    mlLine('2000002', '15 de outubro de 2026 18:00 hs.', 'MMM', 'MLB1', 2, 30),
+    mlLine('2000003', '16 de outubro de 2026 09:00 hs.', 'NNN', 'MLB2', 1, 45)];
+  const parsed = await readCommerceSalesXlsx(new File([makeXlsx(data, 'Vendas BR')], 'vendas.xlsx'), 'ML_NOVO');
+  assert.equal(parsed.order_refs, undefined, 'a referência com número real é removida antes de sair do leitor');
+  assert.deepEqual(parsed.order_keys.map((k) => k.d), ['2026-10-15', '2026-10-15', '2026-10-16']);
+  assert.ok(parsed.order_keys.every((k) => /^[0-9a-f]{32}$/.test(k.k)));
+  assert.equal(JSON.stringify(parsed).includes('2000001'), false);
+  assert.equal(parsed.summaries.find((x) => x.period_key === '2026-10-15').net_orders, 2);
+  const expected = await orderKeyHex('ML_NOVO', '2000003');
+  assert.ok(parsed.order_keys.some((k) => k.k === expected));
+});
+
+test('cliente envia as chaves dos pedidos ANTES do commit e se recusa a seguir sem elas', () => {
+  const client = read('src/ga/commerce-import-client.js');
+  assert.ok(client.indexOf('/orders`') > 0 && client.indexOf('/orders`') < client.indexOf("phase: 'commit'"));
+  assert.match(client, /sem identificadores de pedido/);
+  assert.match(client, /ORDER_KEY_CHUNK_SIZE = 1000/);
+});
+
+test('servidor: rota de pedidos, v2 no commit e na ativação financeira, erros claros', () => {
+  const router = read('src/ga/commerce-admin-router.js');
+  const store = read('src/ga/commerce-supabase-store.js');
+  assert.match(router, /\\\/orders\$\//);
+  assert.match(router, /commerceAppendSalesImportOrders\(env, batchId, body\.rows\)/);
+  for (const code of ['sales_import_toship_blocked', 'sales_import_orders_unresolved', 'sales_import_month_not_rebuildable',
+    'sales_import_orders_required', 'sales_import_day_level_required', 'sales_import_orders_mismatch', 'sales_import_daily_mismatch'])
+    assert.ok(router.includes(code), code);
+  assert.match(store, /'commerce_commit_sales_import_v2'/);
+  assert.match(store, /'commerce_activate_shopee_finance_v2'/);
+  assert.doesNotMatch(store, /'commerce_commit_sales_import_v1'/, 'a v1 fica só no banco, para reversão');
+  assert.match(store, /commerce_append_sales_import_orders_v2/);
+});
+
+test('migração v2: v1 intocada, trava global, permissões só para service_role, RLS nas tabelas novas', () => {
+  const sql = read('supabase/migrations/20261123210000_commerce_commit_sales_import_v2.sql');
+  const code = sql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  assert.doesNotMatch(code, /commerce_commit_sales_import_v1/, 'não redefine nem chama a v1');
+  assert.doesNotMatch(code, /drop (function|table)/i);
+  assert.match(code, /pg_advisory_xact_lock\(hashtextextended\('commerce_sales_commit', 2026\)\)/);
+  for (const fn of ['commerce_append_sales_import_orders_v2(bigint, jsonb)', 'commerce_sales_day_winners_v2(text, date, date)',
+    'commerce_sales_day_rows_v2(text, date, date)', 'commerce_sales_month_orders_v2(text, date)',
+    'commerce_commit_sales_import_v2(bigint)', 'commerce_activate_shopee_finance_v2(bigint)']) {
+    assert.ok(code.includes(`revoke all on function public.${fn} from public, anon, authenticated;`), `revoke ${fn}`);
+    assert.ok(code.includes(`grant execute on function public.${fn} to service_role;`), `grant ${fn}`);
+  }
+  for (const t of ['commerce_sales_import_stage_orders_v2', 'commerce_sales_day_coverage_v2']) {
+    assert.ok(code.includes(`alter table public.${t} enable row level security;`), `RLS ${t}`);
+    assert.ok(code.includes(`revoke all on public.${t} from public, anon, authenticated;`), `revoke ${t}`);
+  }
+  assert.doesNotMatch(code, /security definer/i);
+  assert.doesNotMatch(code, /grant [^;]* to (anon|authenticated|public)/i);
+});
+
+test('migração v2 não escreve cache e não é aplicada sozinha: o cache só muda pelo commit', () => {
+  const sql = read('supabase/migrations/20261123210000_commerce_commit_sales_import_v2.sql');
+  assert.doesNotMatch(sql, /commerce_read_cache_v1/);
+  const store = read('src/ga/commerce-supabase-store.js');
+  const body = store.slice(store.indexOf('export async function commerceCommitSalesImport'));
+  assert.ok(body.indexOf("'commerce_commit_sales_import_v2'") < body.indexOf('refreshShopeeYearAliases'));
+});

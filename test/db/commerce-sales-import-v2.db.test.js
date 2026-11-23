@@ -101,6 +101,7 @@ withDb('arquivo em partes: espera as partes, une as duas e pedido que aparece na
     '2026-10-01': [day('AAA', 1, 10, ['o1'])], '2026-10-02': [day('AAA', 1, 10, ['oX'])] } });
   const w = await commit(db, p1);
   assert.equal(w.status, 'WAITING_PARTS');
+  assert.deepEqual([w.parts_received, w.parts_expected, w.missing_parts], [1, 2, [2]], 'mesmo formato da v1: a tela mostra as partes que faltam');
   assert.equal((await db.one('select count(*)::int n from commerce_sales_snapshots')).n, 0);
   const p2 = await stage(db, { file: 'Order.all.2026_part_2_of_2.xlsx', created: T('2026-10-10'), days: {
     '2026-10-02': [day('BBB', 2, 40, ['oX', 'o2'])], '2026-10-03': [day('BBB', 1, 20, ['o3'])] } });
@@ -458,4 +459,65 @@ withDb('financeiro: total do arquivo diferente das vendas do arquivo derruba a a
     finance: { days: [{ date: '2026-11-01', sku: 'AAA', orders: 1, units: 1, rev: 10, fee: 1 }], months: [fin('2026-11-01', 1, 5, 10)] } });
   await commit(db, a);
   await assert.rejects(db.q('select public.commerce_activate_shopee_finance_v2($1)', [a]), /Totais financeiros diferentes/);
+});
+
+// ---------- ponta a ponta: planilha fictícia -> leitor real -> banco ----------
+import { makeXlsx } from '../helpers/make-xlsx.js';
+import { readCommerceSalesXlsx } from '../../src/ga/commerce-sales-import-reader.js';
+
+async function stageParsed(db, parsed, file, created) {
+  const b = await db.one(`insert into commerce_sales_import_batches(platform_code, source_filename, status, created_at) values ($1,$2,'STAGED',$3) returning id`,
+    [parsed.platform_code, file, created]);
+  for (const r of parsed.rows) {
+    await db.q(`insert into commerce_sales_import_stage_rows(batch_id, source_row_number, period_key, period_start, period_end, sku_primary, sku, sku_norm, product_name, variation, units, orders_with_item, product_revenue)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [b.id, r.source_row_number, r.period_key, r.period_start, r.period_end, r.sku_primary, r.sku, r.sku_norm, r.product_name, r.variation, r.units, r.orders_with_item, r.product_revenue]);
+  }
+  for (const r of parsed.summaries) {
+    await db.q(`insert into commerce_sales_import_stage_summary(batch_id, period_key, period_start, period_end, net_orders, units, product_revenue, listings_with_sales, skus_with_sales)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [b.id, r.period_key, r.period_start, r.period_end, r.net_orders, r.units, r.product_revenue, r.listings_with_sales, r.skus_with_sales]);
+  }
+  for (const r of parsed.sku_daily_rows || []) {
+    await db.q(`insert into commerce_shopee_sales_sku_daily_v1(batch_id, sale_date, sku_norm, units, orders_with_item, product_revenue) values ($1,$2,$3,$4,$5,$6)`,
+      [b.id, r.sale_date, r.sku_norm, r.units, r.orders_with_item, r.product_revenue]);
+  }
+  for (const r of parsed.listing_rows || []) {
+    await db.q(`insert into commerce_sales_listing_daily_v1(batch_id, sale_date, external_listing_id, sku_norm, units, orders_with_item, product_revenue) values ($1,$2,$3,$4,$5,$6,$7)`,
+      [b.id, r.sale_date, r.external_listing_id, r.sku_norm, r.units, r.orders_with_item, r.product_revenue]);
+  }
+  const keys = parsed.order_keys;
+  await db.q('select public.commerce_append_sales_import_orders_v2($1, $2::jsonb)', [b.id, JSON.stringify(keys)]);
+  return b.id;
+}
+
+const SH_HEAD = ['ID do pedido', 'Status do pedido', 'Hora do pagamento do pedido', 'Data de criação do pedido', 'Número de referência SKU', 'SKU', 'Quantidade', 'Subtotal do produto'];
+const shLine = (id, date, sku, qty, rev) => [id, 'Concluído', `${date} 10:00`, `${date} 09:00`, sku, sku, qty, rev];
+const shFile = (rows, name) => new File([makeXlsx([SH_HEAD, ...rows])], name);
+
+withDb('ponta a ponta Shopee: dois arquivos fictícios reais (dias seguidos) somam sem perder o primeiro', async (db) => {
+  const p1 = await readCommerceSalesXlsx(shFile([shLine('9001', '2026-11-01', 'AAA', 2, '20,00'), shLine('9001', '2026-11-01', 'BBB', 1, '20,00'),
+    shLine('9002', '2026-11-02', 'AAA', 1, '10,00')], 'Order.all.1.xlsx'), 'SHOPEE');
+  const p2 = await readCommerceSalesXlsx(shFile([shLine('9003', '2026-11-03', 'AAA', 1, '10,00'), shLine('9004', '2026-11-04', 'BBB', 2, '40,00')], 'Order.all.2.xlsx'), 'SHOPEE');
+  const a = await stageParsed(db, p1, 'Order.all.1.xlsx', T('2026-11-10'));
+  assert.equal((await commit(db, a)).status, 'COMMITTED');
+  const b = await stageParsed(db, p2, 'Order.all.2.xlsx', T('2026-11-11'));
+  assert.equal((await commit(db, b)).status, 'COMMITTED');
+  const s = await summary(db, S, '2026-11');
+  assert.equal(s.units, 7); assert.equal(s.rev, 100); assert.equal(s.net_orders, 4); assert.equal(s.pe, '2026-11-04');
+});
+
+withDb('ponta a ponta Mercado Livre: planilha oficial fictícia passa pelo leitor e pelo commit', async (db) => {
+  const head = ['N.º de venda', 'Data de venda', 'Depósito', 'Estado', 'Descrição do status', 'Pacote de diversos produtos', 'Pertence a um kit', 'Unidades',
+    'Receita por produtos (BRL)', 'Receita por acréscimo no preço (pago pelo comprador)', 'Taxa de parcelamento equivalente ao acréscimo', 'Tarifa de venda e impostos (BRL)',
+    'Receita por envio (BRL)', 'Tarifas de envio (BRL)', 'Custo de envio por troca de produto', 'Custo de envio com base nas medidas e peso declarados',
+    'Custo por diferenças nas medidas e no peso do pacote', 'Descontos e bônus', 'Cancelamentos e reembolsos (BRL)', 'Total (BRL)', 'Mês de faturamento das suas tarifas',
+    'Pedido de compra', 'Venda por publicidade', 'SKU', '# de anúncio', 'Loja oficial', 'Título do anúncio', 'Variação', 'Preço unitário de venda do anúncio (BRL)'];
+  const ln = (id, day, sku, ad, qty, price) => { const c = Array.from({ length: 29 }, () => null); c[0] = id; c[1] = day; c[3] = 'Entregue'; c[7] = qty; c[8] = price * qty; c[23] = sku; c[24] = ad; c[26] = 'Item'; c[28] = price; return c; };
+  const wb = [['Vendas BR'], [], [], [], [], ['Vendas'], head,
+    ln('3001', '15 de outubro de 2026 17:40 hs.', 'MMM', 'MLB1', 1, 30), ln('3002', '15 de outubro de 2026 18:00 hs.', 'MMM', 'MLB1', 2, 30), ln('3003', '16 de outubro de 2026 09:00 hs.', 'NNN', 'MLB2', 1, 45)];
+  const parsed = await readCommerceSalesXlsx(new File([makeXlsx(wb, 'Vendas BR')], 'vendas.xlsx'), 'ML_NOVO');
+  const id = await stageParsed(db, parsed, 'vendas.xlsx', T('2026-10-20'));
+  assert.equal((await commit(db, id)).status, 'COMMITTED');
+  const s = await summary(db, 'ML_NOVO', '2026-10');
+  assert.equal(s.units, 4); assert.equal(s.net_orders, 3); assert.equal(s.rev, 135);
 });

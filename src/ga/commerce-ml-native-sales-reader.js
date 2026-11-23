@@ -177,6 +177,9 @@ export function parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,
     net_orders:d.orders.size,units:d.units,product_revenue:money(d.revenueCents),
     listings_with_sales:d.listings.size,skus_with_sales:d.skus.size
   }));
+  // Uma referência por dia e pedido. O navegador troca o número real por uma chave (hash) antes de enviar.
+  const orderRefSet=new Set(entries.map(e=>e.day+'\u001f'+e.order));
+  const order_refs=[...orderRefSet].sort().map(item=>{const [d,o]=item.split('\u001f');return {d,o};});
   const summary={
     physical_rows:data.length,
     accepted_sales_rows:entries.length,
@@ -191,7 +194,7 @@ export function parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,
   };
   return {
     filename,sha256,size_bytes:sizeBytes,platform_code:platformCode,
-    rows,summaries,listing_rows,
+    rows,summaries,listing_rows,order_refs,
     data_through:summaries[summaries.length-1].period_end,
     sheets:[{name:str(sheet.sheet)||'Vendas BR',physical_rows:data.length,
       accepted_rows:entries.length,ignored_rows:ignored}],

@@ -168,23 +168,6 @@ function boundsForDate(date, fallbackPeriod) {
   return fallback ? { ...fallback, sale_date: fallback.period_end } : null;
 }
 
-function periodBoundsForImport(monthKey, latestSaleDate) {
-  const match = String(monthKey || '').match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
-  if (!match) return null;
-  const full = monthBounds(Number(match[1]), Number(match[2]));
-  if (!latestSaleDate || !latestSaleDate.startsWith(monthKey)) return full;
-
-  const fullEndDay = Number(full.period_end.slice(-2));
-  const observedDay = Number(latestSaleDate.slice(-2));
-  if (!Number.isInteger(observedDay) || observedDay >= fullEndDay) return full;
-
-  return {
-    period_key: `${monthKey} (01-${String(observedDay).padStart(2, '0')})`,
-    period_start: full.period_start,
-    period_end: latestSaleDate
-  };
-}
-
 function normalizeSku(value) {
   return text(value).toUpperCase().replace(/[^A-Z0-9]+/g, '');
 }
@@ -204,9 +187,37 @@ function maxDate(values) {
   return new Date(Math.max(...dates.map(date => date.getTime()))).toISOString().slice(0, 10);
 }
 
+export const TOSHIP_MESSAGE = 'Arquivos "Order.toship" (pedidos para enviar) não podem ser importados como vendas. '
+  + 'Use o relatório de pedidos concluídos (Order.all).';
+
+export function isToShipFilename(name) {
+  return /order[.]toship/i.test(String(name || ''));
+}
+
+// O identificador real do pedido nunca sai do navegador: só uma chave de 32 caracteres (SHA-256 truncado).
+// Serve para contar pedidos únicos entre arquivos; não é anonimização forte (ver docs/cerebro/importacao.md).
+export async function orderKeyHex(platformCode, orderId) {
+  const bytes = new TextEncoder().encode(`nisti-order-v1|${platformCode}|${String(orderId).trim()}`);
+  return (await sha256Hex(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))).slice(0, 32);
+}
+
+async function hashOrderRefs(platformCode, refs) {
+  const out = [];
+  const seen = new Set();
+  for (const ref of refs) {
+    const key = await orderKeyHex(platformCode, ref.o);
+    const id = ref.d + '|' + key;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ d: ref.d, k: key });
+  }
+  return out.sort((a, b) => a.d.localeCompare(b.d) || a.k.localeCompare(b.k));
+}
+
 export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '') {
   const platformCode = cleanPlatform(platform);
   const filename = validateFile(file);
+  if (isToShipFilename(filename)) throw new Error(TOSHIP_MESSAGE);
   const buffer = await file.arrayBuffer();
   const [sha256, workbook] = await Promise.all([sha256Hex(buffer), readExcelFile(buffer)]);
   if (!Array.isArray(workbook) || !workbook.length) throw new Error('O arquivo não possui planilhas legíveis.');
@@ -215,7 +226,9 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
   // on row 7, Brazilian dates and extra package-summary rows.
   if (['ML_NOVO','ML_ANTIGO'].includes(platformCode)
     &&workbook.some(sheet=>detectMercadoLivreVendasBrHeader(sheet?.data))) {
-    return parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,file.size);
+    const parsed = parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,file.size);
+    const { order_refs: orderRefs, ...rest } = parsed;
+    return { ...rest, order_keys: await hashOrderRefs(platformCode, orderRefs) };
   }
 
   const raw = [];
@@ -282,12 +295,15 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
         continue;
       }
       const skuPrimary = text(cell(row, header.columns.sku_primary)) || sku;
-      const orderId = text(cell(row, header.columns.order_id)) || `ROW:${sheet?.sheet || 'Sheet'}:${rowIndex + 1}`;
-      const date = parseDateValue(cell(row, header.columns.date));
-      const bounds = boundsForDate(date, fallbackPeriod);
-      if (!bounds) {
-        throw new Error('A planilha não possui uma data reconhecível. Informe o mês de referência antes de importar.');
+      const orderId = text(cell(row, header.columns.order_id));
+      if (!orderId) {
+        throw new Error(`Linha ${rowIndex + 1}: pedido sem identificador. A importação por dia precisa do ID do pedido para contar pedidos únicos.`);
       }
+      const date = parseDateValue(cell(row, header.columns.date));
+      if (!date) {
+        throw new Error(`Linha ${rowIndex + 1}: pedido sem data reconhecível. A importação por dia usa a data real de cada pedido, não o nome do arquivo.`);
+      }
+      const bounds = boundsForDate(date, fallbackPeriod);
 
       const units = header.columns.units >= 0 ? Math.max(1, integerValue(cell(row, header.columns.units), 1)) : 1;
       raw.push({
@@ -337,22 +353,6 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
 
   if (!raw.length) throw new Error('Nenhuma venda válida foi encontrada no arquivo.');
 
-  // Track coverage separately for each month. A combined multi-month export
-  // must not make an earlier partial month appear complete.
-  const latestSaleDateByMonth = new Map();
-  for (const item of raw) {
-    const current = latestSaleDateByMonth.get(item.month_key);
-    if (!current || item.sale_date > current) {
-      latestSaleDateByMonth.set(item.month_key, item.sale_date);
-    }
-  }
-  const periodMap = new Map(
-    [...latestSaleDateByMonth].map(([monthKey, latestSaleDate]) => [
-      monthKey,
-      periodBoundsForImport(monthKey, latestSaleDate)
-    ])
-  );
-
   // Daily Shopee SKU totals keep the real order date. Listing IDs are absent
   // from this export, so the database will join only unique active SKU owners.
   // We never assign a fabricated date or inferred advertisement ID.
@@ -379,15 +379,14 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     product_revenue: Number(group.product_revenue.toFixed(2))
   }));
 
+  // Linhas e resumos POR DIA (data real do pedido). O banco monta o mês a partir dos dias; nada aqui decide
+  // que um mês inteiro foi substituído.
   const grouped = new Map();
   for (const item of raw) {
-    const period = periodMap.get(item.month_key);
-    const key = [period.period_key, item.sku_primary, item.sku].join('|');
+    const key = [item.sale_date, item.sku_primary, item.sku].join('|');
     const group = grouped.get(key) || {
       source_row_number: grouped.size + 1,
-      period_key: period.period_key,
-      period_start: period.period_start,
-      period_end: period.period_end,
+      sale_date: item.sale_date,
       sku_primary: item.sku_primary,
       sku: item.sku,
       sku_norm: item.sku_norm,
@@ -407,9 +406,9 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
 
   const rows = [...grouped.values()].map(group => ({
     source_row_number: group.source_row_number,
-    period_key: group.period_key,
-    period_start: group.period_start,
-    period_end: group.period_end,
+    period_key: group.sale_date,
+    period_start: group.sale_date,
+    period_end: group.sale_date,
     sku_primary: group.sku_primary || null,
     sku: group.sku,
     sku_norm: group.sku_norm,
@@ -421,12 +420,12 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
   }));
 
   const summaryMap = new Map();
+  const orderRefSet = new Map();
   for (const item of raw) {
-    const period = periodMap.get(item.month_key);
-    const summary = summaryMap.get(period.period_key) || {
-      period_key: period.period_key,
-      period_start: period.period_start,
-      period_end: period.period_end,
+    const summary = summaryMap.get(item.sale_date) || {
+      period_key: item.sale_date,
+      period_start: item.sale_date,
+      period_end: item.sale_date,
       orders: new Set(),
       units: 0,
       product_revenue: 0,
@@ -438,7 +437,8 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     summary.product_revenue += item.product_revenue;
     summary.listings.add(item.sku_primary || item.sku);
     summary.skus.add(item.sku_norm);
-    summaryMap.set(period.period_key, summary);
+    summaryMap.set(item.sale_date, summary);
+    orderRefSet.set(item.sale_date + '\u001f' + item.order_id, { d: item.sale_date, o: item.order_id });
   }
 
   const summaries = [...summaryMap.values()].map(summary => ({
@@ -451,6 +451,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     listings_with_sales: summary.listings.size,
     skus_with_sales: summary.skus.size
   })).sort((a, b) => a.period_start.localeCompare(b.period_start));
+  const order_keys = await hashOrderRefs(platformCode, [...orderRefSet.values()]);
 
   const fullGroups=new Map();
   if(platformCode==='SHOPEE')for(const item of raw){
@@ -470,6 +471,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     rows,
     summaries,
     sku_daily_rows,
+    order_keys,
     full_daily_rows,
     finance_daily_rows:finance.finance_daily_rows,
     finance_month_rows:finance.finance_month_rows,
@@ -477,13 +479,14 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     order_extras_daily_rows:platformCode==='SHOPEE'?aggregateShopeeExtras(raw,rawCancelled).order_extras_daily_rows:[],
     sheets: sheetInfo,
     data_through: maxDate(summaries.map(item => item.period_end)),
+    coverage: { start: summaries[0].period_start, end: summaries[summaries.length - 1].period_end, days_with_sales: summaries.length },
     summary: {
       physical_rows: physicalRows,
       accepted_sales_rows: raw.length,
       aggregated_rows: rows.length,
       period_count: summaries.length,
       units: summaries.reduce((sum, item) => sum + item.units, 0),
-      net_orders: summaries.reduce((sum, item) => sum + item.net_orders, 0),
+      net_orders: new Set([...orderRefSet.values()].map(item => item.o)).size,
       product_revenue: Number(summaries.reduce((sum, item) => sum + item.product_revenue, 0).toFixed(2))
     }
   };

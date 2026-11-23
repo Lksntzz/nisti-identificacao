@@ -89,6 +89,7 @@ import {
   commerceSalesImportBatches,
   commerceCreateSalesImport,
   commerceAppendSalesListingDaily,
+  commerceAppendSalesImportOrders,
   commerceAppendShopeeDailySku,
   commerceAppendShopeeFinanceDaily,
   commerceAppendShopeeFinanceMonth,
@@ -159,9 +160,33 @@ function commerceCommitEnabled(env) {
   return String(env?.COMMERCE_COMMIT_ENABLED || '').trim() === '1';
 }
 
+// Falhas esperadas da importação de vendas (commit v2). Mensagem clara para o operador; nada foi alterado.
+const SALES_IMPORT_ERRORS = {
+  sales_import_toship_blocked: { status: 409, message: 'Arquivos "Order.toship" (pedidos para enviar) não podem ser importados como vendas. Use o relatório de pedidos concluídos (Order.all). Nenhuma venda foi alterada.' },
+  sales_import_orders_unresolved: { status: 409, message: 'Não dá para contar os pedidos únicos desse mês com exatidão porque ele tem dias antigos sem identificador de pedido. Reexporte o mês inteiro dessa plataforma e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_month_not_rebuildable: { status: 409, message: 'Esse mês tem vendas salvas que não existem no detalhe por dia. Reexporte o mês inteiro dessa plataforma e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_orders_required: { status: 409, message: 'Faltam os identificadores de pedido desse arquivo. Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_day_level_required: { status: 409, message: 'O arquivo foi preparado no formato antigo (mensal). Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_orders_mismatch: { status: 409, message: 'Os dias dos pedidos não batem com os dias das vendas do arquivo. Importe o arquivo de novo. Nenhuma venda foi alterada.' },
+  sales_import_daily_mismatch: { status: 409, message: 'Os totais por dia do arquivo não batem com as linhas importadas. Importe o arquivo de novo. Nenhuma venda foi alterada.' }
+};
+
+function salesImportErrorCode(error) {
+  const text = String(error?.message || '');
+  return Object.keys(SALES_IMPORT_ERRORS).find(code => text.includes(code)) || null;
+}
+
 function errorResponse(error) {
   if (error instanceof SupabaseReadError) {
     console.error(`[Commerce] Supabase RPC failed: ${error.code}`, error.message);
+    const importCode = salesImportErrorCode(error);
+    if (importCode) {
+      return json({
+        error: SALES_IMPORT_ERRORS[importCode].message,
+        technical_error: importCode,
+        retryable: false
+      }, SALES_IMPORT_ERRORS[importCode].status);
+    }
     const clientError = error.status >= 400 && error.status < 500 && !error.fallbackEligible;
     const periodRegression = String(error.message || '').includes('sales_import_period_regression');
     return json({
@@ -874,6 +899,13 @@ async function handleCommerceAdminRequestUncached(request, env) {
         return json({ error: 'Plataforma de vendas inválida.' }, 400);
       }
       if (!filename) return json({ error: 'filename é obrigatório.' }, 400);
+      if (/order[.]toship/i.test(filename)) {
+        return json({
+          error: SALES_IMPORT_ERRORS.sales_import_toship_blocked.message,
+          technical_error: 'sales_import_toship_blocked',
+          retryable: false
+        }, 409);
+      }
       if (sha256 && !/^[0-9a-f]{64}$/i.test(sha256)) {
         return json({ error: 'sha256 inválido.' }, 400);
       }
@@ -896,6 +928,17 @@ async function handleCommerceAdminRequestUncached(request, env) {
       }
       const accepted = await commerceAppendSalesImportRows(env, batchId, body.rows);
       return json({ batch_id: batchId, accepted_rows: accepted });
+    }
+
+    const salesImportOrdersMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/orders$/);
+    if (method === 'POST' && salesImportOrdersMatch) {
+      const batchId = positiveId(salesImportOrdersMatch[1]);
+      const body = await bodyJson(request);
+      if (!batchId || !Array.isArray(body?.rows) || body.rows.length < 1 || body.rows.length > 1000) {
+        return json({ error: 'Lote de pedidos inválido (1 a 1000 chaves).' }, 400);
+      }
+      const saved = await commerceAppendSalesImportOrders(env, batchId, body.rows);
+      return json({ batch_id: batchId, accepted_orders: saved });
     }
 
     const sellerDailyMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/listing-daily$/);

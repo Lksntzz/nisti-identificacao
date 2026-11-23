@@ -47,8 +47,8 @@ test('rate limit retry only on idempotent staging requests, never commits or bat
   assert.match(client,/response\.status === 429 && attempt < maxRetries/);
   assert.match(client,/response\.headers\.get\('retry-after'\)/);
   assert.match(client,/await wait\(delay\)/);
-  assert.equal((client.match(/retryRateLimit: true/g)||[]).length,4);
-  for (const fragment of ['/rows','/summary','/listing-daily'])
+  assert.equal((client.match(/retryRateLimit: true/g)||[]).length,5);
+  for (const fragment of ['/rows','/summary','/orders','/listing-daily'])
     assert.ok(client.includes(fragment),fragment);
   assert.match(salesSchema,/on conflict\(batch_id,source_row_number\) do update set/);
   assert.match(salesSchema,/on conflict\(batch_id,period_key\) do update set/);

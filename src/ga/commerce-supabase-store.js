@@ -1152,6 +1152,18 @@ export async function commerceAppendSalesImportRows(env, batchId, rows = []) {
   }, { timeoutMs: 8000 }) || 0);
 }
 
+// Chaves (hash) dos pedidos por dia. O número real do pedido nunca chega ao servidor.
+export async function commerceAppendSalesImportOrders(env, batchId, rows = []) {
+  const id = cleanId(batchId);
+  if (!id || !Array.isArray(rows) || !rows.length || rows.length > 1000) {
+    throw new Error('Lote de pedidos de vendas inválido.');
+  }
+  return Number(await supabaseRpc(env, 'commerce_append_sales_import_orders_v2', {
+    p_batch_id: id,
+    p_rows: rows
+  }, { timeoutMs: 8000 }) || 0);
+}
+
 export async function commerceAppendSalesListingDaily(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id || !Array.isArray(rows) || !rows.length || rows.length > 100) {
@@ -1245,13 +1257,14 @@ export async function commerceAppendSalesImportSummary(env, batchId, rows = []) 
 export async function commerceCommitSalesImport(env, batchId) {
   const id = cleanId(batchId);
   if (!id) throw new Error('batch_id de vendas inválido.');
-  const result = await supabaseRpc(env, 'commerce_commit_sales_import_v1', {
+  // v2 (GA-019): commit por dia. A v1 continua instalada no banco só para reversão (ver docs/cerebro/importacao.md).
+  const result = await supabaseRpc(env, 'commerce_commit_sales_import_v2', {
     p_batch_id: id
   }, { timeoutMs: 20000 });
   if (String(result?.status||'').toUpperCase()==='COMMITTED') {
     await refreshShopeeYearAliases(env);
     try {
-      const finance=await supabaseRpc(env,'commerce_activate_shopee_finance_v1',{
+      const finance=await supabaseRpc(env,'commerce_activate_shopee_finance_v2',{
         p_batch_id:id
       },{timeoutMs:15000});
       result.finance_status=finance?.status||'UNKNOWN';

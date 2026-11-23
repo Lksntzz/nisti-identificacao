@@ -100,9 +100,9 @@ test('order finance is staged before sales commit, and activation is always AFTE
   assert.match(client,/finance-daily/);
   assert.ok(client.indexOf("/finance-month")<client.indexOf("phase: 'commit'"));
   assert.match(store,/commerce_append_shopee_finance_daily_v1/);
-  assert.match(store,/commerce_activate_shopee_finance_v1/);
-  assert.ok(store.indexOf("'commerce_commit_sales_import_v1'")<
-    store.indexOf("'commerce_activate_shopee_finance_v1'"));
+  assert.match(store,/commerce_activate_shopee_finance_v2/);
+  assert.ok(store.indexOf("'commerce_commit_sales_import_v2'")<
+    store.indexOf("'commerce_activate_shopee_finance_v2'"));
   assert.match(store,/finance_status='NEEDS_REVIEW'/);
 });
 

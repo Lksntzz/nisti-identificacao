@@ -254,7 +254,10 @@ begin
     ) chosen;
     if v_parts_found < v_part_count then
       return jsonb_build_object('status','WAITING_PARTS','batch_id',p_batch_id,'multipart_group',v_group_key,
-        'parts_received',v_parts_found,'parts_expected',v_part_count);
+        'parts_received',v_parts_found,'parts_expected',v_part_count,
+        'missing_parts',(select coalesce(jsonb_agg(pn order by pn), '[]'::jsonb) from generate_series(1, v_part_count) pn
+          where not exists(select 1 from unnest(v_group) gid join public.commerce_sales_import_batches gb on gb.id = gid
+            where ((regexp_match(gb.source_filename, '_part_([0-9]+)_of_([0-9]+)[.]xlsx$', 'i'))[1])::integer = pn)));
     end if;
   end if;
 
@@ -317,7 +320,7 @@ begin
   if exists(
     with st as (
       select r.period_start as d, sum(r.units) as u from public.commerce_sales_import_stage_rows r
-      where r.batch_id = any(v_group)
+      where r.batch_id = any(v_group) and r.sku_norm <> ''
         and r.period_start in (select l.sale_date from public.commerce_sales_day_coverage_v2 l where l.batch_id = any(v_group) and l.applied)
       group by 1),
     fc as (

@@ -39,6 +39,8 @@ async function requestJson(path, options = {}) {
   }
 }
 
+const ORDER_KEY_CHUNK_SIZE = 1000;
+
 function chunks(rows, size = CHUNK_SIZE) {
   const result = [];
   for (let index = 0; index < rows.length; index += size) {
@@ -234,8 +236,13 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
   const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
+  const orderKeys = Array.isArray(parsedWorkbook?.order_keys) ? parsedWorkbook.order_keys : [];
   if (!parsedWorkbook?.platform_code || !parsedWorkbook?.filename || !parsedWorkbook?.sha256 || !rows.length) {
     throw new Error('Arquivo de vendas normalizado incompleto.');
+  }
+  // Importação por dia: sem as chaves dos pedidos não dá para contar pedidos únicos. Nunca estimar.
+  if (!orderKeys.length) {
+    throw new Error('Arquivo preparado no formato antigo (sem identificadores de pedido). Atualize a página (Ctrl+F5) e leia o arquivo de novo.');
   }
 
   onProgress({ phase: 'create', completed: 0, total: rows.length });
@@ -279,6 +286,16 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
       retryRateLimit: true
       });
     }
+  }
+
+  // Pedidos únicos por dia: só a chave embaralhada de cada pedido (nunca o número real nem dados do comprador).
+  onProgress({ phase: 'orders', completed, total: rows.length, batchId });
+  for (const chunk of chunks(orderKeys, ORDER_KEY_CHUNK_SIZE)) {
+    await requestJson(`${API_BASE}/sales/imports/${batchId}/orders`, {
+      method: 'POST',
+      body: JSON.stringify({ rows: chunk }),
+      retryRateLimit: true
+    });
   }
 
   // Save true listing-ID performance before activating the snapshot. Never
