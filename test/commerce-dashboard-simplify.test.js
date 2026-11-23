@@ -49,3 +49,6 @@ test('cards do Dashboard: as duas linhas de 3 cards ocupam a largura toda (3 col
   assert.match(css,/@media \(max-width:1180px\)\{\.ndb-sum-row,\.ndb-idx-row\{grid-template-columns:repeat\(2,/);
   assert.match(css,/@media \(max-width:700px\)\{\.ndb-sum-row,\.ndb-idx-row\{grid-template-columns:1fr\}\}/);
 });
+test('Resumo do período só aparece com uma plataforma selecionada',()=>{
+  assert.match(dash,/mode==='overview'&&platform!=='TODAS'&&<Panel title="Resumo do período"/);
+});
