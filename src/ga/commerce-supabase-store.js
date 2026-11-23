@@ -217,6 +217,13 @@ export async function commerceShopeePerformanceOverview(env,{report=null,compare
   },{timeoutMs:15000});
   return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[],totals:{}};
 }
+// Anuncios ativos com boa performance no relatorio (vendeu bem ou muito trafego) que pararam de vender. Somente leitura.
+export async function commerceShopeePerformanceStalled(env,{report=null,days=7}={}) {
+  const id=/^[0-9]{1,12}$/.test(String(report??''))?Number(report):null;
+  const d=[3,7,14,30].includes(Number(days))?Number(days):7;
+  const data=await supabaseRpc(env,'commerce_shopee_performance_stalled_v1',{p_report_id:id,p_days:d},{timeoutMs:15000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:{reports:[],items:[]};
+}
 export async function commerceListingPerformanceDiagnosis(env,{ids=[]}={}) {
   const listingIds=[...new Set((Array.isArray(ids)?ids:[]).map(cleanId).filter(Boolean))].slice(0,200);
   if(!listingIds.length)return {diagnosis:{}};

@@ -39,3 +39,10 @@
 .nspv-warn{background:#fffbeb;color:#92400e}
 .nspv-page footer{margin-top:16px;font-size:11px;color:#6b7280;border-top:1px solid #d1d5db;padding-top:8px}
 @media(max-width:700px){.nspv-page{padding:14px}.nspv-step-rate{min-width:60px}.nspv-step{flex:1 1 120px}}
+.nspv-tabs{display:flex;gap:4px;background:#fff;border:1px solid #1f3a8a;border-radius:10px;padding:3px}
+.nspv-toolbar .nspv-tabs button{background:transparent;color:#1f3a8a;padding:6px 12px}
+.nspv-toolbar .nspv-tabs button.is-on{background:#1f3a8a;color:#fff}
+.nspv-explain{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:0 0 12px;color:#374151}
+.nspv-badge.is-sales{background:#dcfce7;color:#166534}.nspv-badge.is-traffic{background:#dbeafe;color:#1e3a8a}
+.nspv-badge+.nspv-badge{margin-left:4px}
+.nspv-filters select{padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px}

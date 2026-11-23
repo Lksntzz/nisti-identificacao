@@ -69,3 +69,24 @@ export function toCsv(rows){
   const lines=[head.join(';')].concat(rows.map(r=>[r.item_id,r.title,r.impressions,r.clicks,dec(r.ctr),r.visitors,r.add_cart,dec(r.cart),r.orders,dec(r.conv),dec(r.revenue_paid),r.weak?.label||''].map(csvCell).join(';')));
   return '﻿'+lines.join('\r\n');
 }
+
+// "Bons que pararam": anuncio ativo que vendeu bem OU teve muito trafego no relatorio e esta sem vender.
+export const STALL_DAYS=[3,7,14,30];
+export function stallTags(r){
+  const t=[];
+  if(r.good_sales)t.push('Vendeu bem');
+  if(r.good_traffic)t.push('Muito tráfego');
+  return t;
+}
+export function filterStalled(rows,{q='',kind='todos'}={}){
+  const t=norm(q).trim();
+  return (Array.isArray(rows)?rows:[]).filter(r=>(kind==='todos'||(kind==='vendas'&&r.good_sales)||(kind==='trafego'&&r.good_traffic))
+    &&(!t||norm(r.title).includes(t)||String(r.item_id).includes(t)));
+}
+export const sinceLabel=r=>r.days_since==null?'sem venda no histórico':r.days_since+(r.days_since===1?' dia':' dias');
+export function stalledCsv(rows){
+  const head=['ID do item','Anúncio','Boa performance','Impressões','Cliques','Visitantes','Carrinho','Pedidos no período','Vendas pagas (R$)','Última venda','Dias sem vender'];
+  const dBr=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||''));return m?m[3]+'/'+m[2]+'/'+m[1]:'';};
+  const lines=[head.join(';')].concat((rows||[]).map(r=>[r.item_id,r.title,stallTags(r).join(' + '),r.impressions,r.clicks,r.visitors,r.add_cart,r.orders,dec(r.revenue_paid),dBr(r.last_sale),r.days_since==null?'':r.days_since].map(csvCell).join(';')));
+  return '﻿'+lines.join('\r\n');
+}
