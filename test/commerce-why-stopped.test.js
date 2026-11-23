@@ -57,7 +57,7 @@ test('rota, store, menu abaixo de Categorias e tela antiga removida',()=>{
   assert.match(router,/\/shopee\/why-stopped/);assert.match(router,/\[7,14,30\]\.includes\(days\)/);
   assert.match(store,/commerce_shopee_why_stopped_v1/);
   assert.match(app,/\{ id: 'categories', label: 'Categorias' \},\s*\{ id: 'why', label: 'Anúncios com problema', view: 'why' \}/);
-  assert.match(app,/activeView === 'why' && <CommerceProblems \/>/);
+  assert.match(app,/activeView === 'why' && <CommerceProblems key=/);
   assert.match(view,/\/api\/admin\/commerce\/shopee\/why-stopped\?days=/);
   assert.doesNotMatch(dash,/ShopeePerformanceView/);
   assert.doesNotMatch(router,/performance\/(overview|stalled|falling)/);
