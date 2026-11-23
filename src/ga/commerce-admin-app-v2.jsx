@@ -7,6 +7,7 @@ import CommerceCommercialPanel from './commerce-commercial-panel.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
+import CommerceWhyStopped from './commerce-why-stopped.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { usePrivacy, setPrivate } from './commerce-privacy.js';
 import { useDark, setDark, applyTheme } from './commerce-theme.js';
@@ -26,7 +27,8 @@ const NAV_ITEMS = Object.freeze([
 ]);
 
 const COMMERCIAL_SUBITEMS = Object.freeze([
-  { id: 'categories', label: 'Categorias' }
+  { id: 'categories', label: 'Categorias' },
+  { id: 'why', label: 'Por que parou', view: 'why' }
 ]);
 
 const VIEW_TITLES = Object.freeze({
@@ -34,7 +36,8 @@ const VIEW_TITLES = Object.freeze({
   catalog: 'Painel Comercial',
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
-  imports: 'Histórico de importações'
+  imports: 'Histórico de importações',
+  why: 'Por que parou (Shopee)'
 });
 
 function SidebarIcon({ name }) {
@@ -152,8 +155,9 @@ function CommerceSidebar({ activeView, onViewChange, sidebarOpen, onCloseSidebar
                         <li key={sub.id}>
                           <button
                             type="button"
-                            className={`sidebar-nav-item sidebar-subitem ${activeView === 'catalog' && commercialView === sub.id ? 'active' : ''}`}
+                            className={`sidebar-nav-item sidebar-subitem ${(sub.view ? activeView === sub.view : activeView === 'catalog' && commercialView === sub.id) ? 'active' : ''}`}
                             onClick={() => {
+                              if (sub.view) { onViewChange(sub.view); onCloseSidebar(); return; }
                               onCommercialView(sub.id);
                               onViewChange('catalog');
                               onCloseSidebar();
@@ -280,7 +284,7 @@ export default function CommerceAdminAppV2() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <h1 className="admin-page-title">{IS_GA ? (activeView === 'catalog' && commercialView === 'categories' ? 'Categorias' : (VIEW_TITLES[activeItem.id] || activeItem.label)) : 'Catálogo Comercial'}</h1>
+            <h1 className="admin-page-title">{IS_GA ? (activeView === 'catalog' && commercialView === 'categories' ? 'Categorias' : activeView === 'why' ? VIEW_TITLES.why : (VIEW_TITLES[activeItem.id] || activeItem.label)) : 'Catálogo Comercial'}</h1>
           </div>
 
           <div className="topbar-right">
@@ -340,6 +344,7 @@ export default function CommerceAdminAppV2() {
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} onOpenCategories={() => { setCommercialView('categories'); setActiveView('catalog'); }} />}
             {activeView === 'imports' && <CommerceImportHistory />}
+            {activeView === 'why' && <CommerceWhyStopped />}
           </div>
         </main>
 
