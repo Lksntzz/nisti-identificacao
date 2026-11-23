@@ -3,8 +3,40 @@ import {handleNotificationDispatchRequest} from './notification-dispatch-router.
 // A URL privada permite envio, consulta da fila e personalização das modalidades.
 // Nunca autoriza pareamento, chaves do monitor ou APIs administrativas gerais.
 const COOKIE='__Host-nisti_dispatch_sender';
-const COOKIE_AGE=60*60*24*30;
+// 400 dias é o teto que o Chrome aceita para um cookie. O prazo recomeça a cada
+// abertura do painel (ver /session), então quem usa o painel nunca perde o acesso.
+const COOKIE_AGE=60*60*24*400;
 const API='/api/expedition-panel';
+
+// Endereço próprio do painel de envio. Como o do Mural, ele só serve o painel:
+// a equipe da expedição não chega ao Scanner, ao admin nem ao monitor por aqui.
+export const SENDER_HOST='envio.sistemanistiid.online';
+const SENDER_HOST_STATIC_FILES=new Set([
+  '/sw.js','/desktop-mode.js','/manifest.webmanifest','/nisti-logo.png',
+  '/nisti-app-icon.svg','/favicon.ico','/favicon.png','/apple-touch-icon.png'
+]);
+
+// Devolve uma resposta (redirecionar ou recusar) quando o pedido é para o
+// endereço de envio e não faz parte do painel; devolve null para seguir o fluxo normal.
+export function senderHostGate(request){
+  const url=new URL(request.url);
+  if(url.hostname!==SENDER_HOST)return null;
+  const path=url.pathname;
+  const readOnly=request.method==='GET'||request.method==='HEAD';
+  if(readOnly&&(path==='/'||path==='/index.html')){
+    return new Response(null,{status:302,headers:{
+      location:'https://'+SENDER_HOST+'/painel-expedicao','cache-control':'no-store, private'
+    }});
+  }
+  const allowed=path==='/painel-expedicao'
+    ||path==='/convite-expedicao'||path.startsWith('/convite-expedicao/')
+    ||path===API||path.startsWith(API+'/')
+    ||(readOnly&&(path.startsWith('/assets/')||path.startsWith('/platform-logos/')||SENDER_HOST_STATIC_FILES.has(path)));
+  if(allowed)return null;
+  return json({error:'Esta URL é exclusiva do painel de envio da expedição.'},404,{
+    'x-robots-tag':'noindex, nofollow'
+  });
+}
 
 function json(data,status=200,headers={}){
   return new Response(JSON.stringify(data),{status,headers:{
@@ -87,8 +119,11 @@ export async function handleDispatchSenderRequest(request,env){
   if(path===API+'/logout'&&request.method==='POST')
     return json({ok:true},200,{'set-cookie':cookie('',0)});
 
-  const valid=await validToken(tokenFromCookie(request),env);
-  if(path===API+'/session'&&request.method==='GET')return json({authorized:valid});
+  const cookieToken=tokenFromCookie(request);
+  const valid=await validToken(cookieToken,env);
+  // Cada abertura do painel renova o prazo do cookie (inclusive os antigos de 30 dias).
+  if(path===API+'/session'&&request.method==='GET')
+    return json({authorized:valid},200,valid?{'set-cookie':cookie(cookieToken,COOKIE_AGE)}:{});
 
   if(!valid)return json({error:'Acesso restrito. Utilize o link privado da expedição.'},401);
 

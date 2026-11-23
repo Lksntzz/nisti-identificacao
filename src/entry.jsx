@@ -34,7 +34,8 @@ function getInitialRoute() {
   if (window.location.pathname === '/monitor-notificacoes') {
     return 'dispatch';
   }
-  if (window.location.pathname === '/painel-expedicao'
+  if (window.location.hostname === 'envio.sistemanistiid.online'
+    || window.location.pathname === '/painel-expedicao'
     || window.location.pathname === '/convite-expedicao'
     || window.location.pathname.startsWith('/convite-expedicao/')) {
     // Even if an offline shell is shown by the browser, do not mount Scanner.
