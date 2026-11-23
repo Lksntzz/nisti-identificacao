@@ -248,6 +248,7 @@ export default function CommerceAdminAppV2() {
     window.addEventListener('ga:navigate', go);
     return () => window.removeEventListener('ga:navigate', go);
   }, []);
+  const [problemsFilter, setProblemsFilter] = useState(null);
   const openPerformance = (tab, filter = null) => { setPerfOpen({ tab, filter, nonce: Date.now() }); setCommercialView('ads'); setActiveView('catalog'); };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRevision, setSalesRevision] = useState(0);
@@ -342,9 +343,9 @@ export default function CommerceAdminAppV2() {
           <div key={activeView + ':' + salesRevision} className="commerce-admin-view-transition">
             {(activeView === 'catalog' || activeView === 'sales') && <CommerceCommercialPanel perfOpen={perfOpen} view={activeView === 'catalog' ? commercialView : 'ads'} />}
             {activeView === 'planning' && <CommerceProductsView />}
-            {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} onOpenProblems={() => setActiveView('why')} onOpenCategories={() => { setCommercialView('categories'); setActiveView('catalog'); }} />}
+            {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} onOpenProblems={(f) => { setProblemsFilter({ ...(f || {}), nonce: Date.now() }); setActiveView('why'); }} onOpenCategories={() => { setCommercialView('categories'); setActiveView('catalog'); }} />}
             {activeView === 'imports' && <CommerceImportHistory />}
-            {activeView === 'why' && <CommerceProblems />}
+            {activeView === 'why' && <CommerceProblems key={problemsFilter?.nonce || 'menu'} initialFilter={problemsFilter} />}
           </div>
         </main>
 

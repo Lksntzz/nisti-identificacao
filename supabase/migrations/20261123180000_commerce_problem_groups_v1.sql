@@ -71,8 +71,8 @@ begin
  ),
  cls as (
    select b.*,
-     (b.u_all>0 and b.u90=0) as is_parou,
-     (b.u_all>0 and b.u90>0 and b.base_ok and b.u_base>=10
+     (b.u_all>0 and b.u_cur=0) as is_parou,
+     (b.u_all>0 and b.u_cur>0 and b.base_ok and b.u_base>=10
         and b.u_cur<=0.7*(b.u_base::numeric/b.base_days*p_days)) as is_queda,
      (b.pc='SHOPEE' and (select age from rep)<=90 and b.l_imp>=1000 and b.l_vis>=100
         and (b.l_ord::numeric/b.l_vis)<0.5*(select conv from store)) as is_pior,

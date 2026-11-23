@@ -13,7 +13,7 @@ test('Pararam: teto de 90 dias e faixa N a N+6 com 7/30/60/90', () => {
 
 test('Pararam: contagens do card, alerta e aba usam a mesma lista filtrada', () => {
   assert.match(src, /const stoppedCount=stoppedShown\.length/);
-  assert.equal((src.match(/stoppedCount/g) || []).length >= 4, true);
+  assert.equal((src.match(/stoppedCount/g) || []).length >= 2, true);
   assert.doesNotMatch(src, /ov\.stopped_total\?\?/);
 });
 

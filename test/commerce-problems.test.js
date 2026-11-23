@@ -85,7 +85,7 @@ const panel=read('src/ga/commerce-problems.jsx'),app=read('src/ga/commerce-admin
 test('painel: busca grupos e diagnóstico, seletor 30/60/90 com padrão 30 e cards dos 4 grupos',()=>{
   assert.match(panel,/\/api\/admin\/commerce\/problems\/groups\?days=/);
   assert.match(panel,/\/api\/admin\/commerce\/problems\/platforms\?days=/);
-  assert.match(panel,/useState\(30\)/);assert.match(panel,/GROUPS\.map\(/);
+  assert.match(panel,/DAYS\.includes\(initialFilter\?\.days\)\?initialFilter\.days:30/);assert.match(panel,/GROUPS\.map\(/);
   assert.match(panel,/\[30,60,90\]/);
 });
 test('painel: avisos de campanha, relatório velho (30+ dias), Pior performance oculto (90+), sem venda desde jan/2025 e SEM_IDADE à parte',()=>{
@@ -102,5 +102,25 @@ test('painel: motivo só na Shopee, detalhe recolhido e diagnóstico por anúnci
 test('menu: abaixo de Categorias, "Anúncios com problema" e painel novo renderizado',()=>{
   assert.match(app,/\{ id: 'categories', label: 'Categorias' \},\s*\{ id: 'why', label: 'Anúncios com problema', view: 'why' \}/);
   assert.match(app,/why: 'Anúncios com problema'/);
-  assert.match(app,/activeView === 'why' && <CommerceProblems \/>/);
+  assert.match(app,/activeView === 'why' && <CommerceProblems key=/);
+});
+
+test('Parou segue a janela escolhida (30/60/90), não 90 fixo; Em queda exige venda na janela',()=>{
+  assert.match(groupsCode,/\(b\.u_all>0 and b\.u_cur=0\) as is_parou/);
+  assert.match(groupsCode,/b\.u_all>0 and b\.u_cur>0 and b\.base_ok/);
+});
+test('painel: recebe filtros do Dashboard (dias, plataforma, grupo) e "Limpar filtros" desfaz',()=>{
+  assert.match(panel,/CommerceProblems\(\{initialFilter/);
+  assert.match(panel,/initialFilter\?\.days/);assert.match(panel,/initialFilter\?\.platform/);assert.match(panel,/initialFilter\?\.group/);
+  assert.match(panel,/Limpar filtros/);
+  assert.match(panel,/sem venda (há|nos últimos) '\+days/);
+  assert.match(app,/onOpenProblems=\{\(f\)\s*=>/);
+  assert.match(app,/<CommerceProblems key=\{[^}]+\} initialFilter=\{problemsFilter\}/);
+});
+test('Dashboard: cards Parou / Em queda / Nunca vendeu vêm do mesmo cálculo do painel e levam o filtro (dias, plataforma, grupo)',()=>{
+  const d=fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
+  assert.match(d,/label="Parou"/);assert.doesNotMatch(d,/label="Vendia e parou"/);
+  assert.match(d,/onOpenProblems\(\{days:problemDays,platform,group:'PAROU'\}\)/);
+  assert.match(d,/onOpenProblems\(\{days:problemDays,platform,group:'QUEDA'\}\)/);
+  assert.match(d,/onOpenProblems\(\{days:problemDays,platform,group:'NUNCA'\}\)/);
 });

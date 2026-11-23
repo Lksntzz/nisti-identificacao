@@ -17,8 +17,8 @@ const pct=(v,d=0)=>v==null?'—':(v>0?'+':'')+Number(v).toLocaleString('pt-BR',{
 const DRIVER={IMPRESSIONS:'VISIBILIDADE',CTR:'CLIQUE',CONVERSION:'CONVERSAO'};
 const TONE={PAROU:'bad',QUEDA:'bad',PIOR:'warn',NUNCA:'muted'};
 const ICON={PAROU:'down',QUEDA:'money',PIOR:'cart',NUNCA:'eye'};
-const FOOT={PAROU:'vendiam e estão sem venda há 90 dias',QUEDA:'ainda vendem, mas bem menos que antes',PIOR:'aparecem e quase ninguém compra',NUNCA:'sem venda desde jan/2025'};
-const SRC='Só anúncios ATIVOS. Parou: já vendeu e não vendeu nada nos últimos 90 dias. Em queda: média por dia da janela 30% ou mais abaixo da média dos 3 meses completos anteriores (mínimo de 10 unidades nessa base). Pior performance (Shopee): 1.000 impressões, 100 visitantes e conversão abaixo da metade da média da loja, no relatório de desempenho mais recente. Nunca vendeu (Shopee): sem venda desde 01/01/2025 e visto em relatórios há mais de 90 dias; é sugestão para conferir, o GA não desativa nada. Cada anúncio fica em um só grupo, nessa ordem. O motivo (só Shopee) vem do relatório de desempenho: impressões = visibilidade, CTR = cliques, conversão = compra.';
+const FOOT={PAROU:days=>'vendiam e estão sem venda há '+days+' dias',QUEDA:'ainda vendem, mas bem menos que antes',PIOR:'aparecem e quase ninguém compra',NUNCA:'sem venda desde jan/2025'};
+const SRC='Só anúncios ATIVOS. Parou: já vendeu e não vendeu nada na janela escolhida (30, 60 ou 90 dias). Em queda: média por dia da janela 30% ou mais abaixo da média dos 3 meses completos anteriores (mínimo de 10 unidades nessa base). Pior performance (Shopee): 1.000 impressões, 100 visitantes e conversão abaixo da metade da média da loja, no relatório de desempenho mais recente. Nunca vendeu (Shopee): sem venda desde 01/01/2025 e visto em relatórios há mais de 90 dias; é sugestão para conferir, o GA não desativa nada. Cada anúncio fica em um só grupo, nessa ordem. O motivo (só Shopee) vem do relatório de desempenho: impressões = visibilidade, CTR = cliques, conversão = compra.';
 
 function ProblemCard({r,diag,store}){
   const [open,setOpen]=useState(false);
@@ -57,8 +57,12 @@ function ProblemCard({r,diag,store}){
   </li>;
 }
 
-export default function CommerceProblems(){
-  const [days,setDays]=useState(30);const [platform,setPlatform]=useState('TODAS');const [group,setGroup]=useState(null);
+export default function CommerceProblems({initialFilter=null}={}){
+  const [days,setDays]=useState(DAYS.includes(initialFilter?.days)?initialFilter.days:30);
+  const [platform,setPlatform]=useState(initialFilter?.platform||'TODAS');
+  const [group,setGroup]=useState(initialFilter?.group||null);
+  const filtered=days!==30||platform!=='TODAS'||group!=null;
+  const clearFilters=()=>{setDays(30);setPlatform('TODAS');setGroup(null);};
   const [data,setData]=useState(null);const [plats,setPlats]=useState(null);const [diag,setDiag]=useState({});
   const [error,setError]=useState('');const [loading,setLoading]=useState(true);const [limit,setLimit]=useState(20);
   useEffect(()=>{
@@ -98,6 +102,7 @@ export default function CommerceProblems(){
         <Dropdown label="Comparar" value={String(days)} options={DAYS.map(d=>[String(d),'Últimos '+d+' dias'])} onChange={v=>setDays(Number(v))}/>
         <InfoIcon text={SRC} label="Como o GA decide"/>
         <Dropdown label="Plataforma" value={platform} options={[['TODAS','Todas'],...Object.entries(PLATFORM_LABEL)]} onChange={setPlatform}/>
+        {filtered&&<button type="button" className="ndb-link" onClick={clearFilters}>Limpar filtros</button>}
       </div>
     </header>
     {error&&<p className="ndb-error" role="alert">{error}</p>}
@@ -114,7 +119,7 @@ export default function CommerceProblems(){
         </button>;})}
       </div>
       <div className="ndb-kpis nwy-kpis">
-        {GROUPS.map(([k,label])=>hidePior&&k==='PIOR'?null:<Card key={k} icon={ICON[k]} label={label} value={num(counts[k])} foot={FOOT[k]} tone={TONE[k]} active={current===k} onClick={()=>{setGroup(k);setLimit(20);}} info={SRC}/>)}
+        {GROUPS.map(([k,label])=>hidePior&&k==='PIOR'?null:<Card key={k} icon={ICON[k]} label={label} value={num(counts[k])} foot={typeof FOOT[k]==='function'?FOOT[k](days):FOOT[k]} tone={TONE[k]} active={current===k} onClick={()=>{setGroup(k);setLimit(20);}} info={SRC}/>)}
       </div>
       {platform!=='SHOPEE'&&current==='NUNCA'&&(counts.SEM_IDADE>0)&&<p className="nwy-note npr-note">{num(counts.SEM_IDADE)} anúncios ativos do ML sem nenhuma venda: sem data de criação não dá para saber se são candidatos a desativar.</p>}
       {counts.EM_TESTE>0&&current==='NUNCA'&&<p className="nwy-note npr-note">Mais {num(counts.EM_TESTE)} anúncios da Shopee sem venda são recentes (menos de 90 dias ou idade desconhecida): em teste, aguardar.</p>}
