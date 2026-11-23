@@ -20,6 +20,14 @@ export function headline(p){
   return s;
 }
 
+// Anúncios que pararam/caíram dentro da plataforma — pode haver mesmo quando o total da plataforma sobe.
+export function listingsNote(c){
+  const par=Number(c?.PAROU)||0,qu=Number(c?.QUEDA)||0;
+  const a=par?par+(par===1?' anúncio parou':' anúncios pararam')+' de vender':'';
+  const b=qu?qu+(qu===1?' anúncio caiu':' anúncios caíram'):'';
+  return a&&b?a+' e '+b:a||b;
+}
+
 // Sexta-feira depois da 4ª quinta-feira de novembro.
 function blackFriday(year){
   const d=new Date(Date.UTC(year,10,1));
