@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
+import {matchesPlatform} from './commerce-platform-scope-logic.js';
 import {groupReport,periodLabel,topLongest,SUMMARY_LIMIT,reportToCsv,groupListings,sortItems,PERIOD_CHOICES,filterStalled,PLATFORM_LABELS,SCOPE_LABELS,SITUATION_LABELS} from './commerce-sales-report-logic.js';
 import './commerce-sales-report.css';
 
@@ -26,19 +27,22 @@ export default function SalesReport({platform,days:daysProp,onClose}){
   const [pick,setPick]=useState([7,30,60,90].includes(Number(daysProp))?String(daysProp):'90');
   const days=Number(pick);
   const [wide,setWide]=useState(false);
-  const [full,setFull]=useState(false);const [data,setData]=useState(null);const [error,setError]=useState('');
+  const [full,setFull]=useState(false);const [dataE,setDataE]=useState(null);const [error,setError]=useState('');
+  // Resultado guardado com a plataforma e o período pedidos: só vale para o escopo atual e para a plataforma informada.
+  const reqKey=platform+'|'+days;
+  const data=dataE&&dataE.key===reqKey?dataE.data:null;
   useEffect(()=>{
     const c=new AbortController();
-    setData(null);setError('');
+    setDataE(null);setError('');
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/report-no-sales?platform='+platform+'&days='+days,{signal:c.signal})
-      .then(d=>{if(!c.signal.aborted)setData(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível gerar o relatório.');});
+      .then(d=>{if(c.signal.aborted)return;if(!matchesPlatform(d,platform))throw new Error('Relatório de outra plataforma descartado.');setDataE({key:reqKey,data:d});}).catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível gerar o relatório.');});
     document.body.classList.add('nsr-printing');
     return()=>{c.abort();document.body.classList.remove('nsr-printing');};
   },[platform,days]);
   const groups=data?groupReport(filterStalled(data.rows,days,wide)):[];
   const total=data?.counts?.rows||0;
   return createPortal(<div className="nsr-overlay" role="dialog" aria-label="Relatório de anúncios sem vendas">
-    <div className="nsr-toolbar"><label className="nsr-period">Período <select value={pick} onChange={e=>{setData(null);setError('');setPick(e.target.value);}}>{PERIOD_CHOICES.map(([d,l])=><option key={d} value={String(d)}>{l}</option>)}</select></label><button type="button" onClick={()=>setFull(v=>!v)} disabled={!data}>{full?'Ver resumo':'Ver lista completa'}</button><button type="button" onClick={()=>download(data.rows)} disabled={!data}>Baixar planilha (Excel)</button><button type="button" onClick={()=>window.print()} disabled={!data}>Imprimir / salvar PDF</button><button type="button" onClick={onClose}>Fechar</button></div>
+    <div className="nsr-toolbar"><label className="nsr-period">Período <select value={pick} onChange={e=>{setDataE(null);setError('');setPick(e.target.value);}}>{PERIOD_CHOICES.map(([d,l])=><option key={d} value={String(d)}>{l}</option>)}</select></label><button type="button" onClick={()=>setFull(v=>!v)} disabled={!data}>{full?'Ver resumo':'Ver lista completa'}</button><button type="button" onClick={()=>download(data.rows)} disabled={!data}>Baixar planilha (Excel)</button><button type="button" onClick={()=>window.print()} disabled={!data}>Imprimir / salvar PDF</button><button type="button" onClick={onClose}>Fechar</button></div>
     <article className="nsr-page">
       <header className="nsr-head"><p>NISTI ID · Gestor de Anúncios</p><h1>Relatório de anúncios sem vendas</h1>
         <dl><div><dt>Período</dt><dd>{periodLabel(days)}</dd></div>

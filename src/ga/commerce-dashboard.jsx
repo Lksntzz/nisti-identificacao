@@ -10,8 +10,8 @@ import CategoriesSummary from './commerce-dashboard-categories.jsx';
 import SalesReport from './commerce-sales-report.jsx';
 import {SalesTrend,MonthsTrend,MonthMatrix,PlatformSplit,PlatformTable} from './commerce-dashboard-charts.jsx';
 import PlatformSelector from './commerce-platform-selector.jsx';
-import PlatformQualityStrip from './commerce-platform-quality-strip.jsx';
-import {scopeKey,makeEntry,isCurrentScope,matchesPlatform,perfStatus,salesNotice,platformLabel} from './commerce-platform-scope-logic.js';
+import PlatformQualityStrip,{usePlatformQuality} from './commerce-platform-quality-strip.jsx';
+import {scopeKey,makeEntry,isCurrentScope,matchesPlatform,matchesDays,perfStatus,perfItemFor,dashboardQualityPeriod,salesNotice,platformLabel} from './commerce-platform-scope-logic.js';
 import './commerce-dashboard.css';
 import { maskMoney, isPrivate } from './commerce-privacy.js';
 
@@ -462,15 +462,21 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const abcP=platform==='TODAS'?abcPlat:platform;
   const all=days===0&&!month;
   const problemDays=[30,60,90].includes(days)&&!month?days:null;
-  const [problems,setProblems]=useState(null);const [problemsError,setProblemsError]=useState(false);
+  const [problemsE,setProblemsE]=useState(null);const [problemsError,setProblemsError]=useState(false);
+  const problems=problemDays&&isCurrentScope(problemsE,'p'+problemDays)?problemsE.data:null;
   useEffect(()=>{
-    setProblems(null);setProblemsError(false);
+    setProblemsE(null);setProblemsError(false);
     if(!problemDays||mode!=='overview')return;
     const c=new AbortController();
     Promise.all([
       fetchCommercialManager('/api/admin/commerce/problems/platforms?days='+problemDays,{signal:c.signal}),
       fetchCommercialManager('/api/admin/commerce/problems/groups?days='+problemDays,{signal:c.signal})
-    ]).then(([p,g])=>setProblems({plats:p,groups:g})).catch(()=>{if(!c.signal.aborted)setProblemsError(true);});
+    ]).then(([p,g])=>{
+      if(c.signal.aborted)return;
+      // Resposta de outra janela (30/60/90) que a pedida é descartada, como se tivesse falhado.
+      if(!matchesDays(p,problemDays)||!matchesDays(g,problemDays)){setProblemsError(true);return;}
+      setProblemsE(makeEntry('p'+problemDays,{plats:p,groups:g}));
+    }).catch(()=>{if(!c.signal.aborted)setProblemsError(true);});
     return()=>c.abort();
   },[problemDays,mode]);
   const never=(()=>{const o={n:0,t:0,parou:0,queda:0};for(const [pc,c] of Object.entries(problems?.groups?.counts||{})){if(platform!=='TODAS'&&platform!==pc)continue;o.n+=Number(c.NUNCA)||0;o.t+=Number(c.EM_TESTE)||0;o.parou+=Number(c.PAROU)||0;o.queda+=Number(c.QUEDA)||0;}return o;})();
@@ -487,7 +493,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     fetchCommercialManager('/api/admin/commerce/shopee/performance/latest',{signal:controller.signal}).then(setSpPerf).catch(()=>{});
     return()=>controller.abort();
   },[]);
-  const perfItems=useMemo(()=>({...(spPerf?.items||{}),...(mlPerf?.items||{})}),[mlPerf,spPerf]);
+  // Desempenho por plataforma, conta e ID do anúncio (o mesmo ID pode existir em outra conta): nunca mistura.
+  const perfFor=r=>perfItemFor(r,{ml:mlPerf,shopee:spPerf});
   // Colunas opcionais da tabela Curva ABC + data de criação (mesma fonte da aba "Cadastros por mês").
   const [bestCols,setBestCols]=useState(readCols);
   const toggleCol=k=>setBestCols(cur=>{const next=cur.includes(k)?cur.filter(x=>x!==k):[...cur,k];try{localStorage.setItem(COLS_KEY,JSON.stringify(next));}catch(e){}return next;});
@@ -518,7 +525,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     if(!overview)return [];
     const seen=new Set(),out=[];
     const add=(r,units)=>{
-      const pf=perfItems[r.external_id];
+      const pf=perfFor(r);
       if(!pf||seen.has(r.platform+r.external_id)||(platform!=='TODAS'&&r.platform!==platform))return;
       if(!(Number(pf.visits)>=300)||pf.conversion_pct==null||Number(pf.conversion_pct)>=1.5)return;
       seen.add(r.platform+r.external_id);
@@ -527,7 +534,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     (overview.no_sales||[]).forEach(r=>add(r,0));
     (data?.top||[]).forEach(r=>add(r,Number(r.units)||0));
     return out.sort((a,b)=>b.visits-a.visits).slice(0,6);
-  },[overview,data,perfItems,platform]);
+  },[overview,data,mlPerf,spPerf,platform]);
   const hasPerf=perf.has;
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
@@ -573,20 +580,25 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     return()=>controller.abort();
   },[abcP,abcFrom,abcTo]);
   // Faturamento Shopee por tipo de envio (Full x envio próprio): só meses inteiros do período.
-  const [ship,setShip]=useState(null);
+  const [shipE,setShipE]=useState(null);
+  const shipKey=[abcFrom,abcTo].join('|');
+  const ship=isCurrentScope(shipE,shipKey)?shipE.data:null;
   const shipOk=['TODAS','SHOPEE'].includes(String(platform).toUpperCase());
   useEffect(()=>{
-    setShip(null);
+    setShipE(null);
     if(!abcFrom||!abcTo||!shipOk)return undefined;
     const controller=new AbortController();
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/shipping?start='+abcFrom+'&end='+abcTo,{signal:controller.signal})
-      .then(setShip).catch(()=>{if(!controller.signal.aborted)setShip(null);});
+      .then(d=>{if(!controller.signal.aborted)setShipE(makeEntry(shipKey,d));}).catch(()=>{if(!controller.signal.aborted)setShipE(null);});
     return()=>controller.abort();
   },[abcFrom,abcTo,shipOk]);
   const shipTotal=Number(ship?.total_revenue)||0;
   const shipPct=v=>shipTotal>0?(Number(v)/shipTotal*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—';
   const shipNode=ship&&ship.months?.length&&shipTotal>0?<span className="ndb-ship" title="Shopee, só nos meses inteiros do período. O Mercado Livre não tem essa divisão importada.">
     <br/>Full {money(ship.full_revenue)} ({shipPct(ship.full_revenue)}) · Envio próprio {money(ship.own_revenue)} ({shipPct(ship.own_revenue)})<br/><em>Shopee, {ship.months.length} {ship.months.length===1?'mês':'meses'} inteiros</em></span>:null;
+  // GA-018 por conta: mesmo período que o dashboard analisa; a mesma consulta sustenta o aviso de zero vendas.
+  const qPeriod=data?dashboardQualityPeriod(per,{days,month}):null;
+  const quality=usePlatformQuality({platform,period:qPeriod,ready:Boolean(data)});
   const prevTxt=per&&!all?rng(per.prevFrom,per.prevTo):'';
   const ov=overview||{};
   const lst=ov.listings||{};
@@ -651,7 +663,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     {actions}
   </>;
   const whyRows=drops.filter(hit);
-  const scopeNotice=!loading&&data?salesNotice({platform,coverage:platform==='TODAS'?null:(ov.coverage||[]).find(c=>c.platform===platform),data}):null;
+  const scopeNotice=!loading&&data?salesNotice({platform,coverage:platform==='TODAS'?null:(ov.coverage||[]).find(c=>c.platform===platform),data,period:qPeriod&&!qPeriod.differs?qPeriod:null,dq:quality.dq}):null;
   return <section className={'ndb-root'+(mode==='explorer'?' is-explorer':'')} aria-label="Dashboard comercial" aria-busy={loading} data-platform={platform}>
     <header className="ndb-head">
       <div className="ndb-head-title"><div>
@@ -665,7 +677,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     </header>
     <div className="ndb-scope-row">
       <PlatformSelector value={platform} onChange={setPlatform} hints={platHints}/>
-      <PlatformQualityStrip platform={platform} days={days} month={month} ready={Boolean(data)} onOpenQuality={onOpenQuality}/>
+      <PlatformQualityStrip platform={platform} period={qPeriod} quality={quality} onOpenQuality={onOpenQuality}/>
       {scopeNotice&&<p className={'ndb-notice '+(scopeNotice.kind==='ZERO'?'is-zero':'is-sem')} role="status" data-notice={scopeNotice.kind}>{scopeNotice.text}</p>}
     </div>
     {reportOpen&&<SalesReport platform={platform} days={days} onClose={()=>setReportOpen(false)}/>}
@@ -721,7 +733,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
               {multi&&<td>{PLATFORM_LABEL[r.platform]||r.platform}</td>}
               <td className="num"><b>{num(r.units)}</b></td><td className="num">{money(r.revenue)}</td>
               {showCreated&&<td className="num" title={createdById[String(r.external_id)]?undefined:'Sem data de criação cadastrada para este anúncio.'}>{dmyFull(createdById[String(r.external_id)])}</td>}
-              {(()=>{const pf=perfItems[r.external_id];return <>{showVisits&&<td className="num" title={pf&&pf.visits!=null?undefined:'Sem relatório de desempenho para este anúncio: importe o relatório da plataforma para ver visitas e conversão.'}>{pf&&pf.visits!=null?num(pf.visits):'—'}</td>}{showConv&&<td className="num" title={pf&&pf.conversion_pct!=null?undefined:'Sem relatório de desempenho para este anúncio.'}>{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td>}</>;})()}
+              {(()=>{const pf=perfFor({...r,platform:r.platform||(platform!=='TODAS'?platform:undefined)});return <>{showVisits&&<td className="num" title={pf&&pf.visits!=null?undefined:'Sem relatório de desempenho para este anúncio: importe o relatório da plataforma para ver visitas e conversão.'}>{pf&&pf.visits!=null?num(pf.visits):'—'}</td>}{showConv&&<td className="num" title={pf&&pf.conversion_pct!=null?undefined:'Sem relatório de desempenho para este anúncio.'}>{pf&&pf.conversion_pct!=null?String(pf.conversion_pct).replace('.',',')+'%':'—'}</td>}</>;})()}
               <td>{salesCell(rk,r.listing_id,sb,false)}</td><td>{bestCell(rk,r.listing_id)}</td></tr>{salesRows(rk,r.listing_id,sb,false,bestSpan)}</React.Fragment>;})}
             {top.length===0&&!loading&&<tr><td colSpan={bestSpan} className="ndb-empty">Sem vendas no período.</td></tr>}
           </tbody></table></div>

@@ -18,3 +18,4 @@
 .ndb-notice.is-sem{background:#f1f5f9;color:#334155;border:1px dashed #94a3b8}
 .ndb-notice.is-zero{background:#fffbeb;color:#78350f;border:1px solid #fde68a}
 @media (max-width:720px){.ndb-scope{display:flex;width:100%;overflow-x:auto}.ndb-scope-opt{flex:1;padding:0 10px}}
+.ndb-qperiod.is-differs{color:#b45309;font-weight:600}

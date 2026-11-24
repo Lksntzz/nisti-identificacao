@@ -39,16 +39,53 @@ export function perfStatus(platform,{ml,shopee}={}){
   return {has:notes.length>0,notes};
 }
 
-// Ausência de informação (nada importado) nunca se confunde com zero vendas (importado, mas sem venda no período).
-export function salesNotice({platform,coverage,data}){
+// Desempenho por plataforma, conta e ID do anúncio. O mesmo ID externo pode existir na Shopee e no ML (ou nas duas contas do ML):
+// cada linha só usa o item da PRÓPRIA plataforma/conta, e a conta precisa ter relatório importado.
+const ML_ACCOUNT={ML_ANTIGO:'ANTIGO',ML_NOVO:'NOVO'};
+export function perfItemFor(row,{ml,shopee}={}){
+  const id=row?.external_id;
+  if(id==null||id==='')return null;
+  const has=Object.prototype.hasOwnProperty;
+  if(row.platform==='SHOPEE'){
+    if(!reportsOf(shopee).length||!shopee.items||!has.call(shopee.items,id))return null;
+    return shopee.items[id]||null;
+  }
+  const acc=ML_ACCOUNT[row.platform];
+  if(!acc||!reportsOf(ml).some(r=>r.account===acc)||!ml.items||!has.call(ml.items,id))return null;
+  const it=ml.items[id];
+  return it&&it.account===acc?it:null;
+}
+
+// A GA-018 comprova a cobertura quando é da MESMA conta e do MESMO período do dashboard e não aponta buracos.
+export function coverageProven(dq,platform,period){
+  if(!dq||!dq.sales||!period||dq.platform!==platform)return false;
+  if(dq.period?.start!==period.start||dq.period?.end!==period.end)return false;
+  const s=dq.sales;
+  return Number(s.days_without_information)===0&&Number(s.days_with_records_unverified)===0&&Array.isArray(s.missing_ranges)&&s.missing_ranges.length===0;
+}
+
+// Ausência de informação (nada importado) ≠ ausência de vendas importadas (cobertura não comprovada) ≠ zero vendas (cobertura comprovada).
+export function salesNotice({platform,coverage,data,period,dq}){
   if(!data)return null;
   const label=platformLabel(platform);
   if(!coverage?.last_day&&!data.last_day)
     return {kind:'SEM_INFORMACAO',text:'Sem informação: nenhuma venda de '+label+' foi importada. Isso não significa zero vendas.'};
   const t=data.totals||{};
-  if(data.totals&&Number(t.cur_units)===0&&Number(t.cur_rev)===0)
-    return {kind:'ZERO',text:'Zero vendas no período: há vendas de '+label+' importadas até '+fmtDate(coverage?.last_day||data.last_day)+', mas nenhuma neste período.'};
-  return null;
+  if(!(data.totals&&Number(t.cur_units)===0&&Number(t.cur_rev)===0))return null;
+  if(platform!=='TODAS'&&coverageProven(dq,platform,period))
+    return {kind:'ZERO',text:'Zero vendas no período: há vendas de '+label+' importadas até '+fmtDate(coverage?.last_day||data.last_day)+', a cobertura do período foi conferida e nenhuma venda caiu nele.'};
+  return {kind:'SEM_VENDAS_IMPORTADAS',text:'Nenhuma venda de '+(platform==='TODAS'?'nenhuma plataforma':label)+' importada neste período. A cobertura do período não está comprovada: não é possível afirmar que foram zero vendas.'};
+}
+
+// Período da faixa GA-018: o mesmo que o dashboard analisa (inclusive "todo o histórico"). Sem período do dashboard, usa 90 dias e avisa.
+export function dashboardQualityPeriod(per,{days,month}={},today=new Date()){
+  if(per&&per.curFrom&&per.curTo){
+    const all=!month&&Number(days)===0;
+    return {start:per.curFrom,end:per.curTo,differs:false,
+      label:(all?'todo o histórico, ':'')+fmtDate(per.curFrom)+' a '+fmtDate(per.curTo)};
+  }
+  const q=qualityPeriod(days,month,today);
+  return {...q,differs:true,label:(!month&&Number(days)===0?'últimos 90 dias, ':'')+fmtDate(q.start)+' a '+fmtDate(q.end)+' (diferente do dashboard, que ainda não tem período definido)'};
 }
 
 // Período usado só pela faixa de qualidade (a GA-018 pede datas): dias, mês ou ano do dashboard; "todo o histórico" usa 90 dias.
@@ -74,3 +111,5 @@ export function qualityStrip(dq){
   const it=Object.fromEntries(summaryItems(dq).map(i=>[i.key,i]));
   return {last:it.last.value,fresh:it.last.sub,freshTone:it.last.tone,recon:it.recon.value,reconTone:it.recon.tone,reconSub:it.recon.sub||null};
 }
+
+export const matchesDays=(payload,days)=>payload!=null&&typeof payload==='object'&&(payload.window?.days==null||Number(payload.window.days)===Number(days));

@@ -40,7 +40,7 @@ test('migracao e rotas: dados isolados, somente service_role, protecao de conta 
   assert.ok(router.includes("/ml/performance/reports"));
   assert.ok(router.includes("/ml/performance/latest"));
   assert.ok(read('src/ga/commerce-dashboard.jsx').includes('/shopee/performance/latest'));
-  assert.ok(read('src/ga/commerce-dashboard.jsx').includes('perfItems[r.external_id]'));
+  assert.ok(read('src/ga/commerce-dashboard.jsx').includes('perfItemFor(r,{ml:mlPerf,shopee:spPerf})'));
   const sp=read('supabase/migrations/20261027140000_commerce_shopee_performance_latest_v1.sql');
   assert.match(sp,/grant execute on function public\.commerce_shopee_performance_latest_v1\(\) to service_role/);
   assert.match(sp,/order by period_end desc,id desc limit 1/);

@@ -15,6 +15,7 @@ const test = (name, fn) => tests.push({ name, fn });
 // Cada pedido do dashboard principal pode ser SEGURADO até o teste liberar, para forçar respostas lentas e fora de ordem.
 function createSimulator() {
   const calls = [];
+  const opts = { zero: [], dqGap: false, problemsWindow: 0 };
   const holds = new Map(); // 'SHOPEE|30' -> { gate, release }
   const key = (platform, days) => platform + '|' + days;
   const hold = (platform, days = 30) => {
@@ -36,7 +37,8 @@ function createSimulator() {
       if (h) await h.gate;
       return json({
         platform, last_day: '2026-11-20', current_start: '2026-10-22', previous_start: '2026-09-22',
-        totals: { cur_units: units, prev_units: units - 1, cur_rev: units * 10, prev_rev: units * 9 },
+        first_day: '2026-02-03',
+        totals: opts.zero.includes(platform) ? { cur_units: 0, prev_units: 5, cur_rev: 0, prev_rev: 50 } : { cur_units: units, prev_units: units - 1, cur_rev: units * 10, prev_rev: units * 9 },
         items: [], drops: [], best: [], new: [], no_sales: [], alerts: []
       });
     }
@@ -46,15 +48,20 @@ function createSimulator() {
     if (url.pathname === '/api/admin/commerce/data-quality') {
       return json({
         platform, period: { start: url.searchParams.get('start'), end: url.searchParams.get('end'), today: '2026-11-21' },
-        sales: { status: 'OK', freshness: 'ATUALIZADO', days_behind: 0, last_sale_day: '2026-11-20', last_import_at: '2026-11-21T08:00:00Z', reconciliation: {} },
+        sales: { status: 'OK', freshness: 'ATUALIZADO', days_behind: 0, last_sale_day: '2026-11-20', last_import_at: '2026-11-21T08:00:00Z', reconciliation: {},
+          requested_days: 30, days_without_information: opts.dqGap ? 3 : 0, days_with_records_unverified: 0,
+          missing_ranges: opts.dqGap ? [{ start: '2026-11-01', end: '2026-11-03' }] : [] },
         reports: [], open_batches: [], price_stock: {}, catalog: {}
       });
     }
     // Demais leituras do painel: vazias e sem PII.
-    if (url.pathname.endsWith('/problems/platforms')) return json({ platforms: [], counts: {}, window: {} });
+    if (url.pathname.endsWith('/problems/platforms') || url.pathname.endsWith('/problems/groups')) {
+      // Simula resposta de OUTRA janela (60) que a pedida (30): o dashboard deve descartá-la.
+      return json({ platforms: [], counts: {}, window: { days: opts.problemsWindow || Number(url.searchParams.get('days')) } });
+    }
     return json({});
   };
-  return { handler, calls, hold, release };
+  return { handler, calls, hold, release, opts };
 }
 
 async function open(browser, url = URL_OVERVIEW, { viewport = { width: 1365, height: 900 }, sim = createSimulator(), storage = null } = {}) {
@@ -200,6 +207,66 @@ test('falha do resumo de qualidade não derruba o dashboard, e privacidade não 
     await page.getByText(/indisponível agora/).waitFor({ timeout: 10000 });
     assert.equal(await bodyHas(page, 111), true, 'dashboard continua visível');
     assert.doesNotMatch(await page.locator('.ndb-scope-row').innerText(), /R\$|\d{3}\.\d{3}/, 'seletor/resumo sem valores monetários');
+  } finally { await context.close(); }
+});
+
+test('zero vendas só aparece com cobertura comprovada pela GA-018 do mesmo período', async browser => {
+  const { page, context, sim, goto } = await open(browser);
+  try {
+    sim.opts.zero = ['ML_NOVO'];
+    await goto();
+    await waitUnits(page, 666);
+    await radio(page, 'ML_NOVO').click();
+    const zero = page.locator('[data-notice="ZERO"]');
+    await zero.waitFor({ state: 'visible', timeout: 10000 });
+    assert.match(await zero.innerText(), /Zero vendas no período/);
+  } finally { await context.close(); }
+});
+
+test('total zero com buracos de importação NÃO vira zero vendas', async browser => {
+  const { page, context, sim, goto } = await open(browser);
+  try {
+    sim.opts.zero = ['ML_NOVO']; sim.opts.dqGap = true;
+    await goto();
+    await waitUnits(page, 666);
+    await radio(page, 'ML_NOVO').click();
+    const n = page.locator('[data-notice="SEM_VENDAS_IMPORTADAS"]');
+    await n.waitFor({ state: 'visible', timeout: 10000 });
+    assert.match(await n.innerText(), /não é possível afirmar/);
+    await page.locator('.ndb-qstrip[data-quality-platform="ML_NOVO"] .ndb-qpill').first().waitFor({ timeout: 10000 });
+    assert.equal(await page.locator('[data-notice="ZERO"]').count(), 0);
+  } finally { await context.close(); }
+});
+
+test('a faixa GA-018 usa o mesmo período do dashboard, inclusive em todo o histórico', async browser => {
+  const { page, context, sim, goto } = await open(browser);
+  try {
+    await goto();
+    await waitUnits(page, 666);
+    await radio(page, 'SHOPEE').click();
+    const label = page.locator('[data-quality-period]');
+    await label.waitFor({ state: 'visible', timeout: 10000 });
+    assert.match(await label.innerText(), /22\/10\/2026 a 20\/11\/2026/);
+    await page.locator('.ndb-qpill').first().waitFor({ timeout: 10000 });
+    let q = sim.calls.filter(c => c.path === '/api/admin/commerce/data-quality').pop();
+    assert.deepEqual([q.query.start, q.query.end], ['2026-10-22', '2026-11-20']); // não é "hoje - 29 dias"
+    assert.equal(await page.locator('.ndb-qstrip').getAttribute('data-quality-differs'), '0');
+    // Todo o histórico: o resumo cobre do primeiro ao último dia analisado e diz isso.
+    await page.getByRole('button', { name: /^Período/ }).click();
+    await page.getByRole('button', { name: /todo o histórico/i }).click();
+    await page.waitForFunction(() => /todo o histórico, 03\/02\/2026 a 20\/11\/2026/.test(document.querySelector('[data-quality-period]')?.innerText || ''), null, { timeout: 10000 });
+    q = sim.calls.filter(c => c.path === '/api/admin/commerce/data-quality').pop();
+    assert.deepEqual([q.query.start, q.query.end], ['2026-02-03', '2026-11-20']);
+  } finally { await context.close(); }
+});
+
+test('consulta de problemas de outra janela é descartada em vez de ser exibida', async browser => {
+  const { page, context, sim, goto } = await open(browser);
+  try {
+    sim.opts.problemsWindow = 60; // o dashboard pede 30 dias
+    await goto();
+    await waitUnits(page, 666);
+    await page.getByText('Consulta indisponível agora').first().waitFor({ state: 'visible', timeout: 10000 });
   } finally { await context.close(); }
 });
 
