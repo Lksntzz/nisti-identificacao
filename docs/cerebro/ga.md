@@ -54,5 +54,6 @@ Atualizar o [[MAPA-GA]] (seção 10 ou a correspondente) e esta nota, no mesmo P
 Rota `/api/admin/commerce/strategic-view` (sem cache, só 3 contas), regras em `src/ga/commerce-strategic-logic.js`, tela `commerce-strategic-view.jsx`. Só unidades. Classificação só com cobertura GA-018 comprovada; histórico não verificado fica visível e marcado. Sem migração. Detalhes: `docs/MAPA-GA.md`.
 Cobertura real hoje: 7 dias classifica; 30 dias só confirma "parou"; 60/90 e "sem venda" são candidatos (histórico não verificado). GA-014 a GA-017 só após validação visual do Lucas.
 
-## GA-013A — Refino visual da Visão estratégica (rascunho, 24/11/2026)
+## GA-013A — Refino visual da Visão estratégica (PUBLICADA, 24/11/2026, PRs #922 e #923)
 Tela reorganizada em 5 áreas (resumo, situação com filtros, gráfico atual x anterior diário/mensal, tabelas, qualidade expansível). Só apresentação; regras da GA-013 intactas; campo novo `listings.with_sales`. Ver `docs/MAPA-GA.md`.
+Mensal real: `month` vem como `aaaa-mm-01` (normalizado para `aaaa-mm`). Dia sem informação = lacuna, nunca zero. Validado com dados reais nas 3 contas. GA-014 a GA-017 só com autorização do Lucas.
