@@ -1,5 +1,5 @@
 -- GA-021 — PROCEDIMENTO DE REVERSÃO (NÃO é migração; não fica em supabase/migrations).
--- Use só se a migração 20261124150000 causar problema. Rodar no SQL Editor do Supabase, depois do backup externo.
+-- Use só se a migração 20261124150000 causar problema. NÃO é restauração do banco (ver docs/cerebro/backup.md: restauração integral exige reaplicar permissões). Rodar no SQL Editor do Supabase, depois do backup externo.
 -- O que faz: devolve as dez funções à leitura da tabela legada crua (o inverso exato da troca feita pela migração).
 -- ATENÇÃO: isso REINTRODUZ o defeito (lotes abertos e versões antigas voltam a ser somados em Categorias, Curva ABC e frete).
 -- Não apaga nem altera nenhuma venda, lote, snapshot ou tabela. A view e a função novas ficam (inofensivas, ninguém as chama).
