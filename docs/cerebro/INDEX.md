@@ -35,7 +35,7 @@ Todas as áreas principais têm nota. Para assunto sem nota, a fonte é o códig
 
 - **Backup:** nenhuma cópia **externa** do banco confirmada; primeira exportação nunca registrada. Em 24/11/2026 o dono decidiu publicar a GA-019 sem ela (só há cópias dentro do próprio Supabase). Ver [[backup]].
 - **Supabase Preview vermelho na `main`:** "Remote migration versions not found in local migrations directory" (anterior à GA-019; versões de migração do banco diferem dos nomes dos arquivos). Não bloqueia o deploy.
-- **GA-018 (publicada em 24/11/2026):** Central de Qualidade dos Dados no ar (PR #912, migração `20261124140000` aplicada, versão `20261124144102`). Falta a validação visual do dono. Ver `docs/MAPA-GA.md`.
+- **GA-018 (publicada em 24/11/2026):** Central de Qualidade dos Dados no ar (PR #912, migração `20261124140000` aplicada, versão `20261124144102`). **GA-018A** (refino visual, só interface, PR #914) também publicada em 24/11/2026. Ver `docs/MAPA-GA.md`.
 - **GA-020 (proposta, não implementada):** classificação e validação das vendas do Mercado Livre (status, devoluções/reembolsos, receitas derivadas x confirmadas, todas as inconsistências de uma vez). Ver [[ga-019-publicacao]].
 - **Limite de requisições:** causa do erro "Muitas requisições" no Publicar do Mural não confirmada. Ver [[limites-requisicoes]].
 

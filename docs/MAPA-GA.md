@@ -301,5 +301,6 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 
 | Item | Estado | Resumo |
 |---|---|---|
-| GA-018 — Central de Qualidade dos Dados | Publicada em 24/11/2026 (aguarda validação visual do dono) | Ver parágrafo acima |
+| GA-018 — Central de Qualidade dos Dados | Publicada em 24/11/2026 | Ver parágrafo acima |
+| GA-018A — Refino visual da Qualidade dos dados | Publicada em 24/11/2026 (PR #914, commit `9837b34`; só interface, sem migração) | Resumo no topo, 4 seções, máx. 3 cartões por linha, "Ver detalhes"/"Ver motivo", importações abertas em tabela. Conciliação geral só aprovada se GA-019 e GA-011 (Shopee) aplicáveis estiverem conciliadas; Ads ML conta uma vez; traço em preço/estoque indisponível |
 | **GA-020 — Classificação e validação das vendas do Mercado Livre** | **Proposta; não implementar** | Classificação correta dos status; devoluções e reembolsos; receitas derivadas x confirmadas; mostrar todas as inconsistências do arquivo de uma vez. **O dono não autoriza preencher receita ausente por estimativa.** |
