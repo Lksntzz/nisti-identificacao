@@ -40,7 +40,7 @@ O workflow `supabase-final-snapshot.yml`, apesar do nome, exporta **somente o D1
 
 **Google Drive privado:** [Backup criptografado](../cerebro/backup.md) — criptografe antes de sincronizar com a nuvem.
 
-**Procedimento gratuito e manual (Windows):** [Cópia local](../cerebro/backup.md). O script `scripts/nisti-free-backup.mjs` impede exportação acima de 100 MB por padrão e grava apenas em pasta privada local. Isso não constitui backup concluído até que uma cópia real seja executada e armazenada.
+**Procedimento gratuito e manual (Windows):** [Cópia local](../cerebro/backup.md). O script `scripts/nisti-free-backup.mjs` impede exportação acima de 300 MB por padrão e grava apenas em pasta privada local. Isso não constitui backup concluído até que uma cópia real seja executada e armazenada.
 
 
 - Verificar, no painel oficial do Supabase, em Database → Backups, quais backups de produção existem, data, retenção, recuperação disponível e eventuais custos.

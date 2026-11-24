@@ -222,6 +222,22 @@ withDb('runbook: pré-checagem, backup interno com conferência e linha de base 
   await assert.rejects(db.main.query(docSql('backup')), /already exists/, 'rodar o backup duas vezes não sobrescreve nada em silêncio');
 }, { beforeV2: true });
 
+withDb('runbook: assinatura de contagens para comparar o banco com o banco restaurado detecta qualquer linha a mais ou a menos', async (db) => {
+  await seedV1(db);
+  const a = await db.one(docSql('restore-signature'));
+  const again = await db.one(docSql('restore-signature'));
+  assert.ok(Number(a.tabelas) > 10 && Number(a.total_de_linhas) > 0, JSON.stringify(a));
+  assert.match(a.assinatura, /^[0-9a-f]{32}$/);
+  assert.equal(again.assinatura, a.assinatura, 'sem mudanças, a assinatura é a mesma');
+  const t = (await db.one(`select table_name n from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name like 'commerce_sales_summary_rows'`)).n;
+  const before = Number((await db.one(`select count(*) c from public.${t}`)).c);
+  await db.q(`delete from public.${t} where ctid = (select ctid from public.${t} limit 1)`);
+  const b = await db.one(docSql('restore-signature'));
+  assert.equal(Number((await db.one(`select count(*) c from public.${t}`)).c), before - 1);
+  assert.notEqual(b.assinatura, a.assinatura, 'uma linha a menos muda a assinatura');
+  assert.equal(Number(b.total_de_linhas), Number(a.total_de_linhas) - 1);
+}, { beforeV2: true });
+
 withDb('runbook: conferências depois da migração (v1 com trava, 2 gatilhos, 6 funções, reconciliação) e consulta do último commit', async (db) => {
   await seedV1(db);
   await applyV2Migration(db);

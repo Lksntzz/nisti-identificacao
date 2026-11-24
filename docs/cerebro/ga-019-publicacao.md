@@ -30,9 +30,39 @@ from commerce_sales_import_batches where status in ('UPLOADED', 'STAGED') order 
 
   Atenção: o lote 10 é a parte 1 de 2 de um arquivo de setembro da Shopee. **Não importe a parte 2 dele** (ela se juntaria ao lote antigo, que não tem os dados novos, e o commit falharia). Reexporte setembro inteiro se precisar.
 
+### Checks obrigatórios na `main` (configuração única, no GitHub)
+
+**Situação em 23/11/2026: a `main` NÃO tem nenhuma proteção** (nem regra clássica nem ruleset). Hoje nada impede mesclar com check vermelho ou em andamento, que já causou falha no Deploy Production. Passo a passo (só o dono do repositório consegue):
+
+1. github.com/Lksntzz/nisti-identificacao → **Settings** → **Branches** → em "Branch protection rules" clique **Add classic branch protection rule**.
+2. "Branch name pattern": `main`.
+3. Marque **Require status checks to pass before merging**. Na caixa de busca que aparece, procure e clique em cada um: **`database`** e **`build`** (os dois do workflow Production Gate; só aparecem na busca se rodaram nos últimos dias, e rodaram na PR #910).
+4. **Não** marque "Require branches to be up to date before merging" (obrigaria atualizar a branch a cada merge, sem ganho aqui).
+5. **Não** exija o *Browser Smoke* (`Chromium UI interactions`) nem *Test, build and upload Worker preview*: o Browser Smoke só roda quando a PR muda arquivos de `src/`, `public/` etc.; numa PR só de documentação ele nunca aparece, e um check obrigatório que nunca aparece **trava o merge para sempre**. O `build` e o `database` rodam em toda PR.
+6. Recomendado: marque **Do not allow bypassing the above settings**, senão você (dono) continua podendo mesclar com check vermelho. Custo: se o `database` quebrar por falha do próprio GitHub, não dá para mesclar até ele voltar ou até você desmarcar a regra (Settings → Branches → editar → desmarcar, e marcar de novo depois).
+7. Clique **Create**. Não marque "Require a pull request", nem "Require approvals", nem "Restrict who can push": o fluxo atual (branch → PR → squash) já passa por PR e esses itens só criariam bloqueios novos.
+8. Conferência: abra uma PR qualquer (a #910 serve): no fim da página, os checks `build` e `database` devem aparecer com a etiqueta **Required** e o botão de merge fica desabilitado enquanto algum estiver em andamento ou vermelho. A conferência por API, que eu faço depois: `gh api repos/Lksntzz/nisti-identificacao/branches/main/protection`.
+
+Como funciona: a trava atua **antes** do merge. O GitHub bloqueia o botão enquanto `build` ou `database` estiverem em andamento ou vermelhos, o que impede o erro já vivido de mesclar antes de os checks terminarem.
+
 ## 1. Backup
 
-1. Painel do Supabase → Database → Backups: anote se existe algum backup do próprio Supabase (o plano gratuito normalmente não tem). **O backup externo do projeto nunca foi confirmado** ([[backup]]); faça o backup criptografado antes. O banco tem hoje cerca de 202 MB e o script recusa mais de 100 MB: confira a franquia de rede do mês e aumente `NISTI_BACKUP_MAX_MB` (até 500) como a nota [[backup]] explica. Guarde a senha de criptografia fora do Drive.
+1. Painel do Supabase → Database → Backups: anote se existe algum backup do próprio Supabase (o plano gratuito normalmente não tem). **O backup externo do projeto precisa existir antes da migração** ([[backup]]): faça o backup criptografado, confira a integridade e **teste a restauração num PostgreSQL isolado** (passo a passo em [[backup]], seção "Teste de restauração"). O banco tem cerca de 202 MB (217 MB com a cópia interna do item 2); o limite padrão do script agora é 300 MB, então não precisa mexer em nenhuma variável. Se o banco passar de 300 MB, o script recusa de propósito: confira a franquia de rede (plano gratuito: 5 GB por mês; o backup transfere algo como o tamanho do banco) e só então use `NISTI_BACKUP_MAX_MB` (até 500). Guarde a senha de criptografia fora do Drive.
+
+   Para comparar o banco com o banco restaurado, rode isto no SQL Editor **logo antes e logo depois do backup** (os dois resultados têm de ser iguais; se forem diferentes, alguém mexeu no sistema durante o backup e a comparação com o banco restaurado precisa ser feita tabela a tabela):
+
+<!-- sql:restore-signature -->
+```sql
+select count(*) as tabelas, sum(linhas) as total_de_linhas,
+  md5(string_agg(tabela || ':' || linhas, ',' order by tabela)) as assinatura
+from (
+  select table_name::text as tabela,
+    (xpath('/row/n/text()', query_to_xml(format('select count(*) n from public.%I', table_name), false, true, '')))[1]::text::bigint as linhas
+  from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'
+) t;
+```
+
+   O mesmo comando, rodado no banco restaurado (com `psql`), tem de devolver a **mesma assinatura**. Ela só compara contagens de linhas das tabelas do `public`; não prova o conteúdo de cada linha.
 2. **Cópia interna das tabelas de vendas que a v2 pode alterar** (cerca de 20 MB, grátis, dentro do limite de 500 MB; o backup semanal automático do projeto NÃO cobre estas tabelas). Rode no SQL Editor:
 
 <!-- sql:backup -->
@@ -67,7 +97,9 @@ from unnest(array['commerce_sales_snapshots', 'commerce_sales_import_batches', '
   'commerce_shopee_finance_daily_v1', 'commerce_shopee_finance_month_v1', 'commerce_shopee_full_daily_v1', 'commerce_shopee_order_extras_daily_v1']) as t(nome);
 ```
 
-   A tabela grande `commerce_sales_rows` (68 MB) não entra: a v2 só INSERE nela (linhas de snapshots novos), nunca altera as antigas. Estas cópias ficam até a validação terminar; só apague depois de o Lucas confirmar (nome `backup.pre_ga019__*`).
+   A tabela grande `commerce_sales_rows` (68 MB) não entra: a v2 só INSERE nela (linhas de snapshots novos), nunca altera as antigas. Estas cópias ficam até a validação terminar; só apague depois de o Lucas confirmar (nome `backup.pre_ga019__*`). A limpeza semanal automática do banco (`backup.take_snapshot_v1`) só apaga tabelas `s<número>__*`, então não toca nelas.
+
+   **A cópia é uma foto do momento em que foi feita.** Se a equipe importar vendas depois dela, a cópia fica velha. Por isso, no dia da publicação, rode a "linha de base" (item 3) e compare o `snapshot_atual` e a `versao_do_cache` com os valores anotados no dia da cópia: se forem iguais, ninguém importou nada e a cópia continua valendo; se mudaram, a cópia está desatualizada e é preciso criar outra (com outro prefixo, para não sobrescrever esta) antes da migração.
 3. **Linha de base** (anote ou salve o resultado; serve para comparar depois):
 
 <!-- sql:baseline -->
@@ -88,9 +120,18 @@ $b = New-Object byte[] 48
 [Convert]::ToBase64String($b)
 ```
 
-   O resultado (64 caracteres) é o segredo. Guarde num gerenciador de senhas, **fora do Drive e fora do repositório** (que é público). Nunca cole no chat.
-2. Cloudflare → Workers & Pages → `nisti-identificacao` → Settings → **Variables and Secrets** → Add → tipo **Secret** (não "Text": variáveis de texto criadas no painel podem ser apagadas num deploy, secrets não) → nome exato `COMMERCE_ORDER_KEY_SECRET` → colar o valor → Deploy/Save.
-3. O código atual ignora esse segredo, então nada muda para ninguém. Se o painel pedir para "deploy", confirme (cria uma versão igual à atual).
+   Para o valor **não aparecer na tela nem no histórico do PowerShell**, termine o último comando com ` | Set-Clipboard` (ele copia direto para a área de transferência):
+
+```powershell
+$b = New-Object byte[] 48
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
+[Convert]::ToBase64String($b) | Set-Clipboard
+```
+
+   O valor (64 caracteres) é o segredo. **Primeiro** cole no gerenciador de senhas (nome: "NISTI - COMMERCE_ORDER_KEY_SECRET"), **fora do Drive e fora do repositório** (que é público); só depois cadastre na Cloudflare. Nunca cole no chat. Se perder o valor, veja a seção 7. Terminado o passo 2, limpe a área de transferência: `Set-Clipboard -Value " "`.
+2. Cloudflare → Workers & Pages → `nisti-identificacao` → Settings → **Variables and Secrets** → Add → tipo **Secret** (não "Text": variáveis de texto criadas no painel podem ser apagadas num deploy, secrets não) → nome exato `COMMERCE_ORDER_KEY_SECRET` (maiúsculas, com sublinhados, sem espaço no começo ou no fim) → colar o valor → Deploy/Save.
+3. O código atual ignora esse segredo, então nada muda para ninguém. Se o painel pedir para "deploy", confirme (cria uma versão igual à atual; o Worker já roda com `nodejs_compat`, que o HMAC exige).
+4. Conferência: na lista de "Variables and Secrets" deve aparecer `COMMERCE_ORDER_KEY_SECRET` com o tipo **Secret** e o valor escondido ("Value encrypted"). Não deve existir outra linha com o mesmo nome como "Text". O painel não mostra o valor de volta (de propósito); a prova de que o código o enxerga vem na validação do passo 5: sem o segredo a rota recusa com erro 503 `order_key_secret_missing` e nada é gravado.
 
 ## 3. Migração no Supabase
 
@@ -114,7 +155,7 @@ select * from commerce_sales_reconcile_v2() where not ok;   -- ver abaixo
 ## 4. Merge e deploy
 
 1. Tire a PR do rascunho (botão "Ready for review") só depois dos passos 1 a 3 e da sua aprovação.
-2. Confirme que **todos** os checks (Production Gate com o job `database`, Browser Smoke) estão verdes e sem nenhum em andamento. Marque o check `database` como obrigatório em Settings → Branches → regra da `main`.
+2. Confirme que **todos** os checks (Production Gate com o job `database`, Browser Smoke) estão verdes e sem nenhum em andamento. O check `database` deve estar como obrigatório na `main` (configuração única, feita na seção "Checks obrigatórios" abaixo).
 3. Merge com **squash**. Espere o workflow **Deploy Production do commit do merge** terminar com sucesso.
 
 ## 5. Validação funcional

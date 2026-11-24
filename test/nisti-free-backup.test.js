@@ -18,12 +18,15 @@ test('500 MB free quota is measured without creating tables or expanding the dat
   assert.throws(()=>quotaSummary(NaN),/inválido/);
 });
 
-test('backup transfer limit is 100 MB default and can only be deliberately raised to 500 MB',()=>{
-  assert.equal(maxBackupMb(),100);
+test('backup transfer limit is 300 MB default and can only be deliberately raised to 500 MB',()=>{
+  assert.equal(maxBackupMb(),300);
   assert.equal(maxBackupMb('100'),100);
   assert.equal(maxBackupMb('200'),200);
+  assert.equal(maxBackupMb('500'),500);
+  // O banco de produção (cerca de 202 MB em 23/11/2026) precisa caber com folga no padrão.
+  assert.ok(maxBackupMb()*1048576>211750035*1.4);
   for(const value of ['0','501','infinite','2.5','']) {
-    if(value==='')assert.equal(maxBackupMb(value),100);
+    if(value==='')assert.equal(maxBackupMb(value),300);
     else assert.throws(()=>maxBackupMb(value),/inteiro entre/);
   }
 });

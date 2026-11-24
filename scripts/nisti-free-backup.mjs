@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const CHECK_SQL='select pg_database_size(current_database())';
 const MIN_SIZE=1;
-const MAX_SAFE_DEFAULT_MB=100;
+const MAX_SAFE_DEFAULT_MB=300;
 const MAX_ADJUSTABLE_MB=500;
 const REPO_ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 
@@ -153,7 +153,7 @@ async function main() {
     console.log('Sem conexão ou escrita: plano gratuito Supabase 500 MB.');
     console.log('Confira o uso: node scripts/nisti-free-backup.mjs status');
     console.log('Backup manual no PC: node scripts/nisti-free-backup.mjs backup --output-dir C:\\Backup-NISTI');
-    console.log('Máximo padrão de transferência por execução: 100 MB. Sem R2, sem agendamento, sem GitHub.');
+    console.log('Máximo padrão de transferência por execução: 300 MB. Sem R2, sem agendamento, sem GitHub.');
     return;
   }
   if(action==='status') {
