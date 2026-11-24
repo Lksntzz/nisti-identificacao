@@ -11,7 +11,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 | Publicar mudanças | [[deploy]] | Antes de abrir PR, mesclar ou aplicar migração |
 | Mural NISTI | [[mural]] | Feed, publicações, coleções, imagens do Mural e push |
 | Importação de planilhas (Shopee/ML) | [[importacao]] | Mexer em importação de vendas, catálogo, Full, reimportação |
-| Publicar e reverter a GA-019 (vendas por dia) | [[ga-019-publicacao]] | Aplicar a migração `20261123210000`, configurar o segredo `COMMERCE_ORDER_KEY_SECRET`, mesclar a PR #910, reverter, trocar o segredo |
+| GA-019 (vendas por dia): **concluída em 24/11/2026**; registro, reversão e troca do segredo | [[ga-019-publicacao]] | Estado de encerramento, migração `20261123210000` (versão `20261124125421` no banco), segredo `COMMERCE_ORDER_KEY_SECRET`, PR #910, reverter, trocar o segredo |
 | ID / scanner e catálogo | [[id-catalogo]] | Scanner de EAN, cadastro de produto, SKU, vínculo de EAN, gerador de código de barras |
 | Login e segurança | [[login-seguranca]] | Senha do admin, sessões, link da expedição, CSRF, cabeçalhos, rotas protegidas |
 | Expedição e monitor | [[expedicao-monitor]] | Painel de envio, monitor do notebook, fila de chamadas, som, link privado |
@@ -34,6 +34,8 @@ Todas as áreas principais têm nota. Para assunto sem nota, a fonte é o códig
 ## Pendências conhecidas (resolver e apagar daqui)
 
 - **Backup:** nenhuma cópia **externa** do banco confirmada; primeira exportação nunca registrada. Em 24/11/2026 o dono decidiu publicar a GA-019 sem ela (só há cópias dentro do próprio Supabase). Ver [[backup]].
+- **Supabase Preview vermelho na `main`:** "Remote migration versions not found in local migrations directory" (anterior à GA-019; versões de migração do banco diferem dos nomes dos arquivos). Não bloqueia o deploy.
+- **GA-020 (proposta, não implementada):** classificação e validação das vendas do Mercado Livre (status, devoluções/reembolsos, receitas derivadas x confirmadas, todas as inconsistências de uma vez). Ver [[ga-019-publicacao]].
 - **Limite de requisições:** causa do erro "Muitas requisições" no Publicar do Mural não confirmada. Ver [[limites-requisicoes]].
 
 ## Outros documentos em `docs/`
