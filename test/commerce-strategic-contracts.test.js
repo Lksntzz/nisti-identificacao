@@ -87,3 +87,11 @@ test('evolução histórica: mês com lacuna, mês sem verificação e dia sem i
   const proven=buildStrategicView(mk({dqHistory:dq('SHOPEE','2025-01-01','2026-11-23')}));
   assert.ok(proven.evolution.months.every(x=>x.coverage==='COMPROVADA')); assert.ok(proven.evolution.daily.every(x=>x.state==='OK'));
 });
+
+test('GA-013A: anúncios com vendas vem da fonte (listings_selling do Dashboard), nunca calculado por subtração',()=>{
+  const v=buildStrategicView(mk({dash:dash({totals:{cur_units:135,prev_units:100,listings_selling:25}})}));
+  assert.equal(v.listings.with_sales,25);
+  const none=buildStrategicView(mk({dash:dash({totals:{cur_units:135,prev_units:100}})}));
+  assert.equal(none.listings.with_sales,null);
+  assert.equal(buildStrategicView(mk({dash:null,periods:null})).listings.with_sales,null);
+});

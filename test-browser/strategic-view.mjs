@@ -14,7 +14,7 @@ const NAME={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
 const tests=[];const test=(name,fn)=>tests.push({name,fn});
 
 const mkDash=(platform,days,over={})=>({platform,days,first_day:'2025-01-01',last_day:'2026-11-23',current_start:days===7?'2026-11-17':'2026-10-25',
-  previous_start:days===7?'2026-11-10':'2026-09-25',totals:{cur_units:UNITS[platform],prev_units:UNITS[platform]-20,cur_rev:1,prev_rev:1},
+  previous_start:days===7?'2026-11-10':'2026-09-25',totals:{cur_units:UNITS[platform],prev_units:UNITS[platform]-20,cur_rev:1,prev_rev:1,listings_selling:25},
   drops:{total:57,items:[{listing_id:2,platform,external_id:'B2',title:'Capa Floral '+NAME[platform],units:2,units_previous:10}]},...over});
 const dq=(platform,start,end,ok=true)=>{const span=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
   return {platform,period:{start,end},sales:{status:ok?'COMPLETA':'PARCIAL',requested_days:span,complete_days:ok?span:span-3,partial_days:0,
@@ -31,7 +31,7 @@ export function payload(platform,days,{proven=true,failed=[],over={},prevOk=prov
       no_sales:[{listing_id:4,platform,external_id:'D4',title:'Anúncio Sem Venda',units_ever:0,last_sale:null}],no_sales_never:9,unlinked:{listings:2},
       window_days_with_sales:days,coverage:[{platform,first_day:'2025-01-01',last_day:'2026-11-23',last_import:'2026-11-24T10:00:00Z'}]},
     monthly:{months:[{month:'2026-10',['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:120,days_with_sales:31}]},
-    series:{platform,days,daily:Array.from({length:days},(_,i)=>({day:new Date(Date.parse(cur.start)+i*86400000).toISOString().slice(0,10),['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:10+i}))},
+    series:{platform,days,daily:Array.from({length:days},(_,i)=>({day:new Date(Date.parse(cur.start)+i*86400000).toISOString().slice(0,10),['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:10+i,['prev_units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:8+(i%3)*2}))},
     categories:failed.includes('categories')?null:{platform,cur_from:cur.start,cur_to:cur.end,base_from:'2025'+cur.start.slice(4),base_to:'2025'+cur.end.slice(4),
       total:{cur:UNITS[platform],base:90},categories:[{name:'Agendas',cur:90,base:60,cols:[{name:'Floral',cur:50,base:30}]}]},
     split:platform==='SHOPEE'?{status:'COMPLETO',total_units:UNITS[platform]+5,linked_units:UNITS[platform],unlinked_units:5,base_units:UNITS[platform],
@@ -87,8 +87,10 @@ test('as três contas: números distintos, menu só com três contas e nenhum pe
     const t=await body(page);
     assert.doesNotMatch(t,/faturamento|lucro|margem|ticket|R\$/i);
     assert.match(t,/não é um ranking por unidades/);
-    assert.match(t,/Período atual: 2026-11-17 a 2026-11-23/);
-    assert.match(t,/ano anterior/i); assert.match(t,/Comparação anual/);
+    assert.match(t,/Atual: 2026-11-17 a 2026-11-23/);
+    await page.getByRole('tab',{name:'Categorias'}).click();
+    assert.match(await body(page),/Comparação anual/);
+    await page.getByRole('tab',{name:'Anúncios',exact:true}).click();
     if(SHOTS){mkdirSync(SHOTS,{recursive:true});await page.screenshot({path:SHOTS+'/'+id.toLowerCase()+'-7dias.png',fullPage:true});}
   }
   assert.equal(sim.calls.some(c=>/TODAS/.test(JSON.stringify(c.query))),false);
@@ -122,11 +124,16 @@ test('período não comprovado: candidatos, sem classificação confirmada e sem
   const sim=createSimulator();sim.opts.mode.SHOPEE={proven:false,prevOk:false};
   const {page,context}=await open(b,{sim});
   await page.waitForSelector('[data-testid="units-current"]');
-  const t=await body(page);
-  assert.match(t,/Possíveis quedas \(não confirmadas\)/);assert.match(t,/Possível crescimento \(não confirmado\)/);
-  assert.match(t,/Possíveis parados \(não confirmados\)/);assert.match(t,/Sem venda nos dados importados \(histórico não verificado\)/);
-  assert.match(t,/57 possíveis quedas/);
-  assert.equal(await page.locator('h3',{hasText:/^Queda$/}).count(),0);assert.equal(await page.locator('h3',{hasText:/^Crescimento$/}).count(),0);
+  const chips=await page.locator('.nsv-chip span').allInnerTexts();
+  assert.deepEqual(chips.map(x=>x.trim().toLowerCase()),['possível crescimento','possível queda','possíveis parados','sem vendas registradas']);
+  let t=await body(page);
+  assert.match(t,/Possíveis quedas \(não confirmadas\)/);assert.match(t,/57 possíveis quedas/);assert.match(t,/Candidatos pelos dados importados/);
+  await page.locator('[data-group="growth"]').click();
+  assert.match(await body(page),/Possível crescimento \(não confirmado\)/);
+  await page.locator('[data-group="stopped"]').click();
+  assert.match(await body(page),/Possíveis parados \(não confirmados\)/);
+  await page.locator('[data-group="never"]').click();
+  assert.match(await body(page),/Sem venda nos dados importados \(histórico não verificado\)/);
   assert.match(await page.locator('.nsv-kpis').innerText(),/—/);
   assert.match(t,/não verificado/);
   if(SHOTS)await page.screenshot({path:SHOTS+'/shopee-30dias-nao-comprovado.png',fullPage:true});
@@ -137,9 +144,10 @@ test('período comprovado: títulos confirmados e histórico importado identific
   const {page,context}=await open(b);
   await page.waitForSelector('[data-testid="units-current"]');
   const t=await body(page);
-  assert.equal(await page.locator('h3',{hasText:/^Queda$/}).count(),1);
+  assert.equal((await page.locator('.nsv-chip span').allInnerTexts()).map(x=>x.trim())[1],'Queda');
   assert.match(t,/57 anúncios em queda/);
-  assert.match(t,/Sem venda nos dados importados \(histórico não verificado\)/); // histórico fictício parcial
+  await page.locator('[data-group="never"]').click();
+  assert.match(await body(page),/Sem venda nos dados importados \(histórico não verificado\)/); // histórico fictício parcial
   assert.doesNotMatch(t,/nunca vendeu|nunca venderam/i);
   assert.match(t,/Outra base, não somar: total por SKU/);
   assert.match(t,/vendas dos anúncios vinculados/);
@@ -154,10 +162,56 @@ test('cobertura não comprovada: cartão, campeões e evolução não transmitem
   const t=await body(page);
   assert.match(t,/a cobertura do período atual não comprovada pode alterar a ordem/);
   assert.match(await page.locator('[data-testid="daily-note"]').evaluate(e=>e.textContent),/não provam ausência de vendas/);
+  assert.ok(await page.locator('circle.nsv-dot.hollow').count()>0,'pontos não verificados ficam vazados');
+  await page.getByRole('tab',{name:'Mensal'}).click();
   assert.match(await page.locator('[data-testid="months-note"]').evaluate(e=>e.textContent),/não prova ausência de vendas/);
-  assert.ok(await page.locator('.nsv-bars li[data-state="NAO_VERIFICADO"]').count()>0);
+  await page.getByRole('tab',{name:'Diária'}).click();
   assert.match(await page.locator('[data-testid="limitations"]').evaluate(e=>e.textContent),/Conferência de origem limitada/);
   if(SHOTS)await page.screenshot({path:SHOTS+'/shopee-cobertura-nao-comprovada.png',fullPage:true});
+  await context.close();
+});
+
+test('cinco áreas na ordem, filtros e qualidade expansível com avisos essenciais visíveis',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={proven:false,prevOk:false};
+  const {page,context}=await open(b,{sim});
+  await page.waitForSelector('[data-testid="units-current"]');
+  const heads=(await page.locator('.nsv-sec h2').allTextContents()).map(x=>x.replace(/^\d/,'').trim());
+  assert.deepEqual(heads,['Resumo comercial','Situação dos anúncios','Evolução comercial','Desempenho dos anúncios, categorias e coleções','Qualidade e conciliação']);
+  // aviso essencial visível com a seção de qualidade fechada
+  assert.equal(await page.locator('details[open]').count(),0);
+  assert.equal(await page.locator('.nsv-alerts [data-notice="PERIODO_ATUAL_NAO_COMPROVADO"]').isVisible(),true);
+  assert.equal(await page.locator('[data-testid="quality-body"]').isVisible(),false);
+  await page.locator('.nsv-quality summary').click();
+  assert.equal(await page.locator('[data-testid="quality-body"]').isVisible(),true);
+  assert.match(await page.locator('[data-testid="quality-body"]').innerText(),/Cobertura de vendas/);
+  // filtro de busca
+  await page.locator('[data-group="drops"]').click();
+  await page.getByPlaceholder('título ou código').fill('zzz-inexistente');
+  assert.match(await body(page),/Nenhum anúncio corresponde à busca/);
+  await page.getByPlaceholder('título ou código').fill('B2');
+  assert.equal(await page.locator('.nsv-sec').nth(1).locator('tbody tr').count(),1);
+  // total do grupo continua vindo da fonte (57), nunca da busca
+  assert.match(await page.locator('[data-group="drops"]').innerText(),/57/);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true);
+  await context.close();
+});
+
+test('gráfico: diário e mensal, dica ao passar o mouse e tabela dos valores',async b=>{
+  const {page,context}=await open(b);
+  await page.waitForSelector('[data-testid="units-current"]');
+  assert.equal(await page.locator('.nsv-chart svg path.nsv-line.cur').count(),1);
+  assert.equal(await page.locator('.nsv-chart svg path.nsv-line.prev').count(),1);
+  assert.match(await page.locator('.nsv-legend').innerText(),/Período atual[\s\S]*Período anterior/);
+  const box=await page.locator('.nsv-chart svg').boundingBox();
+  await page.mouse.move(box.x+box.width*0.5,box.y+box.height*0.5);
+  await page.waitForSelector('.nsv-tip');
+  assert.match(await page.locator('.nsv-tip').innerText(),/Período atual: \d+/);
+  await page.getByRole('tab',{name:'Mensal'}).click();
+  assert.ok(await page.locator('.nsv-chart svg rect.nsv-bar.cur').count()>=1);
+  assert.match(await page.locator('.nsv-legend').innerText(),/Mês anterior/);
+  await page.locator('summary',{hasText:'Ver tabela dos valores'}).click();
+  assert.ok(await page.locator('.nsv-sec').nth(2).locator('tbody tr').count()>=1);
+  if(SHOTS){await page.getByRole('tab',{name:'Diária'}).click();await page.locator('.nsv-quality summary').click();await page.screenshot({path:SHOTS+'/shopee-qualidade-aberta.png',fullPage:true});}
   await context.close();
 });
 
@@ -166,9 +220,12 @@ test('falhas parciais: indisponível não vira lista vazia e o resto continua',a
   const {page,context}=await open(b,{sim});
   await page.waitForSelector('[data-testid="units-current"]');
   const t=await body(page);
-  assert.match(t,/Consulta indisponível no momento/);assert.match(t,/Categorias indisponíveis no momento/);
   assert.match(t,/Partes indisponíveis ou descartadas/);
-  assert.doesNotMatch(await page.locator('section',{hasText:/Anúncios que pararam|Possíveis parados/}).first().innerText(),/Nenhum anúncio nesta lista/);
+  await page.locator('[data-group="stopped"]').click();
+  const panel=await body(page);
+  assert.match(panel,/Consulta indisponível no momento/);assert.doesNotMatch(panel.split('Evolução comercial')[0].split('Situação dos anúncios')[1],/Nenhum anúncio nesta lista/);
+  await page.getByRole('tab',{name:'Categorias'}).click();
+  assert.match(await body(page),/Categorias indisponíveis no momento/);
   assert.equal(await unitsText(page),num(UNITS.SHOPEE));
   if(SHOTS)await page.screenshot({path:SHOTS+'/shopee-falha-parcial.png',fullPage:true});
   await context.close();

@@ -311,6 +311,7 @@ export function buildStrategicView(p){
       basis:platform==='SHOPEE'?'ANUNCIOS_VINCULADOS':'POR_ANUNCIO',sku_total:skuTotal},
     listings:{active:num(ov?.listings?.active),inactive:num(ov?.listings?.inactive),inactive_with_sales:num(ov?.listings?.inactive_with_sales),
       active_without_sales:num(ov?.listings?.active_without_sales),selling_without_sku:num(ov?.unlinked?.listings),
+      with_sales:status==='OK'?num(totals?.listings_selling):null,
       coverage_verified:cov.current.proven,
       active_without_sales_label:cov.current.proven?'sem venda no período':'sem venda nos dados importados (cobertura não comprovada)'},
     champions:own(ov?.top_units).map(base),champions_available:ovAvail,champions_verified:cov.current.proven,
