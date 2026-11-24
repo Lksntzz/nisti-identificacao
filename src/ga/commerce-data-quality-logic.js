@@ -1,8 +1,9 @@
 // GA-018 — lógica PURA da Central de Qualidade dos Dados (sem React, sem rede): transforma a resposta de
 // commerce_data_quality_v1 em cartões. Três dimensões separadas (atualização, cobertura, conciliação); nenhuma nota geral.
+import {maskMoney} from './commerce-privacy.js';
 export const PLATFORMS=Object.freeze([['SHOPEE','Shopee'],['ML_ANTIGO','Mercado Livre (Antigo)'],['ML_NOVO','Mercado Livre (Novo)']]);
 export const PLATFORM_SHORT=Object.freeze({SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'});
-export const FRESHNESS=Object.freeze({ATUALIZADO:['Atualizado','ok'],DESATUALIZADO:['Desatualizado','warn'],SEM_INFORMACAO:['Sem informação','none']});
+export const FRESHNESS=Object.freeze({ATUALIZADO:['Atualizado','ok'],PARCIALMENTE_DESATUALIZADO:['Parcialmente desatualizado','warn'],DESATUALIZADO:['Desatualizado','warn'],SEM_INFORMACAO:['Sem informação','none']});
 export const COVERAGE=Object.freeze({COMPLETA:['Completa','ok'],PARCIAL:['Parcial','warn'],SEM_INFORMACAO:['Sem informação','none']});
 export const RECONCILIATION=Object.freeze({CONCILIADO_INTERNAMENTE:['Conciliado internamente','ok'],DIVERGENTE:['Divergente','bad'],SEM_INFORMACAO:['Sem informação','none']});
 export const KIND_LABEL=Object.freeze({DESEMPENHO:'Desempenho e tráfego',ADS:'Ads',POS_VENDA:'Pós-venda',TRAFEGO_MANUAL:'Tráfego manual',ADS_ML:'Ads do Mercado Livre'});
@@ -11,11 +12,14 @@ const n=v=>v==null?null:Number(v);
 export const fmtDate=v=>{const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]+'/'+m[1]:null;};
 export const fmtMonth=v=>{const m=String(v||'').match(/^(\d{4})-(\d{2})/);return m?m[2]+'/'+m[1]:null;};
 const num=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
-const money=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const money=v=>maskMoney(v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}));
 const pct=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
 const pick=(map,key)=>map[key]||map.SEM_INFORMACAO;
 const dim=(label,map,key)=>{const [text,tone]=pick(map,key);return {label,value:text,tone};};
 
+// Resultado só vale para o pedido que o gerou: evita mostrar cartões do período anterior como se fossem do novo.
+export const requestKey=(platform,start,end,detail)=>[platform,start,end,detail?1:0].join('|');
+export const isCurrentResult=(result,key)=>Boolean(result&&result.key===key&&result.data);
 export function isoDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 export function presetPeriod(preset,today=new Date()){
   const end=new Date(today.getFullYear(),today.getMonth(),today.getDate());
@@ -53,36 +57,53 @@ export function salesCard(data){
       ['Meses conferidos internamente',rec.months_checked==null?'—':num(rec.months_ok)+' de '+num(rec.months_checked)+' sem diferença']
     ],
     details:gaps.length?['Sem informação em: '+gaps.join(', ')]:[],
-    notes:[s.note,'Conciliação = consistência interna entre os arquivos importados; não conferido no marketplace.'].filter(Boolean),actions};
+    notes:[s.note,'Conciliação = consistência interna entre os arquivos importados; não conferido no marketplace.',(data?.sales?.months_scope_note)||'Conciliação usa meses inteiros, mesmo que o período cubra só parte do mês.'].filter(Boolean),actions};
 }
 
 export function ordersCard(data){
   const list=data?.sales?.orders||[];
-  const verified=list.filter(o=>o.verified&&Number(o.orders)>0);
-  const unverified=list.filter(o=>!o.verified);
-  const informed=list.filter(o=>o.verified&&Number(o.orders)===0&&Number(o.reported_in_summary)>0);
+  const label=o=>{
+    const cov=o.coverage==='PARCIAL'?' · cobertura parcial: '+num(o.days_by_key+o.days_by_summary)+' de '+num(o.days_expected)+' dias':'';
+    if(o.basis==='SEM_INFORMACAO'||o.orders==null)return 'Sem informação (nenhum dia com dado no mês)';
+    if(o.basis==='CHAVE')return num(o.orders)+' pedido(s) contados por dia, a partir de chaves de pedido'+cov;
+    if(o.basis==='RESUMO_HISTORICO')return num(o.orders)+' informado(s) em resumo histórico · não verificado por chave'+cov;
+    return num(o.orders)+' · base mista ('+num(o.days_by_key)+' dia(s) por chave, '+num(o.days_by_summary)+' por resumo histórico) · não verificado por completo'+cov;
+  };
+  const noInfo=list.filter(o=>o.basis==='SEM_INFORMACAO'||o.orders==null);
+  const summary=list.filter(o=>o.basis==='RESUMO_HISTORICO'||o.basis==='MISTO');
+  const partial=list.filter(o=>o.coverage==='PARCIAL'&&o.basis!=='SEM_INFORMACAO');
+  const allKey=list.length>0&&list.every(o=>o.verified_by_key&&o.coverage==='COMPLETA');
+  const m=arr=>arr.map(o=>fmtMonth(o.month)).join(', ');
   const actions=[];
-  if(unverified.length)actions.push('Meses sem chave de pedido verificável ('+unverified.map(o=>fmtMonth(o.month)).join(', ')+'): o número é só informado. Reimporte o período com o relatório completo para verificar.');
-  if(informed.length)actions.push('Meses com pedidos informados no resumo mas sem pedido verificado ('+informed.map(o=>fmtMonth(o.month)).join(', ')+'): não trate como confirmados.');
-  return {id:'orders',title:'Pedidos únicos',lastUpdate:null,
-    dims:[{label:'Verificação',value:list.length?(unverified.length||informed.length?'Parcial':'Verificados'):'Sem informação',tone:list.length?(unverified.length||informed.length?'warn':'ok'):'none'}],
-    lines:list.map(o=>[fmtMonth(o.month),o.verified?num(o.orders)+' pedido(s) verificado(s) por chave ou resumo diário':'Informado'+(o.reported_in_summary!=null?' ('+num(o.reported_in_summary)+' no resumo)':'')+' · não verificado']),
-    details:[],notes:[data?.sales?.orders_note,'Pedidos históricos sem chaves verificáveis aparecem como informados, nunca como verificados.'].filter(Boolean),actions,
-    hasData:verified.length>0||list.length>0};
+  if(summary.length)actions.push('Meses com número vindo de resumo histórico ('+m(summary)+'): estão informados, não verificados por chave. Só reimporte o período se tiver o relatório completo daquele intervalo.');
+  if(noInfo.length)actions.push('Meses sem informação de pedidos ('+m(noInfo)+'): não há dia importado; nada a corrigir sem um relatório desse mês.');
+  if(partial.length)actions.push('Meses com cobertura parcial ('+m(partial)+'): o total de pedidos cobre só parte dos dias do mês.');
+  return {id:'orders',title:'Pedidos únicos (meses inteiros)',lastUpdate:null,
+    dims:[{label:'Verificação',value:!list.length?'Sem informação':allKey?'Por chave':'Parcial ou informado',tone:!list.length?'none':allKey?'ok':'warn'}],
+    lines:list.map(o=>[fmtMonth(o.month),label(o)]),
+    details:[],notes:['Contagem por DIA (regra da GA-019): pedido que aparece em dois dias conta duas vezes.',data?.sales?.months_scope_note||'Pedidos mensais usam meses inteiros, mesmo que o filtro cubra só parte do mês.'],actions};
 }
 
 export function linkCard(data){
   const g=data?.ga011_shopee;const u=data?.ml_unlinked_sales;
   if(g){
     const gaps=n(g.coverage?.source_missing_days)||0;
+    const unexplained=g.reconciliation_status==='DIVERGENTE';
     const actions=[];
+    if(unexplained)actions.push('Há diferença sem explicação entre a fonte de SKU e a base de anúncios (resíduo de '+num(g.residual_units)+' un e '+money(g.residual_revenue)+'). Não considere conciliado: confira SKUs e dias antes de usar os números.');
     if(g.unmatched_sku_count>0)actions.push('Há '+g.unmatched_sku_count+' SKU(s) de venda sem anúncio vinculado. Vincule os SKUs na revisão da Shopee; a conciliação não altera nada.');
     if(gaps>0)actions.push('Importe os '+gaps+' dia(s) ausentes na fonte de SKU da Shopee.');
+    const cov=g.coverage_status;
     return {id:'link',title:'Vendas × anúncios (GA-011)',lastUpdate:null,
-      dims:[{label:'Conciliação',value:g.status==='COMPLETO'?'Completa':g.status==='PARCIAL'?'Parcial':'Sem informação',tone:g.status==='COMPLETO'?'ok':g.status==='PARCIAL'?'warn':'none'}],
-      lines:[['Receita vinculada a anúncio',pct(g.reconciled_pct?.revenue)],['Unidades vinculadas',pct(g.reconciled_pct?.units)],['SKUs sem vínculo',num(g.unmatched_sku_count)]],
-      details:(g.unmatched_skus||[]).map(x=>x.sku_norm+' · '+num(x.units)+' un · '+money(x.revenue)),notes:['Vendas sem vínculo continuam nos totais.'],actions};
+      dims:[{label:'Cobertura de registros',value:cov==='COMPLETO'?'Completa':cov==='PARCIAL'?'Parcial':'Sem informação',tone:cov==='COMPLETO'?'ok':cov==='PARCIAL'?'warn':'none'},
+        dim('Conciliação',RECONCILIATION,g.reconciliation_status)],
+      lines:[['Receita vinculada a anúncio',pct(g.reconciled_pct?.revenue)],['Unidades vinculadas',pct(g.reconciled_pct?.units)],['SKUs sem vínculo',num(g.unmatched_sku_count)],
+        ['Diferença explicada',g.explained==null?'—':g.explained?'Sim':'Não'],['Resíduo (unidades)',num(g.residual_units)],['Resíduo (receita)',money(g.residual_revenue)]],
+      details:(g.unmatched_skus||[]).map(x=>x.sku_norm+' · '+num(x.units)+' un · '+money(x.revenue)),
+      notes:['Cobertura completa significa que os registros existem, não que não há divergência. Vendas sem vínculo continuam nos totais.'],actions};
   }
+  if(u&&u.severity==='SEM_INFORMACAO')return {id:'link',title:'Vendas sem anúncio cadastrado',lastUpdate:null,
+    dims:[{label:'Situação',value:'Sem informação',tone:'none'}],lines:[],details:[],notes:[u.note],actions:['Nenhuma venda registrada neste período; escolha outro período ou importe o relatório de vendas.']};
   if(u){
     const has=n(u.listings_without_registered_listing)>0;
     return {id:'link',title:'Vendas sem anúncio cadastrado',lastUpdate:null,
@@ -115,24 +136,35 @@ export function reportCards(data){
 
 export function catalogCard(data){
   const c=data?.catalog||{};const actions=[];
-  if(c.freshness==='SEM_INFORMACAO')actions.push('O catálogo desta plataforma nunca foi verificado ou está vazio.');
-  if(c.freshness==='DESATUALIZADO')actions.push('A última verificação foi há '+c.days_since_last_check+' dias (limite 7). Atualize o catálogo.');
-  if(n(c.listings_never_checked)>0)actions.push(c.listings_never_checked+' anúncio(s) nunca foram verificados.');
+  if(c.freshness==='SEM_INFORMACAO')actions.push('Nenhum anúncio desta plataforma tem data de verificação: não dá para dizer se o catálogo está atualizado.');
+  if(n(c.not_fresh_listings)>0&&c.freshness!=='SEM_INFORMACAO')actions.push(num(c.not_fresh_listings)+' de '+num(c.listings)+' anúncio(s) ('+pct(c.not_fresh_pct)+') sem verificação nos últimos 7 dias; o mais antigo foi verificado há '+c.days_since_oldest_check+' dias. Atualize o catálogo.');
+  if(n(c.never_checked_listings)>0&&c.freshness!=='SEM_INFORMACAO')actions.push(num(c.never_checked_listings)+' anúncio(s) nunca foram verificados.');
   return {id:'catalog',title:'Catálogo de anúncios',lastUpdate:c.last_checked_at||null,
     dims:[dim('Atualização',FRESHNESS,c.freshness)],
-    lines:[['Anúncios cadastrados',num(c.listings)],['Última verificação',c.last_checked_at?fmtDate(c.last_checked_at):'—'],['Nunca verificados',num(c.listings_never_checked)]],
-    details:[],notes:['O cadastro tem só anúncios ativos.'],actions};
+    lines:[['Anúncios no catálogo do GA',num(c.listings)],['Verificados nos últimos 7 dias',num(c.fresh_listings)],
+      ['Desatualizados (verificação > 7 dias)',num(c.stale_listings)],['Nunca verificados',num(c.never_checked_listings)],
+      ['Sem verificação recente (total)',n(c.listings)?num(c.not_fresh_listings)+' ('+pct(c.not_fresh_pct)+')':'—'],
+      ['Verificação mais recente',c.last_checked_at?fmtDate(c.last_checked_at):'—'],['Verificação mais antiga',c.oldest_checked_at?fmtDate(c.oldest_checked_at):'—']],
+    details:[],notes:[c.note||'A data mais recente não prova que o catálogo inteiro está atualizado.'],actions};
 }
 
 export function priceStockCard(data){
   const p=data?.price_stock||{};const reg=p.registered_price||{};const rea=p.realized_price||{};const stk=p.stock||{};
-  const label=s=>s==='DISPONIVEL'?'Disponível':s==='DISPONIVEL_FOTO'?'Disponível (foto do catálogo)':'Sem informação';
+  const label=(s,photo)=>s==='DISPONIVEL'?'Disponível':s==='DISPONIVEL_FOTO'?'Foto disponível'+(photo?' (declarado)':''):s==='PARCIAL'?'Cobertura parcial':s==='SEM_VALOR_VALIDO'?'Sem valor válido':'Sem informação';
+  const tone=s=>s==='SEM_INFORMACAO'||s==='SEM_VALOR_VALIDO'?'none':s==='PARCIAL'?'warn':s==='DISPONIVEL'?'ok':'info';
   const actions=[];
   if(reg.status==='SEM_INFORMACAO')actions.push('Preço cadastrado e estoque não existem para esta plataforma; não há ação possível nesta versão.');
+  if(reg.status==='SEM_VALOR_VALIDO')actions.push('As variações existem, mas nenhuma tem preço válido. Atualize o catálogo antes de usar.');
+  if(reg.status==='PARCIAL')actions.push(num(reg.variations_without_valid_price)+' variação(ões) sem preço válido.');
+  if(stk.status==='SEM_VALOR_VALIDO')actions.push('Nenhuma variação tem valor de estoque válido.');
+  if(stk.status==='PARCIAL')actions.push(num(stk.variations_without_valid_stock)+' variação(ões) sem estoque válido.');
+  if(stk.possibly_nominal)actions.push('O valor '+stk.most_common_value+' se repete em '+pct(stk.most_common_share_pct)+' das variações: indício de estoque nominal. Não use como estoque real.');
   return {id:'price-stock',title:'Preço e estoque',lastUpdate:reg.snapshot_last_checked_at||null,
-    dims:[{label:'Preço cadastrado',value:label(reg.status),tone:reg.status==='SEM_INFORMACAO'?'none':'info'},{label:'Preço realizado',value:label(rea.status),tone:rea.status==='SEM_INFORMACAO'?'none':'ok'},{label:'Estoque',value:label(stk.status),tone:stk.status==='SEM_INFORMACAO'?'none':'info'}],
-    lines:[['Variações com preço cadastrado',reg.status==='SEM_INFORMACAO'?'—':num(reg.variations_with_price)+' de '+num(reg.variations)],
-      ['Anúncios com preço realizado no período',num(rea.listings_with_units)],['Variações com estoque na foto',stk.status==='SEM_INFORMACAO'?'—':num(stk.variations_with_stock)]],
+    dims:[{label:'Preço cadastrado',value:label(reg.status,true),tone:tone(reg.status)},{label:'Preço realizado',value:label(rea.status),tone:tone(rea.status)},{label:'Estoque (valor declarado)',value:label(stk.status,true),tone:stk.possibly_nominal?'warn':tone(stk.status)}],
+    lines:[['Variações na foto do catálogo',reg.variations==null?'—':num(reg.variations)],
+      ['Com preço válido',reg.variations_with_price==null?'—':num(reg.variations_with_price)],
+      ['Com estoque válido',stk.variations_with_stock==null?'—':num(stk.variations_with_stock)],
+      ['Anúncios com preço realizado no período',rea.listings_with_units==null?'—':num(rea.listings_with_units)]],
     details:[],notes:[reg.note,rea.note,stk.note].filter(Boolean),actions};
 }
 
@@ -140,9 +172,9 @@ export function batchesCard(data){
   const b=data?.open_batches||[];
   return {id:'batches',title:'Importações abertas',lastUpdate:null,
     dims:[{label:'Situação',value:b.length?b.length+' aberta(s)':'Nenhuma',tone:b.length?'warn':'ok'}],
-    lines:b.map(x=>[x.file,'lote '+x.batch_id+' · '+num(x.rows)+' linhas · '+(x.status==='STAGED'?'lida, não aplicada':x.status)]),
+    lines:b.map(x=>[x.file,'lote '+x.batch_id+' · '+num(x.rows)+' linhas · '+(x.status==='STAGED'?'lida, não aplicada':x.status)+(x.data_through?' · dados até '+fmtDate(x.data_through):'')]),
     details:[],notes:[],
-    actions:b.length?['Estes arquivos foram lidos e não aplicados. Aplique ou descarte pela tela de importações; esta tela não altera nada.']:[]};
+    actions:b.length?['Analise cada arquivo antes de decidir: período, se é parte de um arquivo maior ou relatório antigo, e se substitui dados mais novos. Não aplique relatório antigo nem parte pendente sem essa análise. Descartar também é decisão sua, depois da análise; esta tela não altera nada.']:[]};
 }
 
 export function buildCards(data){

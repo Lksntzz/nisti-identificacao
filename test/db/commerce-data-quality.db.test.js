@@ -30,7 +30,8 @@ create table public.commerce_ml_performance_reports_v1 (id bigserial primary key
 insert into public.commerce_marketplaces(code) values ('SHOPEE'), ('MERCADO_LIVRE');
 create or replace function public.commerce_shopee_reconciliation_v1(p_start date, p_end date, p_limit integer)
 returns jsonb language sql stable as $$ select jsonb_build_object('status','COMPLETO',
-  'reconciled_pct', jsonb_build_object('revenue', 99.88), 'difference', jsonb_build_object('explained', true),
+  'reconciled_pct', jsonb_build_object('revenue', 99.88),
+  'difference', jsonb_build_object('units', -2, 'revenue', -109.80, 'explained', true, 'residual_units', 0, 'residual_revenue', 0),
   'coverage', jsonb_build_object('source_missing_days', 0), 'unmatched_skus', jsonb_build_array(jsonb_build_object('sku_norm','X'))) $$;
 `;
 
@@ -135,7 +136,8 @@ withDq('conciliação GA-019 é repassada e uma divergência no resumo aparece c
 
 withDq('GA-011 é repassada para a Shopee; lista de SKUs só no detalhe', async (db) => {
   const a = await dqSimple(db);
-  assert.equal(a.ga011_shopee.status, 'COMPLETO');
+  assert.equal(a.ga011_shopee.coverage_status, 'COMPLETO');
+  assert.equal(a.ga011_shopee.reconciliation_status, 'CONCILIADO_INTERNAMENTE');
   assert.equal(a.ga011_shopee.unmatched_sku_count, 1);
   assert.equal(a.ga011_shopee.unmatched_skus, null);
   const d = await db.dq('SHOPEE', '2026-10-01', '2026-10-02', true);
@@ -147,17 +149,90 @@ async function dqSimple(db) {
   return db.dq('SHOPEE', '2026-10-01', '2026-10-02');
 }
 
-withDq('pedidos únicos: chave verificável é exata; mês legado sem chaves é informado e não verificado', async (db) => {
+withDq('pedidos únicos: separa chave, resumo histórico, cobertura parcial e sem informação; contagem é por dia', async (db) => {
   const a = await stage(db, { file: 'a.xlsx', created: T('2026-10-10'), days: {
     '2026-10-01': [day('AAA', 2, 20, ['o1', 'o2'])], '2026-10-02': [day('AAA', 1, 10, ['o2'])] } });
   await commit(db, a);
   await seedLegacyShopee(db, { month: '2026-08', through: '2026-08-10', days: { '2026-08-01': [day('ZZZ', 1, 5, ['x1'])] }, blockOrders: 7, committedAt: T('2026-08-12') });
   const r = await db.dq('SHOPEE', '2026-08-01', '2026-10-31');
   const by = Object.fromEntries(r.sales.orders.map((o) => [o.month, o]));
-  assert.equal(by['2026-10-01'].orders, 3, 'GA-019 conta pedido por dia: o2 aparece em dois dias'); assert.equal(by['2026-10-01'].verified, true);
-  assert.equal(by['2026-08-01'].verified, true, 'bloco legado único é aceito pela GA-019');
-  assert.equal(by['2026-09-01'].orders, 0, 'mês sem nenhum dado: GA-019 devolve 0 pedidos e a cobertura diária acusa os dias como sem informação');
-  assert.ok(r.sales.days_without_information > 0);
+  assert.equal(by['2026-10-01'].orders, 3, 'GA-019 conta por dia: o2 aparece em dois dias');
+  assert.equal(by['2026-10-01'].basis, 'CHAVE'); assert.equal(by['2026-10-01'].verified_by_key, true);
+  assert.equal(by['2026-10-01'].coverage, 'PARCIAL', 'só 2 de 31 dias do mês têm dado');
+  assert.equal(by['2026-10-01'].days_by_key, 2); assert.equal(by['2026-10-01'].days_expected, 31);
+  assert.equal(by['2026-08-01'].basis, 'RESUMO_HISTORICO'); assert.equal(by['2026-08-01'].verified_by_key, false);
+  assert.equal(by['2026-08-01'].orders, 7, 'número informado no resumo, não verificado por chave');
+  assert.equal(by['2026-09-01'].basis, 'SEM_INFORMACAO'); assert.equal(by['2026-09-01'].orders, null, 'mês sem dado não vira 0');
+  assert.equal(by['2026-09-01'].coverage, 'SEM_INFORMACAO');
+  assert.match(r.sales.orders_note, /POR DIA/); assert.match(r.sales.months_scope_note, /MESES INTEIROS/);
+});
+
+withDq('pedidos únicos: mês com dias por chave e dias por resumo é MISTO e nunca verificado por chave', async (db) => {
+  await seedLegacyShopee(db, { month: '2026-08', through: '2026-08-10', days: { '2026-08-01': [day('ZZZ', 1, 5, ['x1'])] }, blockOrders: 7, committedAt: T('2026-08-12') });
+  const a = await stage(db, { file: 'a.xlsx', created: T('2026-09-10'), days: { '2026-08-20': [day('AAA', 1, 10, ['o1'])] } });
+  await commit(db, a);
+  const o = (await db.dq('SHOPEE', '2026-08-01', '2026-08-31')).sales.orders.find((x) => x.month === '2026-08-01');
+  assert.equal(o.basis, 'MISTO'); assert.equal(o.verified_by_key, false);
+  assert.equal(o.days_by_key, 1); assert.equal(o.days_by_summary, 1);
+});
+
+withDq('GA-011: COMPLETO é cobertura; resíduo ou diferença não explicada impede conciliação aprovada', async (db) => {
+  await db.q(`create or replace function public.commerce_shopee_reconciliation_v1(p_start date, p_end date, p_limit integer)
+    returns jsonb language sql stable as $$ select jsonb_build_object('status','COMPLETO','reconciled_pct', jsonb_build_object('revenue', 99),
+    'difference', jsonb_build_object('explained', false, 'residual_units', 3, 'residual_revenue', 12.5), 'coverage', jsonb_build_object('source_missing_days', 0),
+    'unmatched_skus', '[]'::jsonb) $$`);
+  const r = (await db.dq('SHOPEE', '2026-10-01', '2026-10-02')).ga011_shopee;
+  assert.equal(r.coverage_status, 'COMPLETO');
+  assert.equal(r.reconciliation_status, 'DIVERGENTE');
+  assert.equal(r.residual_units, 3); assert.equal(Number(r.residual_revenue), 12.5);
+  await db.q(`create or replace function public.commerce_shopee_reconciliation_v1(p_start date, p_end date, p_limit integer)
+    returns jsonb language sql stable as $$ select jsonb_build_object('status','COMPLETO','difference', jsonb_build_object('explained', true, 'residual_units', 0, 'residual_revenue', 0.4)) $$`);
+  assert.equal((await db.dq('SHOPEE', '2026-10-01', '2026-10-02')).ga011_shopee.reconciliation_status, 'DIVERGENTE', 'explicada mas com resíduo de receita');
+  await db.q(`create or replace function public.commerce_shopee_reconciliation_v1(p_start date, p_end date, p_limit integer)
+    returns jsonb language sql stable as $$ select jsonb_build_object('status','SEM_DADOS') $$`);
+  assert.equal((await db.dq('SHOPEE', '2026-10-01', '2026-10-02')).ga011_shopee.reconciliation_status, 'SEM_INFORMACAO');
+});
+
+withDq('ML sem nenhuma venda no período: SEM_INFORMACAO, sem totais zerados', async (db) => {
+  const r = await db.dq('ML_ANTIGO', '2026-10-01', '2026-10-05');
+  assert.equal(r.ml_unlinked_sales.severity, 'SEM_INFORMACAO');
+  assert.equal(r.ml_unlinked_sales.total_units, undefined);
+  assert.equal(r.ml_unlinked_sales.total_revenue, undefined);
+  assert.equal(r.price_stock.realized_price.listings_with_units, null);
+});
+
+withDq('catálogo: situação por anúncio, com quantidade e percentual; a data mais recente não basta', async (db) => {
+  const sh = (await db.one(`select id from commerce_marketplaces where code='SHOPEE'`)).id;
+  await db.q(`insert into commerce_listings(marketplace_id, external_listing_id, last_checked_at) values
+    ($1,'S1', now()), ($1,'S2', now() - interval '20 days'), ($1,'S3', now() - interval '9 days'), ($1,'S4', null)`, [sh]);
+  const c = (await db.dq('SHOPEE', iso(-3), iso(0))).catalog;
+  assert.equal(c.listings, 4); assert.equal(c.fresh_listings, 1); assert.equal(c.stale_listings, 2); assert.equal(c.never_checked_listings, 1);
+  assert.equal(c.not_fresh_listings, 3); assert.equal(Number(c.not_fresh_pct), 75);
+  assert.equal(c.freshness, 'PARCIALMENTE_DESATUALIZADO', 'um anúncio recente não torna o catálogo todo atualizado');
+  assert.equal(c.days_since_oldest_check, 20);
+  assert.doesNotMatch(c.note, /só anúncios ativos/);
+  assert.match(c.note, /não garante que todos sejam ativos/);
+});
+
+withDq('preço e estoque: sem valor válido, parcial e foto disponível; estoque repetido é indício de nominal e nunca estoque real', async (db) => {
+  const sh = (await db.one(`select id from commerce_marketplaces where code='SHOPEE'`)).id;
+  const ins = (id, vars) => db.q(`insert into commerce_listings(marketplace_id, external_listing_id, last_checked_at, raw_metadata) values ($1,$2, now(), $3::jsonb)`,
+    [sh, id, JSON.stringify({ shopee_sales_info: { variations: vars } })]);
+  await ins('A', [{ price: '0', stock: 'x' }, { price: null, stock: null }]);
+  let r = (await db.dq('SHOPEE', iso(-3), iso(0))).price_stock;
+  assert.equal(r.registered_price.status, 'SEM_VALOR_VALIDO'); assert.equal(r.stock.status, 'SEM_VALOR_VALIDO');
+  await ins('B', [{ price: '10.50', stock: '3' }]);
+  r = (await db.dq('SHOPEE', iso(-3), iso(0))).price_stock;
+  assert.equal(r.registered_price.status, 'PARCIAL'); assert.equal(r.registered_price.variations_without_valid_price, 2);
+  assert.equal(r.stock.status, 'PARCIAL');
+  await db.q(`delete from commerce_listings where external_listing_id = 'A'`);
+  r = (await db.dq('SHOPEE', iso(-3), iso(0))).price_stock;
+  assert.equal(r.registered_price.status, 'DISPONIVEL_FOTO'); assert.equal(r.stock.status, 'DISPONIVEL_FOTO');
+  assert.equal(r.stock.is_real_stock, false); assert.equal(r.stock.real_time, false); assert.equal(r.stock.possibly_nominal, false, 'só 1 variação: sem indício');
+  const many = Array.from({ length: 12 }, (_, i) => ({ price: '5', stock: i < 9 ? '4999' : String(i) }));
+  await ins('C', many);
+  r = (await db.dq('SHOPEE', iso(-3), iso(0))).price_stock;
+  assert.equal(r.stock.most_common_value, '4999'); assert.equal(r.stock.possibly_nominal, true); assert.equal(r.stock.is_real_stock, false);
 });
 
 withDq('relatórios: período informado nunca é cobertura diária; sobrepostos são contados; sem relatório = SEM_INFORMACAO', async (db) => {
@@ -212,7 +287,7 @@ withDq('catálogo: > 7 dias é desatualizado; sem verificação é SEM_INFORMACA
   assert.equal((await db.dq('SHOPEE', iso(-3), iso(0))).catalog.freshness, 'DESATUALIZADO');
   assert.equal((await db.dq('ML_ANTIGO', iso(-3), iso(0))).catalog.freshness, 'ATUALIZADO');
   const n = (await db.dq('ML_NOVO', iso(-3), iso(0))).catalog;
-  assert.equal(n.freshness, 'SEM_INFORMACAO'); assert.equal(n.listings_never_checked, 1);
+  assert.equal(n.freshness, 'SEM_INFORMACAO'); assert.equal(n.never_checked_listings, 1);
 });
 
 withDq('preço cadastrado, preço realizado e estoque são separados; estoque é foto, não tempo real', async (db) => {

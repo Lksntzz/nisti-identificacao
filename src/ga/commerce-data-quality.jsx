@@ -1,7 +1,8 @@
 import React,{useEffect,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import './commerce-data-quality.css';
-import {PLATFORMS,PLATFORM_SHORT,buildCards,presetPeriod,validPeriod,fmtDate} from './commerce-data-quality-logic.js';
+import {usePrivacy} from './commerce-privacy.js';
+import {PLATFORMS,PLATFORM_SHORT,buildCards,presetPeriod,validPeriod,fmtDate,requestKey,isCurrentResult} from './commerce-data-quality-logic.js';
 
 // GA-018 — Central de Qualidade dos Dados (somente leitura; nada aqui altera dados).
 export default function CommerceDataQuality(){
@@ -10,22 +11,29 @@ export default function CommerceDataQuality(){
   const [start,setStart]=useState(initial.start);
   const [end,setEnd]=useState(initial.end);
   const [detail,setDetail]=useState(false);
-  const [data,setData]=useState(null);
+  usePrivacy(); // reavalia os valores em R$ quando o modo privacidade do GA liga/desliga
+  const [result,setResult]=useState(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [tick,setTick]=useState(0);
   const periodError=validPeriod(start,end);
+  const key=requestKey(platform,start,end,detail);
   useEffect(()=>{
+    // Ao mudar plataforma/período/detalhe, o resultado anterior some na hora: nunca fica na tela como se fosse do novo pedido.
+    setResult(null);setError('');
     if(periodError){setLoading(false);return undefined;}
     const controller=new AbortController();
-    setLoading(true);setError('');
+    setLoading(true);
     fetchCommercialManager('/api/admin/commerce/data-quality?platform='+platform+'&start='+start+'&end='+end+(detail?'&detail=1':''),{signal:controller.signal})
-      .then(setData).catch(e=>{if(!controller.signal.aborted)setError(e.message||'Não foi possível carregar a qualidade dos dados.');})
+      .then(d=>{if(!controller.signal.aborted)setResult({key,data:d});})
+      .catch(e=>{if(!controller.signal.aborted){setResult(null);setError(e.message||'Não foi possível carregar a qualidade dos dados.');}})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return()=>controller.abort();
-  },[platform,start,end,detail,tick,periodError]);
+  },[key,tick,periodError]);
   const preset=p=>{const r=presetPeriod(p);setStart(r.start);setEnd(r.end);};
-  const cards=buildCards(data&&data.platform===platform?data:null);
+  const fresh=!periodError&&!loading&&!error&&isCurrentResult(result,key);
+  const data=fresh?result.data:null;
+  const cards=buildCards(data);
   return <section className="ndq-root" aria-label="Qualidade dos dados">
     <div className="ndq-toolbar">
       <label>Plataforma
@@ -47,7 +55,7 @@ export default function CommerceDataQuality(){
     {periodError&&<p className="ndq-error">{periodError}</p>}
     {error&&<p className="ndq-error" role="alert">{error}</p>}
     {loading&&<p className="ndq-loading">Carregando…</p>}
-    {data&&!loading&&!error&&<p className="ndq-meta">{PLATFORM_SHORT[data.platform]} · {fmtDate(data.period?.start)} a {fmtDate(data.period?.end)} · consultado agora{data.response_ms!=null?' em '+data.response_ms+' ms':''}</p>}
+    {data&&<p className="ndq-meta">{PLATFORM_SHORT[data.platform]} · {fmtDate(data.period?.start)} a {fmtDate(data.period?.end)} · consultado agora (conciliação e pedidos mensais usam meses inteiros){data.response_ms!=null?' em '+data.response_ms+' ms':''}</p>}
     <div className="ndq-grid">
       {cards.map(c=><article key={c.id} className="ndq-card">
         <header><h4>{c.title}</h4>{c.lastUpdate&&<span className="ndq-last">Última data: {fmtDate(c.lastUpdate)||'—'}</span>}</header>
