@@ -49,6 +49,7 @@ import {
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
   commerceDataQuality,
+  commerceStrategicViewV1,
   commerceSalesDashboardV1,
   commerceDashboardAbcV2,commerceDashboardShippingSplitV1,commerceAppendShopeeFullDailyV1,commerceAppendShopeeOrderExtrasV1,
   commerceSalesDashboardSeriesV1,
@@ -747,6 +748,14 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!PERIOD_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardV1(env,{platform,days,month}));
+    }
+    // GA-013 — Visão estratégica por conta (somente leitura). Fora de /sales-dashboard/: nunca entra no cache de borda.
+    if(method==='GET'&&pathname===BASE_PATH+'/strategic-view'){
+      const platform=String(query(url,'platform')||'').toUpperCase();
+      const days=Number(query(url,'days')||7);
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
+        return json({error:'Filtro da Visão estratégica inválido.'},400);
+      return json(await commerceStrategicViewV1(env,{platform,days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/data-quality'){
       const platform=String(query(url,'platform')||'').toUpperCase();

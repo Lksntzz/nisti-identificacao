@@ -8,6 +8,7 @@ import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
 import CommerceDataQuality from './commerce-data-quality.jsx';
+import CommerceStrategicView from './commerce-strategic-view.jsx';
 import CommerceProblems from './commerce-problems.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { usePrivacy, setPrivate } from './commerce-privacy.js';
@@ -22,6 +23,7 @@ if (IS_GA && typeof document !== 'undefined') document.title = 'GA - Gestor de A
 
 const NAV_ITEMS = Object.freeze([
   { id: 'dashboard', label: 'Dashboard', icon: 'chart' },
+  { id: 'strategic', label: 'Visão estratégica', icon: 'chart' },
   { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },
   { id: 'planning', label: 'Planejamento de Produtos', icon: 'package' },
   { id: 'imports', label: 'Histórico de importações', icon: 'list' },
@@ -35,6 +37,7 @@ const COMMERCIAL_SUBITEMS = Object.freeze([
 
 const VIEW_TITLES = Object.freeze({
   dashboard: 'Dashboard',
+  strategic: 'Visão estratégica',
   catalog: 'Painel Comercial',
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
@@ -348,6 +351,7 @@ export default function CommerceAdminAppV2() {
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'dashboard' && <CommerceDashboard onOpenQuality={() => setActiveView('quality')} onOpenTab={openPerformance} onOpenProblems={(f) => { setProblemsFilter({ ...(f || {}), nonce: Date.now() }); setActiveView('why'); }} onOpenCategories={() => { setCommercialView('categories'); setActiveView('catalog'); }} />}
             {activeView === 'imports' && <CommerceImportHistory />}
+            {activeView === 'strategic' && <CommerceStrategicView />}
             {activeView === 'quality' && <CommerceDataQuality />}
             {activeView === 'why' && <CommerceProblems key={problemsFilter?.nonce || 'menu'} initialFilter={problemsFilter} />}
           </div>

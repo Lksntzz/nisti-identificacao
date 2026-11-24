@@ -1,5 +1,6 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
 import { supabaseRpc as directSupabaseRpc } from '../core/supabase-read-store.js';
+import { isStrategicPlatform, STRATEGIC_DAYS, strategicPeriods, buildStrategicView } from './commerce-strategic-logic.js';
 
 function cleanText(value) {
   const text = String(value ?? '').trim();
@@ -1431,4 +1432,45 @@ export async function commerceAppendShopeeFullDailyV1(env, batchId, rows = []) {
   return Number(await supabaseRpc(env, 'commerce_append_shopee_full_daily_v1', {
     p_batch_id: id, p_rows: rows
   }, { timeoutMs: 10000 }) || 0);
+}
+
+// GA-013 — Visão estratégica por conta. Somente leitura, SEM cache de borda (a cobertura da GA-018 nunca é cacheada).
+// Reúne funções que já existem; as regras de cobertura ficam em commerce-strategic-logic.js. Parte que falhar vira
+// "indisponível" na resposta (sem detalhe interno) e não derruba o resto.
+export async function commerceShopeeSalesLinkSplit(env,{start,end}={}) {
+  const data=await supabaseRpc(env,'commerce_shopee_sales_link_split_v1',{p_start:start,p_end:end},{timeoutMs:25000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
+}
+const STRATEGIC_MAX_HISTORY_DAYS=1099;
+export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) {
+  if(!isStrategicPlatform(platform)||!STRATEGIC_DAYS.includes(Number(days)))throw new Error('Filtro da Visão estratégica inválido.');
+  const d=deps||{
+    dashboard:commerceSalesDashboardV1,overview:commerceSalesDashboardOverviewV1,monthly:commerceSalesDashboardMonthlyV1,
+    series:commerceSalesDashboardSeriesV1,categories:commerceCategories,shopeePerf:commerceShopeePerformanceLatest,
+    mlPerf:commerceMlPerformanceLatest,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit
+  };
+  const n=Number(days),failed=[];
+  const settle=async(name,fn)=>{try{return await fn();}catch{if(!failed.includes(name))failed.push(name);return null;}};
+  const [dash,overview,monthly,series,categories,shopeePerf,mlPerf]=await Promise.all([
+    settle('dashboard',()=>d.dashboard(env,{platform,days:n})),
+    settle('overview',()=>d.overview(env,{platform,days:n})),
+    settle('monthly',()=>d.monthly(env,{platform})),
+    settle('series',()=>d.series(env,{platform,days:n})),
+    settle('categories',()=>d.categories(env,{platform,mode:'days',days:n})),
+    platform==='SHOPEE'?settle('performance',()=>d.shopeePerf(env)):Promise.resolve(null),
+    platform!=='SHOPEE'?settle('performance',()=>d.mlPerf(env)):Promise.resolve(null)
+  ]);
+  const periods=strategicPeriods(dash);
+  let dqCurrent=null,dqPrevious=null,dqHistory=null,split=null;
+  if(periods){
+    const q=period=>settle('quality',()=>d.quality(env,{platform,start:period.start,end:period.end}));
+    const spanDays=(Date.parse(periods.history.end)-Date.parse(periods.history.start))/86400000+1;
+    [dqCurrent,dqPrevious,dqHistory,split]=await Promise.all([
+      q(periods.current),q(periods.previous),
+      spanDays<=STRATEGIC_MAX_HISTORY_DAYS?q(periods.history):Promise.resolve(null),
+      platform==='SHOPEE'?settle('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null)
+    ]);
+  }
+  return buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,
+    perf:{shopee:shopeePerf,ml:mlPerf},failed,periods});
 }

@@ -1,0 +1,38 @@
+.nsv-root{display:flex;flex-direction:column;gap:14px}
+.nsv-root *{overflow-wrap:anywhere}
+.nsv-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.nsv-seg{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:#eef2f8;border:1px solid #dde4f0}
+.nsv-seg button{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:0 13px;border:0;border-radius:9px;background:transparent;font-size:13px;font-weight:700;color:#475569;cursor:pointer}
+.nsv-seg button i{width:9px;height:9px;border-radius:50%;background:var(--c,#64748b)}
+.nsv-seg button.is-active{background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.nsv-refresh,.nsv-link{min-height:32px;padding:0 12px;border:1px solid #d5dbe8;border-radius:10px;background:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.nsv-link{margin-top:8px}
+.nsv-note{margin:0;font-size:12px;color:#64748b}
+.nsv-error{margin:0;padding:10px 14px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px}
+.nsv-warn{margin:0;padding:9px 12px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:12px}
+.nsv-empty{margin:0;font-size:13px;color:#64748b}
+.nsv-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.nsv-kpis>div{display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:12px;background:#fff;border:1px solid #e6eaf2}
+.nsv-kpis span{font-size:11px;font-weight:700;color:#64748b}
+.nsv-kpis strong{font-size:20px;color:#0f172a;font-variant-numeric:tabular-nums}
+.nsv-kpis small{font-size:11px;color:#64748b}
+.nsv-unv{color:#92400e!important}
+.nsv-block{background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.nsv-block h3{margin:0;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#52637b}
+.nsv-block h4{margin:6px 0 2px;font-size:12px;color:#64748b}
+.nsv-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.nsv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.nsv-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #edf0f5;font-size:13px}
+.nsv-row:first-child{border-top:0}
+.nsv-row small{display:block;color:#64748b;font-size:11px}
+.nsv-nums{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nsv-tag{font-style:normal;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#475569;white-space:normal;text-align:right}
+.nsv-tag.is-crescimento{background:#dcfce7;color:#166534}.nsv-tag.is-queda,.nsv-tag.is-parou{background:#fee2e2;color:#991b1b}
+.nsv-tag.is-sem_classificacao,.nsv-tag.is-sem_vendas_historico_nao_verificado{background:#fef3c7;color:#92400e}
+.nsv-bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto}
+.nsv-bars li{display:grid;grid-template-columns:78px 1fr 48px;align-items:center;gap:8px;font-size:11px;color:#475569}
+.nsv-bars i{height:8px;border-radius:4px;background:#93b4e8;display:block}
+.nsv-bars b{text-align:right;font-variant-numeric:tabular-nums}
+.nsv-dl{margin:0;display:grid;gap:6px}.nsv-dl>div{display:flex;justify-content:space-between;font-size:13px}
+.nsv-dl dt{color:#64748b}.nsv-dl dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:900px){.nsv-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.nsv-two{grid-template-columns:1fr}}
