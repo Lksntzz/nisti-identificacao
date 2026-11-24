@@ -38,6 +38,6 @@ test('backup PostgreSQL enviado ao Drive é criptografado e tem limite conservad
   assert.match(backup, /await encryptDump\(result\.archive,encrypted,passphrase\)/);
   assert.match(backup, /await validateEncryptedDump\(encrypted,passphrase\)/);
   assert.match(backup, /await rm\(directory,\{recursive:true,force:true\}\)/);
-  assert.match(local, /MAX_SAFE_DEFAULT_MB=100/);
+  assert.match(local, /MAX_SAFE_DEFAULT_MB=300/);
   assert.match(local, /includesR2Images:false/);
 });

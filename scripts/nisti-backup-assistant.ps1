@@ -83,7 +83,7 @@ try {
   $env:PGSSLMODE = 'require'
   $env:PGPASSWORD = $dbPassword
   $env:NISTI_BACKUP_PASSPHRASE = $backupPassword
-  $env:NISTI_BACKUP_MAX_MB = '100'
+  $env:NISTI_BACKUP_MAX_MB = '300'
   $dbPassword = $null
   $backupPassword = $null
 

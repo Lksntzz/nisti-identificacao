@@ -38,7 +38,7 @@ test('all five import types use the same import window, not different implementa
 
 test('import flows still use real readers and existing client actions',()=>{
   assert.match(center,/readCommerceXlsx\(file, catalogPlatform/);
-  assert.match(center,/readCommerceSalesXlsx\(file, salesPlatform, salesMonth\)/);
+  assert.match(center,/readCommerceSalesXlsx\(file, salesPlatform\)/);
   assert.match(center,/mode==='ads'&&<CommerceShopeeAdsImport/);
   assert.match(center,/mode==='aftercare'&&<CommerceShopeeAftercareImport/);
   assert.match(center,/onCatalogChanged\?\.\(\)/);

@@ -39,6 +39,9 @@ async function requestJson(path, options = {}) {
   }
 }
 
+// Lotes de referências de pedido: o servidor calcula o HMAC (síncrono) e o plano gratuito limita a CPU por requisição.
+const ORDER_REF_CHUNK_SIZE = 500;
+
 function chunks(rows, size = CHUNK_SIZE) {
   const result = [];
   for (let index = 0; index < rows.length; index += size) {
@@ -234,8 +237,13 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
   const dailySkuRows = Array.isArray(parsedWorkbook?.sku_daily_rows) ? parsedWorkbook.sku_daily_rows : [];
   const financeDaily=Array.isArray(parsedWorkbook?.finance_daily_rows)?parsedWorkbook.finance_daily_rows:[];
   const financeMonths=Array.isArray(parsedWorkbook?.finance_month_rows)?parsedWorkbook.finance_month_rows:[];
+  const orderRefs = Array.isArray(parsedWorkbook?.order_refs) ? parsedWorkbook.order_refs : [];
   if (!parsedWorkbook?.platform_code || !parsedWorkbook?.filename || !parsedWorkbook?.sha256 || !rows.length) {
     throw new Error('Arquivo de vendas normalizado incompleto.');
+  }
+  // Importação por dia: sem os identificadores dos pedidos não dá para contar pedidos únicos. Nunca estimar.
+  if (!orderRefs.length) {
+    throw new Error('Arquivo preparado no formato antigo (sem identificadores de pedido). Atualize a página (Ctrl+F5) e leia o arquivo de novo.');
   }
 
   onProgress({ phase: 'create', completed: 0, total: rows.length });
@@ -279,6 +287,27 @@ export async function stageCommerceSalesWorkbook(parsedWorkbook, onProgress = ()
       retryRateLimit: true
       });
     }
+  }
+
+  // Data de geração do arquivo: decide se o último dia está completo e se o relatório é mais antigo que o já importado.
+  if (!parsedWorkbook.file_modified_at) {
+    throw new Error('Não foi possível ler a data de geração do arquivo. Importe o arquivo original, sem copiar ou renomear por outro programa.');
+  }
+  await requestJson(`${API_BASE}/sales/imports/${batchId}/meta`, {
+    method: 'POST',
+    body: JSON.stringify({ generated_at: parsedWorkbook.file_modified_at }),
+    retryRateLimit: true
+  });
+
+  // Pedidos únicos por dia: o navegador só repassa (dia + número) por HTTPS; o SERVIDOR transforma em chave HMAC com
+  // segredo próprio e grava só a chave. O número real nunca é guardado.
+  onProgress({ phase: 'orders', completed, total: rows.length, batchId });
+  for (const chunk of chunks(orderRefs, ORDER_REF_CHUNK_SIZE)) {
+    await requestJson(`${API_BASE}/sales/imports/${batchId}/orders`, {
+      method: 'POST',
+      body: JSON.stringify({ platform: parsedWorkbook.platform_code, rows: chunk }),
+      retryRateLimit: true
+    });
   }
 
   // Save true listing-ID performance before activating the snapshot. Never

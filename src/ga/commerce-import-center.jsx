@@ -209,7 +209,7 @@ function SalesPreview({ parsed }) {
       <StatCard label="Pedidos líquidos" value={parsed ? brNumber(s.net_orders) : '—'} tone="blue" />
       <StatCard label="Unidades" value={parsed ? brNumber(s.units) : '—'} tone="green" />
       <StatCard label="Faturamento" value={parsed ? brCurrency(s.product_revenue) : '—'} tone="amber" />
-      <StatCard label={s.package_items_recovered != null ? 'Dias com vendas' : 'Períodos'}
+      <StatCard label="Dias com vendas"
         value={parsed ? brNumber(s.period_count) : '—'} tone="purple" />
       {s.package_items_recovered != null && (
         <div className="import-center-sales-validation" role="status">
@@ -539,7 +539,6 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
   const [deletingCatalogId, setDeletingCatalogId] = useState(null);
 
   const [salesPlatform, setSalesPlatform] = useState('SHOPEE');
-  const [salesMonth, setSalesMonth] = useState('');
   const [salesFile, setSalesFile] = useState(null);
   const [salesParsed, setSalesParsed] = useState(null);
   const [salesReading, setSalesReading] = useState(false);
@@ -804,7 +803,7 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
 
     setSalesReading(true);
     try {
-      setSalesParsed(await readCommerceSalesXlsx(file, salesPlatform, salesMonth));
+      setSalesParsed(await readCommerceSalesXlsx(file, salesPlatform));
     } catch (err) {
       setError(err.message || 'Não foi possível validar o relatório de vendas.');
     } finally {
@@ -824,7 +823,14 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
         const missing = Array.isArray(outcome.missing_parts) ? outcome.missing_parts.join(', ') : '';
         setMessage(`Parte recebida (${outcome.parts_received || '?'} de ${outcome.parts_expected || '?'}). Aguardando as demais partes${missing ? ': ' + missing : ''}. Nenhuma venda foi consolidada ainda.`);
       } else {
-        setMessage(`Vendas importadas. Snapshot #${outcome.snapshot_id || '—'} atualizado.`);
+        const rebuilt = Array.isArray(outcome.rebuilt_months) && outcome.rebuilt_months.length
+          ? ` Meses recalculados: ${outcome.rebuilt_months.join(', ')}.` : '';
+        const keptReason = { PARTIAL_DAY: 'dia parcial: já existe o dia completo salvo', STALE_FILE: 'arquivo mais antigo que o dado já salvo' };
+        const kept = Array.isArray(outcome.kept_days) && outcome.kept_days.length
+          ? ` ${outcome.kept_days.length} dia(s) já salvos foram mantidos: ${outcome.kept_days.map(item => `${item.date} (${keptReason[item.reason] || 'mantido'})`).join('; ')}.` : '';
+        const gaps = Array.isArray(outcome.days_without_records) && outcome.days_without_records.length
+          ? ` Atenção: ${outcome.days_without_records.length} dia(s) dentro do período não têm nenhum registro no arquivo (${outcome.days_without_records.slice(0, 8).join(', ')}${outcome.days_without_records.length > 8 ? '…' : ''}). Isso não prova que não houve venda: o arquivo pode estar filtrado ou incompleto. Nada foi apagado nem zerado nesses dias.` : '';
+        setMessage(`Vendas importadas. Snapshot #${outcome.snapshot_id || '—'} atualizado.${rebuilt}${kept}${gaps}`);
         onSalesChanged?.();
       }
       setSalesFile(null);
@@ -1090,20 +1096,6 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
                       {SALES_PLATFORMS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       {PENDING_SALES_PLATFORMS.map(([value, label]) => <option key={value} value={value} disabled>{label}</option>)}
                     </select>
-                  </label>
-                  <label>
-                    <span>Mês de referência, se necessário</span>
-                    <input
-                      className="import-center-input"
-                      type="month"
-                      value={salesMonth}
-                      disabled={salesReading || salesImporting}
-                      onChange={event => {
-                        setSalesMonth(event.target.value);
-                        setSalesParsed(null);
-                        setSalesProgress(null);
-                      }}
-                    />
                   </label>
                 </div>
                 <p className="import-center-sales-limits">Vendas: Shopee e Mercado Livre (Antigo/Novo) possuem leitores ativos. Amazon e TikTok exigem um exemplo do relatório para configurar o extrator sem atribuir dados incorretos.</p>

@@ -154,7 +154,7 @@ export async function backupEncryptedForDrive(folder,passphrase) {
   await chmod(directory,0o700);
   let encrypted=null,manifest=null,createdEncrypted=false,createdManifest=false;
   try{
-    // Uses existing 100 MB default DB size cap BEFORE any pg_dump.
+    // Uses existing 300 MB default DB size cap BEFORE any pg_dump.
     const result=await backup(directory);
     const name=path.basename(result.archive,'.dump');
     encrypted=path.join(destination,name+'.nisti.enc');
@@ -190,7 +190,7 @@ async function main() {
   const [action,arg1,arg2,arg3,arg4]=process.argv.slice(2);
   if(action==='plan'){
     console.log('Backup criptografado e privado para Google Drive, sem cobrança de serviços.');
-    console.log('Banco: execução manual com limite padrão de 100 MB, sem agendamento.');
+    console.log('Banco: execução manual com limite padrão de 300 MB, sem agendamento.');
     console.log('Aponte --output-dir para pasta PRIVADA local, ou Drive para computador já sincronizado.');
     console.log('Não salve a senha dentro do Google Drive; não envie .dump sem criptografia.');
     return;

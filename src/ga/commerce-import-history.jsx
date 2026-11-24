@@ -55,7 +55,7 @@ export default function CommerceImportHistory(){
       {coverage.map(c=>{const gaps=Number(c.days_without_sales)>0;return <article key={c.platform_code} className="nih-cover-card">
         <header><h4>{PLATFORM_LABEL[c.platform_code]||c.platform_code}</h4>
           <span className={'nih-cover-status '+(gaps?'is-warn':'is-ok')}>
-            {gaps?num(c.days_without_sales)+' dia(s) sem venda':'Sem dias faltando'}</span></header>
+            {gaps?num(c.days_without_sales)+' dia(s) sem registro':'Sem dias faltando'}</span></header>
         <p className="nih-cover-range">{fmtDate(c.first_day)} <span>até</span> {fmtDate(c.last_day)}</p>
         <dl><div><dt>Unidades</dt><dd>{num(c.units)}</dd></div><div><dt>Faturamento</dt><dd>{money(c.revenue)}</dd></div></dl>
       </article>;})}

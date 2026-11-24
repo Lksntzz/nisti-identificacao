@@ -10,8 +10,9 @@ test('importador de vendas reconhece cabeçalhos, período parcial e agrega por 
   assert.equal(reader.includes("'id do pedido'"), true);
   assert.equal(reader.includes("'quantidade'"), true);
   assert.equal(reader.includes("'faturamento'"), true);
-  assert.equal(reader.includes('periodBoundsForImport'), true);
-  assert.equal(reader.includes('(01-'), true);
+  // GA-019: linhas por dia (data real do pedido); o mês é montado no banco.
+  assert.equal(reader.includes('periodBoundsForImport'), false);
+  assert.equal(reader.includes('period_key: group.sale_date'), true);
   assert.equal(reader.includes('orders_with_item: group.orders.size'), true);
   assert.equal(reader.includes('product_revenue: Number(group.product_revenue.toFixed(2))'), true);
 });

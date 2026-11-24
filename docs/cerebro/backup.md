@@ -13,7 +13,7 @@ Esta nota junta e substitui três documentos que se repetiam (`BACKUP-GRATUITO-N
 4. Nunca digitar senhas no chat, em arquivo do repositório (é público) nem em script. O PowerShell pede por `Read-Host`, e as variáveis são apagadas no fim.
 5. Pastas do Drive privadas. Nunca compartilhar como "Qualquer pessoa com o link".
 6. Execução **manual**. O script não roda no Worker, não escreve no Supabase, não agenda nada e não envia a GitHub ou R2.
-7. Exportar consome egress (rede) da franquia gratuita. Por isso o script recusa bancos acima de **100 MB** (`NISTI_BACKUP_MAX_MB` aumenta até 500, só depois de checar a franquia mensal). Esse teto é preventivo, não mede a franquia real.
+7. Exportar consome egress (rede) da franquia gratuita. Por isso o script recusa bancos acima de **300 MB** por padrão (`NISTI_BACKUP_MAX_MB` aumenta até 500, só depois de checar a franquia mensal; o plano gratuito inclui 5 GB de rede por mês). Esse teto é preventivo, não mede a franquia real. Era 100 MB até 23/11/2026, quando o banco já tinha 202 MB; 300 MB deixa cerca de 50% de folga.
 8. Nunca restaurar sobre produção. Teste de restauração só em PostgreSQL isolado.
 
 ## O que o backup cobre
@@ -72,6 +72,56 @@ A pasta de destino precisa existir antes. No fim ficam só dois arquivos: `.nist
 
 `node scripts/nisti-free-backup.mjs backup --output-dir "C:\Backup-NISTI"` gera um `.dump` comprimido, valida com `pg_restore --list` e grava SHA-256. **Não é criptografado:** a pasta precisa ficar **fora do projeto GitHub e de qualquer pasta sincronizada**, em disco protegido (BitLocker ou equivalente), com espaço livre de pelo menos 2x o tamanho do banco. Nunca usar esse comando dentro da pasta do Drive. O arquivo pode conter dados sensíveis e credenciais de tabelas protegidas.
 
+## Teste de restauração em PostgreSQL isolado (Windows)
+
+Só isto prova que o backup serve. Faça **depois** de `verify` e `inspect`. O teste restaura numa cópia local do PostgreSQL, no seu computador, **nunca** no Supabase.
+
+**Regra de ouro:** use uma janela nova do PowerShell, sem nenhuma variável `PG...` definida na sessão do backup. Todo comando abaixo leva `-h localhost -p 5433`, para nunca apontar para o Supabase por engano.
+
+1. **Instalar o servidor local (uma vez).** Baixe o instalador do PostgreSQL 17 para Windows em postgresql.org → Download → Windows. Marque **PostgreSQL Server** e **Command Line Tools**; desmarque Stack Builder. Porta: **5433** (não a 5432). Crie uma senha **nova e só local** para o usuário `postgres` (não é a do Supabase; anote no gerenciador de senhas). No fim, o Windows passa a ter o serviço do PostgreSQL 17 rodando só neste computador.
+2. **Janela nova do PowerShell.** Confira que está falando com o seu computador:
+   ```powershell
+   Get-ChildItem Env:PG* | Format-Table      # deve vir vazio (se aparecer PGHOST, feche e abra outra janela)
+   psql -h localhost -p 5433 -U postgres -d postgres -c "select inet_server_addr(), current_setting('port')"
+   ```
+   Peça a senha local. O resultado deve mostrar `127.0.0.1` (ou `::1`) e a porta `5433`. Qualquer outro endereço: **pare**.
+3. **Criar uma pasta temporária** fora do projeto e fora do Drive, por exemplo `C:\Teste-Restauracao`. Ela vai guardar o `.dump` **sem criptografia**: apague no fim.
+4. **Descriptografar** (na raiz do projeto; digite a senha do backup quando o PowerShell pedir):
+   ```powershell
+   $s = Read-Host "Senha de criptografia do backup" -AsSecureString
+   $env:NISTI_BACKUP_PASSPHRASE = [System.Net.NetworkCredential]::new("", $s).Password
+   node scripts/nisti-drive-backup.mjs decrypt --file "CAMINHO\ARQUIVO.nisti.enc" --output-dir "C:\Teste-Restauracao"
+   Remove-Item Env:NISTI_BACKUP_PASSPHRASE
+   ```
+   Esperado: "Arquivo PostgreSQL recuperado localmente". "Senha incorreta ou backup inválido" = senha errada ou arquivo corrompido (também aparece como "Unsupported state or unable to authenticate data" nos comandos `verify` e `inspect`).
+5. **Restaurar:**
+   ```powershell
+   psql -h localhost -p 5433 -U postgres -d postgres -c "create database nisti_teste"
+   pg_restore -h localhost -p 5433 -U postgres -d nisti_teste --no-owner --no-acl "C:\Teste-Restauracao\ARQUIVO.dump" 2> "C:\Teste-Restauracao\erros.txt"
+   ```
+   Pode demorar alguns minutos. **Vão aparecer erros e isso é esperado**: o banco do Supabase usa extensões e papéis que o PostgreSQL comum não tem (`pg_cron`, `http`, `supabase_vault`, `anon`, `authenticated`...). Abra `erros.txt`: erros desse tipo (`extension ... is not available`, `role ... does not exist`, políticas de segurança) não importam para este teste. **Importa** é se existe erro em `COPY` ou `CREATE TABLE` de tabelas do `public`: nesse caso, guarde o arquivo e me envie as linhas (sem senhas).
+6. **Comparar com o banco de verdade.** Rode o bloco `restore-signature` (de [[ga-019-publicacao]], item 1 do backup) no SQL Editor do Supabase e o mesmo comando no banco restaurado (copie o SQL para um arquivo `assinatura.sql`):
+   ```powershell
+   psql -h localhost -p 5433 -U postgres -d nisti_teste -f assinatura.sql
+   ```
+   `tabelas`, `total_de_linhas` e `assinatura` têm de ser **idênticos** aos do Supabase tirados no momento do backup. Idêntico = os dados das 138 tabelas do `public` voltaram com o mesmo número de linhas.
+7. **Limpar:**
+   ```powershell
+   psql -h localhost -p 5433 -U postgres -d postgres -c "drop database nisti_teste"
+   Remove-Item -Recurse -Force "C:\Teste-Restauracao"
+   ```
+   Depois, marque "restauração de teste" no estado abaixo.
+
+**O que este teste prova e o que não prova:** prova que o arquivo é íntegro e que os dados das tabelas voltam completos. Não prova que um projeto Supabase novo ficaria idêntico (autenticação, extensões, funções do `cron`, permissões): numa catástrofe real, a restauração é num projeto Supabase novo, e isso ainda não foi ensaiado.
+
+## Pendência de infraestrutura: backup externo do banco (registrada em 24/11/2026)
+
+**Decisão do dono:** publicar a GA-019 **sem** o backup externo criptografado. Ele continua sendo uma pendência de infraestrutura do NISTI ID, sem data definida.
+
+- **O que cobre hoje:** só a cópia interna das 12 tabelas de vendas (`backup.pre_ga019__*`, conteúdo conferido linha a linha em 24/11/2026) e o backup semanal interno (`backup.take_snapshot_v1`, 4 versões, 12 tabelas do catálogo e vendas). Ambos ficam **dentro do mesmo banco do Supabase**.
+- **O que não cobre:** perda ou corrupção do projeto Supabase inteiro, erro de quem tem acesso ao banco, e as demais ~126 tabelas do `public` e os schemas `auth`/`storage`. Nada disso sobrevive fora do Supabase. O plano gratuito não tem backup automático próprio.
+- **Para fechar:** seguir "Passo a passo no Windows" e "Teste de restauração" acima (limite de 300 MB já ajustado) e marcar os itens do "Estado". Recomendado antes da próxima mudança estrutural no banco.
+
 ## Imagens R2 (pendente)
 
 O dump do PostgreSQL **não contém** as imagens do R2. Não usar o antigo exportador baseado em D1. Antes de copiar: conferir cota e operações no painel da Cloudflare, levantar o índice **atual** de chaves a partir do Supabase, fazer uma amostra pequena em disco local privado, conferir SHA-256 e só então autorizar a cópia integral. O workflow manual de índice e ZIP criptografado está em [[EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE]] e também não substitui backup.
@@ -83,8 +133,8 @@ Uma vez por semana no início, e antes de grande importação ou mudança no ban
 ## Estado (conferir e atualizar aqui)
 
 - [x] Pastas privadas criadas no Drive (banco e imagens).
-- [x] Scripts de backup criptografado, com limite de 100 MB e conferência de integridade.
-- [ ] Primeira exportação criptografada gerada no computador do administrador.
+- [x] Scripts de backup criptografado, com limite de 300 MB e conferência de integridade.
+- [ ] Primeira exportação criptografada gerada no computador do administrador. **PENDENTE (decisão de 24/11/2026: publicar a GA-019 sem ela).**
 - [ ] Dois arquivos confirmados no Drive.
 - [ ] Integridade verificada e restauração de teste em PostgreSQL isolado.
 - [ ] Backup das imagens do R2, depois de checar as cotas.

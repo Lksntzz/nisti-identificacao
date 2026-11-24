@@ -6,11 +6,16 @@ const reader=read('src/ga/commerce-sales-import-reader.js');
 const client=read('src/ga/commerce-import-client.js');
 const center=read('src/ga/commerce-import-center.jsx');
 
-test('multi-month report computes a separate partial cutoff for each month',()=>{
-  assert.match(reader,/latestSaleDateByMonth = new Map\(\)/);
-  assert.match(reader,/latestSaleDateByMonth\.set\(item\.month_key, item\.sale_date\)/);
-  assert.match(reader,/periodBoundsForImport\(monthKey, latestSaleDate\)/);
-  assert.doesNotMatch(reader,/const latestSaleDate = maxDate\(raw\.map/);
+test('GA-019: report is staged by real order DAY, never as a month that replaces the saved month',()=>{
+  // Linhas e resumos têm o dia real do pedido; o mês é montado pelo banco a partir dos dias.
+  assert.match(reader,/period_key: group\.sale_date/);
+  assert.match(reader,/period_key: item\.sale_date/);
+  assert.doesNotMatch(reader,/latestSaleDateByMonth/);
+  assert.doesNotMatch(reader,/periodBoundsForImport/);
+  assert.doesNotMatch(reader,/\(01-/);
+  // Sem data ou sem ID do pedido a importação para: nada de data inventada pelo nome do arquivo.
+  assert.match(reader,/pedido sem data reconhecível/);
+  assert.match(reader,/pedido sem identificador/);
 });
 
 test('sales commit timeout checks persisted status and never blindly retries commit',()=>{

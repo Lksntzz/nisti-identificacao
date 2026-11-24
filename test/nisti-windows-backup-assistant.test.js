@@ -27,7 +27,7 @@ test('assistant uses safe encrypted local backup, no database mutation', () => {
   assert.match(wrapper, /'scripts\/nisti-drive-backup\.mjs' backup --output-dir/);
   assert.match(wrapper, /'scripts\/nisti-drive-backup\.mjs' verify --file/);
   assert.match(wrapper, /'scripts\/nisti-drive-backup\.mjs' inspect --file/);
-  assert.match(wrapper, /NISTI_BACKUP_MAX_MB = '100'/);
+  assert.match(wrapper, /NISTI_BACKUP_MAX_MB = '300'/);
   assert.match(wrapper, /PGSSLMODE = 'require'/);
   assert.match(wrapper, /Para gerar a copia criptografada, digite BACKUP/);
   assert.match(wrapper, /A pasta escolhida nao existe/);

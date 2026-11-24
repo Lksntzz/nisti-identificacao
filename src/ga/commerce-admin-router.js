@@ -1,5 +1,6 @@
 import { cachedRead, isCacheableReadPath } from './commerce-read-cache.js';
 import { SupabaseReadError } from '../core/supabase-read-store.js';
+import { hashOrderRefs, orderKeySecret, OrderKeySecretError, ORDER_REF_MAX_BATCH } from './commerce-order-keys.js';
 import {
   commerceAppendImportRows,
   commerceApproveNewRows,
@@ -89,6 +90,8 @@ import {
   commerceSalesImportBatches,
   commerceCreateSalesImport,
   commerceAppendSalesListingDaily,
+  commerceAppendSalesImportOrders,
+  commerceSetSalesImportMeta,
   commerceAppendShopeeDailySku,
   commerceAppendShopeeFinanceDaily,
   commerceAppendShopeeFinanceMonth,
@@ -159,9 +162,45 @@ function commerceCommitEnabled(env) {
   return String(env?.COMMERCE_COMMIT_ENABLED || '').trim() === '1';
 }
 
+// Falhas esperadas da importação de vendas (commit v2). Mensagem clara para o operador; nada foi alterado.
+const SALES_IMPORT_ERRORS = {
+  sales_import_toship_blocked: { status: 409, message: 'Arquivos "Order.toship" (pedidos para enviar) não podem ser importados como vendas. Use o relatório de pedidos concluídos (Order.all). Nenhuma venda foi alterada.' },
+  sales_import_orders_unresolved: { status: 409, message: 'Não dá para contar os pedidos únicos desse mês com exatidão porque ele tem dias antigos sem identificador de pedido. Reexporte o mês inteiro dessa plataforma e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_month_not_rebuildable: { status: 409, message: 'Esse mês tem vendas salvas que não existem no detalhe por dia. Reexporte o mês inteiro dessa plataforma e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_orders_required: { status: 409, message: 'Faltam os identificadores de pedido desse arquivo. Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_day_level_required: { status: 409, message: 'O arquivo foi preparado no formato antigo (mensal). Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_orders_mismatch: { status: 409, message: 'Os dias dos pedidos não batem com os dias das vendas do arquivo. Importe o arquivo de novo. Nenhuma venda foi alterada.' },
+  sales_import_daily_mismatch: { status: 409, message: 'Os totais por dia do arquivo não batem com as linhas importadas. Importe o arquivo de novo. Nenhuma venda foi alterada.' },
+  sales_import_platform_mismatch: { status: 409, message: 'A plataforma dos pedidos não é a plataforma desse lote de importação. Nada foi gravado. Atualize a página (Ctrl+F5) e importe o arquivo de novo.' },
+  sales_import_generated_at_required: { status: 409, message: 'Faltou a data de geração do arquivo. Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_reconciliation_failed: { status: 409, message: 'A conferência entre as vendas por dia e o resumo do mês não bateu, então nada foi salvo. Importe o arquivo de novo; se repetir, avise o suporte. Nenhuma venda foi alterada.' },
+  sales_import_delete_blocked_v2: { status: 409, message: 'Essa importação já alimentou os resumos de vendas e não pode ser excluída por aqui, porque os resumos ficariam inconsistentes. Para desfazer, use a reversão documentada. Nenhum dado foi alterado.' }
+};
+
+function salesImportErrorCode(error) {
+  const text = String(error?.message || '');
+  return Object.keys(SALES_IMPORT_ERRORS).find(code => text.includes(code)) || null;
+}
+
 function errorResponse(error) {
+  if (error instanceof OrderKeySecretError) {
+    console.error('[Commerce] order key secret missing');
+    return json({
+      error: 'A chave de identificação de pedidos não está configurada no servidor. Nada foi importado. Peça ao responsável para cadastrar o segredo COMMERCE_ORDER_KEY_SECRET na Cloudflare.',
+      technical_error: error.technicalCode,
+      retryable: false
+    }, 503);
+  }
   if (error instanceof SupabaseReadError) {
     console.error(`[Commerce] Supabase RPC failed: ${error.code}`, error.message);
+    const importCode = salesImportErrorCode(error);
+    if (importCode) {
+      return json({
+        error: SALES_IMPORT_ERRORS[importCode].message,
+        technical_error: importCode,
+        retryable: false
+      }, SALES_IMPORT_ERRORS[importCode].status);
+    }
     const clientError = error.status >= 400 && error.status < 500 && !error.fallbackEligible;
     const periodRegression = String(error.message || '').includes('sales_import_period_regression');
     return json({
@@ -874,6 +913,13 @@ async function handleCommerceAdminRequestUncached(request, env) {
         return json({ error: 'Plataforma de vendas inválida.' }, 400);
       }
       if (!filename) return json({ error: 'filename é obrigatório.' }, 400);
+      if (/order[.]toship/i.test(filename)) {
+        return json({
+          error: SALES_IMPORT_ERRORS.sales_import_toship_blocked.message,
+          technical_error: 'sales_import_toship_blocked',
+          retryable: false
+        }, 409);
+      }
       if (sha256 && !/^[0-9a-f]{64}$/i.test(sha256)) {
         return json({ error: 'sha256 inválido.' }, 400);
       }
@@ -896,6 +942,41 @@ async function handleCommerceAdminRequestUncached(request, env) {
       }
       const accepted = await commerceAppendSalesImportRows(env, batchId, body.rows);
       return json({ batch_id: batchId, accepted_rows: accepted });
+    }
+
+    const salesImportOrdersMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/orders$/);
+    if (method === 'POST' && salesImportOrdersMatch) {
+      const batchId = positiveId(salesImportOrdersMatch[1]);
+      const body = await bodyJson(request);
+      const platform = String(body?.platform || '');
+      const refs = body?.rows;
+      if (!batchId || !['SHOPEE', 'ML_NOVO', 'ML_ANTIGO'].includes(platform)
+        || !Array.isArray(refs) || refs.length < 1 || refs.length > ORDER_REF_MAX_BATCH) {
+        return json({ error: `Lote de pedidos inválido (1 a ${ORDER_REF_MAX_BATCH} referências e plataforma válida).` }, 400);
+      }
+      // O número real do pedido só existe aqui, em memória: vira HMAC com o segredo do servidor e só a chave segue para o banco.
+      const secret = orderKeySecret(env);
+      let keys;
+      try {
+        keys = hashOrderRefs(secret, platform, refs);
+      } catch {
+        return json({ error: 'Referência de pedido inválida (data ou número).' }, 400);
+      }
+      const saved = await commerceAppendSalesImportOrders(env, batchId, platform, keys);
+      return json({ batch_id: batchId, accepted_orders: saved });
+    }
+
+    const salesImportMetaMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/meta$/);
+    if (method === 'POST' && salesImportMetaMatch) {
+      const batchId = positiveId(salesImportMetaMatch[1]);
+      const body = await bodyJson(request);
+      const raw = body?.generated_at;
+      const time = typeof raw === 'string' ? Date.parse(raw) : NaN;
+      if (!batchId || !Number.isFinite(time) || time < Date.parse('2020-01-01T00:00:00Z')) {
+        return json({ error: 'Data de geração do arquivo inválida.' }, 400);
+      }
+      await commerceSetSalesImportMeta(env, batchId, new Date(time).toISOString());
+      return json({ batch_id: batchId, generated_at: new Date(time).toISOString() });
     }
 
     const sellerDailyMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/listing-daily$/);
