@@ -10,6 +10,7 @@
     "cerebro": "node scripts/cerebro-indice.mjs",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply nisti-identificacao --remote --config wrangler.d1-compat.toml",
+    "test:db:install": "npm ci --prefix test/db --no-audit --no-fund",
     "test:db": "node --test --test-concurrency=1 test/db/*.db.test.js"
   },
   "dependencies": {

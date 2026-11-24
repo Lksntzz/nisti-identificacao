@@ -825,9 +825,12 @@ export default function CommerceImportCenter({ embedded = false, initialMode = n
       } else {
         const rebuilt = Array.isArray(outcome.rebuilt_months) && outcome.rebuilt_months.length
           ? ` Meses recalculados: ${outcome.rebuilt_months.join(', ')}.` : '';
+        const keptReason = { PARTIAL_DAY: 'dia parcial: já existe o dia completo salvo', STALE_FILE: 'arquivo mais antigo que o dado já salvo' };
         const kept = Array.isArray(outcome.kept_days) && outcome.kept_days.length
-          ? ` ${outcome.kept_days.length} dia(s) já salvos foram mantidos (dia parcial ou sem vendas no arquivo): ${outcome.kept_days.map(item => item.date).join(', ')}.` : '';
-        setMessage(`Vendas importadas. Snapshot #${outcome.snapshot_id || '—'} atualizado.${rebuilt}${kept}`);
+          ? ` ${outcome.kept_days.length} dia(s) já salvos foram mantidos: ${outcome.kept_days.map(item => `${item.date} (${keptReason[item.reason] || 'mantido'})`).join('; ')}.` : '';
+        const gaps = Array.isArray(outcome.days_without_records) && outcome.days_without_records.length
+          ? ` Atenção: ${outcome.days_without_records.length} dia(s) dentro do período não têm nenhum registro no arquivo (${outcome.days_without_records.slice(0, 8).join(', ')}${outcome.days_without_records.length > 8 ? '…' : ''}). Isso não prova que não houve venda: o arquivo pode estar filtrado ou incompleto. Nada foi apagado nem zerado nesses dias.` : '';
+        setMessage(`Vendas importadas. Snapshot #${outcome.snapshot_id || '—'} atualizado.${rebuilt}${kept}${gaps}`);
         onSalesChanged?.();
       }
       setSalesFile(null);

@@ -34,3 +34,25 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  # GA-019: testes do banco (commit de vendas por dia) num PostgreSQL 17 LOCAL e DESCARTÁVEL, só dentro do runner.
+  # Grátis: não usa Supabase, nem Branching, nem serviço pago; nunca toca dados reais. As dependências ficam em
+  # test/db/package.json (lockfile próprio), então o build e o deploy de produção não baixam nada a mais.
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Install dependencies (root)
+        run: npm ci --no-audit --no-fund
+      - name: Install database test dependencies
+        run: npm run test:db:install
+      - name: Run database tests (disposable PostgreSQL)
+        run: npm run test:db

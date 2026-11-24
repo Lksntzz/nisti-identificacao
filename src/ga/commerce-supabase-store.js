@@ -1153,6 +1153,7 @@ export async function commerceAppendSalesImportRows(env, batchId, rows = []) {
 }
 
 // Chaves (hash) dos pedidos por dia. O número real do pedido nunca chega ao servidor.
+// rows: [{ d: 'YYYY-MM-DD', k: chave HMAC de 32 hex }] — já embaralhadas pelo servidor (commerce-order-keys.js).
 export async function commerceAppendSalesImportOrders(env, batchId, rows = []) {
   const id = cleanId(batchId);
   if (!id || !Array.isArray(rows) || !rows.length || rows.length > 1000) {
@@ -1162,6 +1163,16 @@ export async function commerceAppendSalesImportOrders(env, batchId, rows = []) {
     p_batch_id: id,
     p_rows: rows
   }, { timeoutMs: 8000 }) || 0);
+}
+
+// Data de geração do arquivo (ISO). O banco limita ao momento do envio; sem ela o commit v2 recusa.
+export async function commerceSetSalesImportMeta(env, batchId, generatedAt) {
+  const id = cleanId(batchId);
+  if (!id || !generatedAt) throw new Error('Data de geração do arquivo inválida.');
+  return Boolean(await supabaseRpc(env, 'commerce_set_sales_import_meta_v2', {
+    p_batch_id: id,
+    p_generated_at: generatedAt
+  }, { timeoutMs: 8000 }));
 }
 
 export async function commerceAppendSalesListingDaily(env, batchId, rows = []) {

@@ -1,5 +1,6 @@
 import { cachedRead, isCacheableReadPath } from './commerce-read-cache.js';
 import { SupabaseReadError } from '../core/supabase-read-store.js';
+import { hashOrderRefs, orderKeySecret, OrderKeySecretError, ORDER_REF_MAX_BATCH } from './commerce-order-keys.js';
 import {
   commerceAppendImportRows,
   commerceApproveNewRows,
@@ -90,6 +91,7 @@ import {
   commerceCreateSalesImport,
   commerceAppendSalesListingDaily,
   commerceAppendSalesImportOrders,
+  commerceSetSalesImportMeta,
   commerceAppendShopeeDailySku,
   commerceAppendShopeeFinanceDaily,
   commerceAppendShopeeFinanceMonth,
@@ -168,7 +170,10 @@ const SALES_IMPORT_ERRORS = {
   sales_import_orders_required: { status: 409, message: 'Faltam os identificadores de pedido desse arquivo. Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
   sales_import_day_level_required: { status: 409, message: 'O arquivo foi preparado no formato antigo (mensal). Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
   sales_import_orders_mismatch: { status: 409, message: 'Os dias dos pedidos não batem com os dias das vendas do arquivo. Importe o arquivo de novo. Nenhuma venda foi alterada.' },
-  sales_import_daily_mismatch: { status: 409, message: 'Os totais por dia do arquivo não batem com as linhas importadas. Importe o arquivo de novo. Nenhuma venda foi alterada.' }
+  sales_import_daily_mismatch: { status: 409, message: 'Os totais por dia do arquivo não batem com as linhas importadas. Importe o arquivo de novo. Nenhuma venda foi alterada.' },
+  sales_import_generated_at_required: { status: 409, message: 'Faltou a data de geração do arquivo. Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
+  sales_import_reconciliation_failed: { status: 409, message: 'A conferência entre as vendas por dia e o resumo do mês não bateu, então nada foi salvo. Importe o arquivo de novo; se repetir, avise o suporte. Nenhuma venda foi alterada.' },
+  sales_import_delete_blocked_v2: { status: 409, message: 'Essa importação já alimentou os resumos de vendas e não pode ser excluída por aqui, porque os resumos ficariam inconsistentes. Para desfazer, use a reversão documentada. Nenhum dado foi alterado.' }
 };
 
 function salesImportErrorCode(error) {
@@ -177,6 +182,14 @@ function salesImportErrorCode(error) {
 }
 
 function errorResponse(error) {
+  if (error instanceof OrderKeySecretError) {
+    console.error('[Commerce] order key secret missing');
+    return json({
+      error: 'A chave de identificação de pedidos não está configurada no servidor. Nada foi importado. Peça ao responsável para cadastrar o segredo COMMERCE_ORDER_KEY_SECRET na Cloudflare.',
+      technical_error: error.technicalCode,
+      retryable: false
+    }, 503);
+  }
   if (error instanceof SupabaseReadError) {
     console.error(`[Commerce] Supabase RPC failed: ${error.code}`, error.message);
     const importCode = salesImportErrorCode(error);
@@ -934,11 +947,35 @@ async function handleCommerceAdminRequestUncached(request, env) {
     if (method === 'POST' && salesImportOrdersMatch) {
       const batchId = positiveId(salesImportOrdersMatch[1]);
       const body = await bodyJson(request);
-      if (!batchId || !Array.isArray(body?.rows) || body.rows.length < 1 || body.rows.length > 1000) {
-        return json({ error: 'Lote de pedidos inválido (1 a 1000 chaves).' }, 400);
+      const platform = String(body?.platform || '');
+      const refs = body?.rows;
+      if (!batchId || !['SHOPEE', 'ML_NOVO', 'ML_ANTIGO'].includes(platform)
+        || !Array.isArray(refs) || refs.length < 1 || refs.length > ORDER_REF_MAX_BATCH) {
+        return json({ error: `Lote de pedidos inválido (1 a ${ORDER_REF_MAX_BATCH} referências e plataforma válida).` }, 400);
       }
-      const saved = await commerceAppendSalesImportOrders(env, batchId, body.rows);
+      // O número real do pedido só existe aqui, em memória: vira HMAC com o segredo do servidor e só a chave segue para o banco.
+      const secret = orderKeySecret(env);
+      let keys;
+      try {
+        keys = hashOrderRefs(secret, platform, refs);
+      } catch {
+        return json({ error: 'Referência de pedido inválida (data ou número).' }, 400);
+      }
+      const saved = await commerceAppendSalesImportOrders(env, batchId, keys);
       return json({ batch_id: batchId, accepted_orders: saved });
+    }
+
+    const salesImportMetaMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/meta$/);
+    if (method === 'POST' && salesImportMetaMatch) {
+      const batchId = positiveId(salesImportMetaMatch[1]);
+      const body = await bodyJson(request);
+      const raw = body?.generated_at;
+      const time = typeof raw === 'string' ? Date.parse(raw) : NaN;
+      if (!batchId || !Number.isFinite(time) || time < Date.parse('2020-01-01T00:00:00Z')) {
+        return json({ error: 'Data de geração do arquivo inválida.' }, 400);
+      }
+      await commerceSetSalesImportMeta(env, batchId, new Date(time).toISOString());
+      return json({ batch_id: batchId, generated_at: new Date(time).toISOString() });
     }
 
     const sellerDailyMatch = pathname.match(/^\/api\/admin\/commerce\/sales\/imports\/(\d+)\/listing-daily$/);

@@ -148,7 +148,8 @@ withDb('dia parcial (arquivo gerado no próprio dia) não substitui dia completo
   const b = await stage(db, { file: 'b.xlsx', created: T('2026-10-05'), days: {
     '2026-10-04': [day('AAA', 5, 50, ['a1', 'a2', 'a3', 'a4', 'a5'])], '2026-10-05': [day('AAA', 1, 10, ['b1'])] } });
   const r = await commit(db, b);
-  assert.deepEqual(r.kept_days, [{ date: '2026-10-05', reason: 'PARTIAL_DAY' }]);
+  // o arquivo b (gerado em 05/10) é mais antigo que o a (gerado em 20/10): o dia 4 dele é STALE_FILE e o dia 5 é parcial
+  assert.deepEqual(r.kept_days, [{ date: '2026-10-04', reason: 'STALE_FILE' }, { date: '2026-10-05', reason: 'PARTIAL_DAY' }]);
   const s = await summary(db, S, '2026-10');
   assert.equal(s.units, 11, 'dia 4 (5) + dia 5 do arquivo completo (6)');
   assert.equal(s.net_orders, 11);
@@ -165,33 +166,48 @@ withDb('arquivo gerado depois do último dia é completo e pode substituir', asy
   assert.equal((await summary(db, S, '2026-10')).units, 4);
 });
 
-withDb('dia sem vendas dentro da cobertura vira "sem vendas"; dia fora da cobertura continua "sem informação"', async (db) => {
+withDb('dia intermediário sem registro NÃO vira "sem vendas": fica como "sem registro" e sem cobertura gravada', async (db) => {
   const a = await stage(db, { file: 'a.xlsx', created: T('2026-10-20'), days: {
     '2026-10-01': [day('AAA', 1, 10, ['o1'])], '2026-10-02': [day('AAA', 1, 10, ['o2'])], '2026-10-05': [day('AAA', 1, 10, ['o3'])] } });
   const r = await commit(db, a);
-  assert.deepEqual(r.days_without_sales, ['2026-10-03', '2026-10-04']);
-  const cov = await db.q(`select sale_date::text d, has_sales from commerce_sales_day_coverage_v2 where batch_id = $1 order by 1`, [a]);
-  assert.deepEqual(cov.map((c) => c.d), ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05']);
-  assert.equal(cov.find((c) => c.d === '2026-10-06'), undefined, 'dia 06 não tem registro = sem informação');
-  assert.deepEqual(cov.filter((c) => !c.has_sales).map((c) => c.d), ['2026-10-03', '2026-10-04']);
+  assert.deepEqual(r.days_without_records, ['2026-10-03', '2026-10-04'], 'lacuna informada, sem afirmar que não houve venda');
+  assert.equal(r.days_without_sales, undefined, 'a chave antiga que afirmava "sem vendas" não existe mais');
+  const cov = await db.q(`select sale_date::text d from commerce_sales_day_coverage_v2 where batch_id = $1 order by 1`, [a]);
+  assert.deepEqual(cov.map((c) => c.d), ['2026-10-01', '2026-10-02', '2026-10-05'], 'só dias com registro têm cobertura');
   const [wins] = await db.q(`select count(*)::int n from commerce_sales_day_winners_v2('SHOPEE','2026-10-01','2026-10-31')`);
-  assert.equal(wins.n, 5);
+  assert.equal(wins.n, 3);
 });
 
-withDb('arquivo com dia "sem vendas" não apaga o mesmo dia que já tinha vendas; o resto entra', async (db) => {
+withDb('arquivo filtrado/incompleto (omite dias) não apaga os dias que já estavam importados', async (db) => {
+  const a = await stage(db, { file: 'a.xlsx', created: T('2026-10-20'), days: {
+    '2026-10-01': [day('AAA', 1, 10, ['o1'])], '2026-10-02': [day('AAA', 2, 20, ['o2', 'o2b'])], '2026-10-03': [day('AAA', 3, 30, ['o3', 'o3b', 'o3c'])],
+    '2026-10-04': [day('AAA', 4, 40, ['o4', 'o4b', 'o4c', 'o4d'])] } });
+  await commit(db, a);
+  // arquivo filtrado: cobre 01 a 04, mas só traz os dias 01 e 04 (02 e 03 foram filtrados fora do relatório)
+  const b = await stage(db, { file: 'b.xlsx', created: T('2026-10-21'), days: {
+    '2026-10-01': [day('AAA', 1, 10, ['o1'])], '2026-10-04': [day('AAA', 4, 40, ['o4', 'o4b', 'o4c', 'o4d'])] } });
+  const r = await commit(db, b);
+  assert.deepEqual(r.days_without_records, ['2026-10-02', '2026-10-03']);
+  assert.deepEqual(r.kept_days, []);
+  const s = await summary(db, S, '2026-10');
+  assert.equal(s.units, 10, 'dias 02 e 03 continuam como estavam');
+  assert.equal(s.net_orders, 10);
+});
+
+withDb('arquivo que não traz um dia já importado mantém esse dia (não é "zero venda")', async (db) => {
   const a = await stage(db, { file: 'a.xlsx', created: T('2026-10-20'), days: { '2026-10-01': [day('AAA', 3, 30, ['o1', 'o2', 'o3'])] } });
   await commit(db, a);
-  // arquivo que cobre 30/09 a 02/10 mas sem venda no dia 01/10
   const b = await stage(db, { file: 'b.xlsx', created: T('2026-10-21'), days: {
     '2026-09-30': [day('AAA', 1, 10, ['p1'])], '2026-10-02': [day('AAA', 1, 10, ['o4'])] } });
   const r = await commit(db, b);
-  assert.deepEqual(r.kept_days, [{ date: '2026-10-01', reason: 'ZERO_CONFLICT' }]);
+  assert.deepEqual(r.kept_days, []);
+  assert.deepEqual(r.days_without_records, ['2026-10-01']);
   const s = await summary(db, S, '2026-10');
-  assert.equal(s.units, 4, 'dia 1 (3, mantido) + dia 2 (1)');
+  assert.equal(s.units, 4, 'dia 1 (3, do arquivo A) + dia 2 (1)');
   assert.equal((await summary(db, S, '2026-09')).units, 1);
 });
 
-withDb('dia "sem vendas" é substituído quando um arquivo novo traz vendas nesse dia', async (db) => {
+withDb('dia que o primeiro arquivo não trouxe é preenchido quando um arquivo novo traz vendas nesse dia', async (db) => {
   const a = await stage(db, { file: 'a.xlsx', created: T('2026-10-20'), days: {
     '2026-10-01': [day('AAA', 1, 10, ['o1'])], '2026-10-03': [day('AAA', 1, 10, ['o3'])] } });
   await commit(db, a);
@@ -241,9 +257,9 @@ withDb('falha no meio da montagem (pedidos não calculáveis) desfaz tudo, inclu
   const days = {};
   for (let d = 1; d <= 20; d++) days[`2026-10-${String(d).padStart(2, '0')}`] = [day('AAA', 1, 10, [`l${d}`])];
   await seedLegacyShopee(db, { month: '2026-10', through: '2026-10-20', days, blockOrders: 20, committedAt: T('2026-10-21') });
-  const n = await stage(db, { file: 'n.xlsx', created: T('2026-10-05'), days: {
+  const n = await stage(db, { file: 'n.xlsx', created: T('2026-10-25'), days: {
     '2026-10-10': [day('AAA', 2, 20, ['n1', 'n2'])], '2026-10-11': [day('AAA', 1, 10, ['n3'])] } });
-  // dia 11 parcial vs completo no legado -> o commit apaga dados diários do lote antes de falhar mais adiante
+  // os dias 10 e 11 substituem dias do mês legado -> o commit mexe nos dados diários antes de falhar mais adiante
   const before = await fingerprint(db);
   const e = await commitError(db, n);
   assert.ok(e); assert.match(e.message, /sales_import_orders_unresolved/);
@@ -464,6 +480,7 @@ withDb('financeiro: total do arquivo diferente das vendas do arquivo derruba a a
 // ---------- ponta a ponta: planilha fictícia -> leitor real -> banco ----------
 import { makeXlsx } from '../helpers/make-xlsx.js';
 import { readCommerceSalesXlsx } from '../../src/ga/commerce-sales-import-reader.js';
+import { hashOrderRefs } from '../../src/ga/commerce-order-keys.js'; // o MESMO módulo que a rota do servidor usa
 
 async function stageParsed(db, parsed, file, created) {
   const b = await db.one(`insert into commerce_sales_import_batches(platform_code, source_filename, status, created_at) values ($1,$2,'STAGED',$3) returning id`,
@@ -485,8 +502,9 @@ async function stageParsed(db, parsed, file, created) {
     await db.q(`insert into commerce_sales_listing_daily_v1(batch_id, sale_date, external_listing_id, sku_norm, units, orders_with_item, product_revenue) values ($1,$2,$3,$4,$5,$6,$7)`,
       [b.id, r.sale_date, r.external_listing_id, r.sku_norm, r.units, r.orders_with_item, r.product_revenue]);
   }
-  const keys = parsed.order_keys;
+  const keys = hashOrderRefs('segredo-de-teste-'.repeat(3), parsed.platform_code, parsed.order_refs); // o que o Worker faria
   await db.q('select public.commerce_append_sales_import_orders_v2($1, $2::jsonb)', [b.id, JSON.stringify(keys)]);
+  await db.q('select public.commerce_set_sales_import_meta_v2($1, $2::timestamptz)', [b.id, created]); // data de geração do arquivo
   return b.id;
 }
 

@@ -1,0 +1,10 @@
+{
+  "name": "nisti-db-tests",
+  "private": true,
+  "description": "Dependências SÓ dos testes de banco (Postgres local descartável). Isoladas do build/deploy de produção.",
+  "type": "module",
+  "dependencies": {
+    "embedded-postgres": "17.12.0-beta.19",
+    "pg": "8.23.1"
+  }
+}

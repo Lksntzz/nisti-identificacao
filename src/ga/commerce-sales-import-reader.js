@@ -194,24 +194,26 @@ export function isToShipFilename(name) {
   return /order[.]toship/i.test(String(name || ''));
 }
 
-// O identificador real do pedido nunca sai do navegador: só uma chave de 32 caracteres (SHA-256 truncado).
-// Serve para contar pedidos únicos entre arquivos; não é anonimização forte (ver docs/cerebro/importacao.md).
-export async function orderKeyHex(platformCode, orderId) {
-  const bytes = new TextEncoder().encode(`nisti-order-v1|${platformCode}|${String(orderId).trim()}`);
-  return (await sha256Hex(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))).slice(0, 32);
+// Pedidos únicos: o leitor só entrega as referências (dia + número do pedido). Quem transforma em chave é o SERVIDOR
+// (HMAC com segredo, src/ga/commerce-order-keys.js); o navegador não calcula nem guarda nenhuma chave.
+function normalizeOrderRefs(refs) {
+  const seen = new Set();
+  const out = [];
+  for (const ref of refs) {
+    const o = String(ref.o ?? '').trim();
+    const id = ref.d + '\u001f' + o;
+    if (!o || seen.has(id)) continue;
+    seen.add(id);
+    out.push({ d: ref.d, o });
+  }
+  return out.sort((x, y) => x.d.localeCompare(y.d) || x.o.localeCompare(y.o));
 }
 
-async function hashOrderRefs(platformCode, refs) {
-  const out = [];
-  const seen = new Set();
-  for (const ref of refs) {
-    const key = await orderKeyHex(platformCode, ref.o);
-    const id = ref.d + '|' + key;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    out.push({ d: ref.d, k: key });
-  }
-  return out.sort((a, b) => a.d.localeCompare(b.d) || a.k.localeCompare(b.k));
+// Data de geração do arquivo = data de modificação que o navegador informa. Serve para saber se o último dia está
+// completo e se o relatório é mais antigo que o dado já importado. Sem ela a importação para.
+function fileModifiedIso(file) {
+  const t = Number(file?.lastModified);
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
 }
 
 export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '') {
@@ -227,8 +229,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
   if (['ML_NOVO','ML_ANTIGO'].includes(platformCode)
     &&workbook.some(sheet=>detectMercadoLivreVendasBrHeader(sheet?.data))) {
     const parsed = parseMercadoLivreVendasBr(workbook,platformCode,filename,sha256,file.size);
-    const { order_refs: orderRefs, ...rest } = parsed;
-    return { ...rest, order_keys: await hashOrderRefs(platformCode, orderRefs) };
+    return { ...parsed, order_refs: normalizeOrderRefs(parsed.order_refs || []), file_modified_at: fileModifiedIso(file) };
   }
 
   const raw = [];
@@ -451,7 +452,7 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     listings_with_sales: summary.listings.size,
     skus_with_sales: summary.skus.size
   })).sort((a, b) => a.period_start.localeCompare(b.period_start));
-  const order_keys = await hashOrderRefs(platformCode, [...orderRefSet.values()]);
+  const order_refs = normalizeOrderRefs([...orderRefSet.values()]);
 
   const fullGroups=new Map();
   if(platformCode==='SHOPEE')for(const item of raw){
@@ -471,7 +472,8 @@ export async function readCommerceSalesXlsx(file, platform, fallbackPeriod = '')
     rows,
     summaries,
     sku_daily_rows,
-    order_keys,
+    order_refs,
+    file_modified_at: fileModifiedIso(file),
     full_daily_rows,
     finance_daily_rows:finance.finance_daily_rows,
     finance_month_rows:finance.finance_month_rows,

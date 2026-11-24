@@ -44,7 +44,7 @@ create table public.commerce_shopee_sales_sku_daily_v1 (
 create table public.commerce_sales_listing_daily_v1 (
   batch_id bigint not null references public.commerce_sales_import_batches(id) on delete cascade,
   sale_date date not null, external_listing_id text not null, sku_norm text not null, units integer not null,
-  orders_with_item integer not null, product_revenue numeric not null,
+  orders_with_item integer not null, product_revenue numeric(14,2) not null,
   primary key (batch_id, sale_date, external_listing_id, sku_norm));
 create table public.commerce_shopee_finance_stage_daily_v1 (
   batch_id bigint not null references public.commerce_sales_import_batches(id) on delete cascade,
@@ -127,3 +127,19 @@ create trigger commerce_shopee_supersede_old_days_trg
 after update of status on public.commerce_sales_import_batches
 for each row when (new.status='COMMITTED' and old.status is distinct from 'COMMITTED')
 execute function public.commerce_shopee_supersede_old_days_v1();
+
+-- Cache de leituras (mesmo formato do real) e a view de financeiro mensal visível (definição copiada do catálogo).
+create table public.commerce_read_cache_v1 (
+  cache_key text primary key, data_version text not null, payload jsonb not null,
+  computed_at timestamptz not null default now(), compute_ms integer not null default 0);
+create view public.commerce_shopee_finance_current_month_v1 as
+ SELECT month_start, source_snapshot_id, orders, units, product_revenue, seller_discount, commission_net, service_net,
+    transaction_fee, fee_orders, single_sku_fee_orders, unallocated_orders, unallocated_units, unallocated_revenue, activated_at
+   FROM commerce_shopee_finance_month_v1 f
+  WHERE source_snapshot_id = (( SELECT b.snapshot_id
+           FROM commerce_sales_import_batches b
+             JOIN commerce_sales_import_stage_rows r ON r.batch_id = b.id
+          WHERE b.status = 'COMMITTED'::text AND b.platform_code = 'SHOPEE'::text
+            AND date_trunc('month'::text, r.period_start::timestamp with time zone)::date = f.month_start
+          ORDER BY b.committed_at DESC NULLS LAST, b.id DESC
+         LIMIT 1));

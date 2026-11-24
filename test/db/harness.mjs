@@ -1,6 +1,6 @@
 // Ambiente de teste do banco: sobe um Postgres 17 LOCAL e DESCARTÁVEL (grátis, só na máquina de quem roda),
 // carrega o esquema mínimo fictício + a migração real da v2 e cria um banco novo por teste.
-// Nunca toca o Supabase real. Rodar: `npm run test:db` (precisa de `npm install --no-save embedded-postgres pg`).
+// Nunca toca o Supabase real. Rodar: `npm run test:db:install` (uma vez; instala só em test/db) e depois `npm run test:db`.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +11,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 export const MIGRATION = process.env.V2_MIGRATION_PATH || path.join(root, 'supabase/migrations/20261123210000_commerce_commit_sales_import_v2.sql');
 const SCHEMA = path.join(here, 'fixtures/schema.sql');
+export const OLD_ML_VIEW = fs.readFileSync(path.join(here, 'fixtures/old-ml-view.sql'), 'utf8');
+// v1 REAL (última definição em produção, migração 20261002110500): o teste prova a trava global e a reversão com ela.
+const V1_MIGRATION = path.join(root, 'supabase/migrations/20261002110500_merge_multipart_sales_imports_v2.sql');
 
 let server = null;
 let adminClient = null;
@@ -37,6 +40,8 @@ export async function startServer() {
   const tpl = new PgClient({ host: 'localhost', port: PORT, user: 'postgres', password: 'test', database: 'tpl' });
   await tpl.connect();
   await tpl.query(fs.readFileSync(SCHEMA, 'utf8'));
+  await tpl.query(OLD_ML_VIEW);
+  await tpl.query(fs.readFileSync(V1_MIGRATION, 'utf8'));
   await tpl.query(fs.readFileSync(MIGRATION, 'utf8'));
   await tpl.end();
   templateReady = true;
@@ -77,10 +82,14 @@ export const orderKey = (platform, orderId) =>
  * Prepara um arquivo (lote STAGED) por DIA. days = { 'YYYY-MM-DD': [{ sku, units, rev, orders:['o1',...] }] }
  * created = instante de criação do lote (define se o último dia está completo).
  */
-export async function stage(db, { platform = 'SHOPEE', file, created, days, finance }) {
+export async function stage(db, { platform = 'SHOPEE', file, created, generated, days, finance }) {
   const b = await db.one(
     `insert into commerce_sales_import_batches(platform_code, source_filename, status, created_at)
      values ($1,$2,'STAGED',$3) returning id`, [platform, file, created]);
+  // data de geração do arquivo (no navegador: lastModified). Padrão = momento do envio; generated:null = não enviada.
+  if (generated !== null) {
+    await db.q('select public.commerce_set_sales_import_meta_v2($1, $2::timestamptz)', [b.id, generated || created]);
+  }
   let n = 0;
   const perDay = {};
   for (const [d, rows] of Object.entries(days)) {
@@ -203,4 +212,41 @@ export async function seedLegacyShopee(db, { file = 'Order.all.legacy.xlsx', mon
     await db.q('update commerce_sales_snapshots set is_current = true, row_count = $2, summary_row_count = 1 where id = $1', [snap.id, n]);
   }
   return { snapshot: snap.id, batch: b.id };
+}
+
+/** Estado que as telas enxergam: resumos do snapshot atual + fontes diárias + financeiro. Mudou 1 linha, muda o hash. */
+export async function visibleState(db) {
+  const out = {};
+  const hash = async (name, sql) => {
+    const r = await db.one(`select count(*)::int n, coalesce(md5(string_agg(x::text, '|' order by x::text)), '') h from (${sql}) q(x)`);
+    out[name] = `${r.n}:${r.h}`;
+  };
+  out.current_snapshot = (await db.one('select id from commerce_sales_snapshots where is_current')).id;
+  await hash('rows', `select to_jsonb(r) - 'snapshot_id' from commerce_sales_rows r join commerce_sales_snapshots n on n.id = r.snapshot_id and n.is_current`);
+  await hash('summary', `select to_jsonb(s) - 'snapshot_id' from commerce_sales_summary_rows s join commerce_sales_snapshots n on n.id = s.snapshot_id and n.is_current`);
+  for (const t of ['commerce_shopee_sales_sku_daily_v1', 'commerce_sales_listing_daily_v1', 'commerce_shopee_finance_stage_daily_v1',
+    'commerce_shopee_full_daily_v1', 'commerce_shopee_order_extras_daily_v1', 'commerce_shopee_finance_month_v1', 'commerce_shopee_finance_daily_v1']) {
+    await hash(t, `select to_jsonb(t) from ${t} t`);
+  }
+  await hash('sku_superseded', `select to_jsonb(t) - 'superseded_at' from commerce_shopee_sku_daily_superseded_v1 t`);
+  await hash('fin_superseded', `select to_jsonb(t) - 'superseded_at' from commerce_shopee_fin_daily_superseded_v1 t`);
+  await hash('view', `select to_jsonb(v) from commerce_current_sales_listing_daily_v1 v`);
+  await hash('finance_visible', `select to_jsonb(v) - 'activated_at' from commerce_shopee_finance_current_month_v1 v`);
+  return out;
+}
+
+/** Arquivo no formato MENSAL antigo (o que a v1 espera). */
+export async function stageV1Monthly(db, { platform = 'SHOPEE', file, created, month, through, rows, netOrders }) {
+  const b = await db.one(`insert into commerce_sales_import_batches(platform_code, source_filename, status, created_at)
+    values ($1,$2,'STAGED',$3) returning id`, [platform, file, created]);
+  const key = `${month} (01-${through.slice(8)})`;
+  let n = 0, u = 0, rev = 0;
+  for (const r of rows) {
+    n += 1; u += r.units; rev += r.rev;
+    await db.q(`insert into commerce_sales_import_stage_rows(batch_id, source_row_number, period_key, period_start, period_end, sku_primary, sku, sku_norm, units, orders_with_item, product_revenue)
+      values ($1,$2,$3,$4,$5,$6,$6,$6,$7,$8,$9)`, [b.id, n, key, `${month}-01`, through, r.sku, r.units, r.owi || 1, r.rev]);
+  }
+  await db.q(`insert into commerce_sales_import_stage_summary(batch_id, period_key, period_start, period_end, net_orders, units, product_revenue, listings_with_sales, skus_with_sales)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$8)`, [b.id, key, `${month}-01`, through, netOrders, u, rev, rows.length]);
+  return b.id;
 }
