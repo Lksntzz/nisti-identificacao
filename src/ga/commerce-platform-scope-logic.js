@@ -56,12 +56,23 @@ export function perfItemFor(row,{ml,shopee}={}){
   return it&&it.account===acc?it:null;
 }
 
-// A GA-018 comprova a cobertura quando é da MESMA conta e do MESMO período do dashboard e não aponta buracos.
+// Dias do intervalo, contagem inclusiva (22/10 a 20/11 = 30). Inválido ou invertido = 0.
+const spanDays=(start,end)=>{
+  const a=Date.parse(start),b=Date.parse(end);
+  return Number.isFinite(a)&&Number.isFinite(b)&&b>=a?Math.round((b-a)/86400000)+1:0;
+};
+// A GA-018 comprova a cobertura quando é da MESMA conta e do MESMO período do dashboard, a cobertura é COMPLETA
+// (todos os dias do intervalo completos, nenhum parcial) e não há dias sem informação nem registros não verificados.
+// Campo ausente nunca comprova.
 export function coverageProven(dq,platform,period){
   if(!dq||!dq.sales||!period||dq.platform!==platform)return false;
   if(dq.period?.start!==period.start||dq.period?.end!==period.end)return false;
-  const s=dq.sales;
-  return Number(s.days_without_information)===0&&Number(s.days_with_records_unverified)===0&&Array.isArray(s.missing_ranges)&&s.missing_ranges.length===0;
+  const s=dq.sales,span=spanDays(period.start,period.end);
+  const eq=(v,n)=>v!=null&&v!==''&&Number(v)===n;
+  return s.status==='COMPLETA'
+    &&span>0&&eq(s.requested_days,span)&&eq(s.complete_days,span)&&eq(s.partial_days,0)
+    &&eq(s.days_without_information,0)&&eq(s.days_with_records_unverified,0)
+    &&Array.isArray(s.missing_ranges)&&s.missing_ranges.length===0;
 }
 
 // Ausência de informação (nada importado) ≠ ausência de vendas importadas (cobertura não comprovada) ≠ zero vendas (cobertura comprovada).
@@ -73,7 +84,7 @@ export function salesNotice({platform,coverage,data,period,dq}){
   const t=data.totals||{};
   if(!(data.totals&&Number(t.cur_units)===0&&Number(t.cur_rev)===0))return null;
   if(platform!=='TODAS'&&coverageProven(dq,platform,period))
-    return {kind:'ZERO',text:'Zero vendas no período: há vendas de '+label+' importadas até '+fmtDate(coverage?.last_day||data.last_day)+', a cobertura do período foi conferida e nenhuma venda caiu nele.'};
+    return {kind:'ZERO',text:'Zero vendas nos dados importados: há vendas de '+label+' importadas até '+fmtDate(coverage?.last_day||data.last_day)+', a cobertura do período está completa e nenhuma venda caiu nele. Vale para os dados importados no sistema; não é uma confirmação do marketplace.'};
   return {kind:'SEM_VENDAS_IMPORTADAS',text:'Nenhuma venda de '+(platform==='TODAS'?'nenhuma plataforma':label)+' importada neste período. A cobertura do período não está comprovada: não é possível afirmar que foram zero vendas.'};
 }
 

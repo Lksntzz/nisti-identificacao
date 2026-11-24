@@ -66,7 +66,8 @@ test('GA-012: notas de relatório listam só a conta escolhida',()=>{
 });
 
 const PER={start:'2026-10-22',end:'2026-11-20'};
-const sd=(over={})=>({platform:'ML_NOVO',period:{...PER,today:'2026-11-24'},sales:{requested_days:30,days_without_information:0,days_with_records_unverified:0,missing_ranges:[],...over}});
+// PER = 22/10 a 20/11 = 30 dias inclusivos.
+const sd=(over={})=>({platform:'ML_NOVO',period:{...PER,today:'2026-11-24'},sales:{status:'COMPLETA',requested_days:30,complete_days:30,partial_days:0,days_without_information:0,days_with_records_unverified:0,missing_ranges:[],...over}});
 const ZERO_DATA={last_day:'2026-11-20',totals:{cur_units:0,cur_rev:0}};
 
 test('GA-012: ausência de informação é diferente de zero vendas',()=>{
@@ -81,13 +82,14 @@ test('GA-012: zero vendas só com cobertura comprovada do período; histórico e
   // Cobertura comprovada pela GA-018 no MESMO período: zero de verdade.
   const zero=salesNotice({platform:'ML_NOVO',coverage:{last_day:'2026-11-20'},data:ZERO_DATA,period:PER,dq:sd()});
   assert.equal(zero.kind,'ZERO');assert.match(zero.text,/20\/11\/2026/);assert.doesNotMatch(zero.text,/Sem informação/i);
+  assert.match(zero.text,/dados importados/i);assert.match(zero.text,/não é uma confirmação do marketplace/i);
   // Só histórico + total zero (sem a GA-018): não conclui zero.
   for(const dq of [null,undefined,{}]){
     const n=salesNotice({platform:'ML_NOVO',coverage:{last_day:'2026-11-20'},data:ZERO_DATA,period:PER,dq});
     assert.equal(n.kind,'SEM_VENDAS_IMPORTADAS');assert.match(n.text,/não é possível afirmar/i);
   }
   // Buracos de importação, dias sem informação ou registros não verificados: não é zero.
-  for(const over of [{days_without_information:3},{days_with_records_unverified:1},{missing_ranges:[{start:'2026-11-01',end:'2026-11-03'}]}]){
+  for(const over of [{status:'PARCIAL',partial_days:2,complete_days:28},{days_without_information:3},{days_with_records_unverified:1},{missing_ranges:[{start:'2026-11-01',end:'2026-11-03'}]}]){
     assert.equal(salesNotice({platform:'ML_NOVO',coverage:{last_day:'2026-11-20'},data:ZERO_DATA,period:PER,dq:sd(over)}).kind,'SEM_VENDAS_IMPORTADAS');
   }
   // Consolidado nunca afirma zero (não existe qualidade consolidada).
@@ -100,6 +102,24 @@ test('GA-012: cobertura só vale para a mesma conta e o mesmo período do dashbo
   assert.equal(coverageProven(sd(),'ML_NOVO',{start:'2026-10-01',end:'2026-11-20'}),false,'outro período');
   assert.equal(coverageProven({...sd(),platform:'SHOPEE'},'ML_NOVO',PER),false,'resposta de outra plataforma');
   assert.equal(coverageProven(null,'ML_NOVO',PER),false);
+});
+
+test('GA-012: cobertura exige status COMPLETA, sem dias parciais e dias completos = dias do intervalo',()=>{
+  const no=over=>assert.equal(coverageProven(sd(over),'ML_NOVO',PER),false,JSON.stringify(over));
+  no({status:'PARCIAL'});no({status:'SEM_INFORMACAO'});no({status:undefined});no({status:'completa'});
+  no({partial_days:1,complete_days:29});no({partial_days:undefined});no({partial_days:null});
+  no({complete_days:29});no({complete_days:undefined});no({complete_days:31});
+  no({requested_days:0,complete_days:0});no({requested_days:undefined});no({requested_days:29,complete_days:29},'intervalo de 30 dias');
+  no({requested_days:31,complete_days:31});
+  // Campos antigos continuam exigidos.
+  no({days_without_information:undefined});no({days_with_records_unverified:undefined});no({missing_ranges:undefined});
+  // Intervalo de 1 dia e de 3 dias (contagem inclusiva).
+  const one={start:'2026-11-20',end:'2026-11-20'};
+  assert.equal(coverageProven({...sd(),period:{...one},sales:{...sd().sales,requested_days:1,complete_days:1}},'ML_NOVO',one),true);
+  const tres={start:'2026-11-18',end:'2026-11-20'};
+  assert.equal(coverageProven({...sd(),period:{...tres},sales:{...sd().sales,requested_days:3,complete_days:3}},'ML_NOVO',tres),true);
+  assert.equal(coverageProven({...sd(),period:{...tres},sales:{...sd().sales,requested_days:2,complete_days:2}},'ML_NOVO',tres),false);
+  assert.equal(coverageProven(sd(),'ML_NOVO',{start:'2026-11-20',end:'2026-10-22'}),false,'intervalo invertido');
 });
 
 test('GA-012: desempenho por plataforma, conta e ID do anúncio, com IDs externos coincidentes',()=>{

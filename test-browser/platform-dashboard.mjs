@@ -46,10 +46,11 @@ function createSimulator() {
       return json({ platform, window_days_with_sales: 30, listings: {}, coverage: [], ads: { revenue: 99999 } });
     }
     if (url.pathname === '/api/admin/commerce/data-quality') {
+      const span = Math.round((Date.parse(url.searchParams.get('end')) - Date.parse(url.searchParams.get('start'))) / 86400000) + 1;
       return json({
         platform, period: { start: url.searchParams.get('start'), end: url.searchParams.get('end'), today: '2026-11-21' },
-        sales: { status: 'OK', freshness: 'ATUALIZADO', days_behind: 0, last_sale_day: '2026-11-20', last_import_at: '2026-11-21T08:00:00Z', reconciliation: {},
-          requested_days: 30, days_without_information: opts.dqGap ? 3 : 0, days_with_records_unverified: 0,
+        sales: { status: opts.dqGap ? 'PARCIAL' : 'COMPLETA', freshness: 'ATUALIZADO', days_behind: 0, last_sale_day: '2026-11-20', last_import_at: '2026-11-21T08:00:00Z', reconciliation: {},
+          requested_days: span, complete_days: opts.dqGap ? span - 3 : span, partial_days: 0, days_without_information: opts.dqGap ? 3 : 0, days_with_records_unverified: 0,
           missing_ranges: opts.dqGap ? [{ start: '2026-11-01', end: '2026-11-03' }] : [] },
         reports: [], open_batches: [], price_stock: {}, catalog: {}
       });
@@ -219,7 +220,9 @@ test('zero vendas só aparece com cobertura comprovada pela GA-018 do mesmo per�
     await radio(page, 'ML_NOVO').click();
     const zero = page.locator('[data-notice="ZERO"]');
     await zero.waitFor({ state: 'visible', timeout: 10000 });
-    assert.match(await zero.innerText(), /Zero vendas no período/);
+    const zt = await zero.innerText();
+    assert.match(zt, /Zero vendas nos dados importados/);
+    assert.match(zt, /não é uma confirmação do marketplace/);
   } finally { await context.close(); }
 });
 
