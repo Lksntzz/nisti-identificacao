@@ -63,21 +63,25 @@ export function salesCard(data){
 export function ordersCard(data){
   const list=data?.sales?.orders||[];
   const label=o=>{
-    const cov=o.coverage==='PARCIAL'?' · cobertura parcial: '+num(o.days_by_key+o.days_by_summary)+' de '+num(o.days_expected)+' dias':'';
+    const cov=(o.coverage==='PARCIAL'?' · cobertura parcial: '+num(o.days_with_data)+' de '+num(o.days_expected)+' dias com dado':'')
+      +(o.includes_partial_day?' · inclui '+num(o.days_partial)+' dia(s) parcial(is) (ainda abertos ou arquivo gerado no mesmo dia)':'');
+    const keyPart=' · '+num(o.days_by_key)+' de '+num(o.days_with_data)+' dia(s) com dado por chave ('+pct(o.key_coverage_pct)+')';
     if(o.basis==='SEM_INFORMACAO'||o.orders==null)return 'Sem informação (nenhum dia com dado no mês)';
-    if(o.basis==='CHAVE')return num(o.orders)+' pedido(s) contados por dia, a partir de chaves de pedido'+cov;
+    if(o.basis==='CHAVE')return num(o.orders)+' pedido(s) contados por dia, a partir de chaves de pedido'+keyPart+cov;
     if(o.basis==='RESUMO_HISTORICO')return num(o.orders)+' informado(s) em resumo histórico · não verificado por chave'+cov;
-    return num(o.orders)+' · base mista ('+num(o.days_by_key)+' dia(s) por chave, '+num(o.days_by_summary)+' por resumo histórico) · não verificado por completo'+cov;
+    return num(o.orders)+' · base mista'+keyPart+' · não verificado por completo'+cov;
   };
   const noInfo=list.filter(o=>o.basis==='SEM_INFORMACAO'||o.orders==null);
   const summary=list.filter(o=>o.basis==='RESUMO_HISTORICO'||o.basis==='MISTO');
   const partial=list.filter(o=>o.coverage==='PARCIAL'&&o.basis!=='SEM_INFORMACAO');
+  const openDay=list.filter(o=>o.includes_partial_day);
   const allKey=list.length>0&&list.every(o=>o.verified_by_key&&o.coverage==='COMPLETA');
   const m=arr=>arr.map(o=>fmtMonth(o.month)).join(', ');
   const actions=[];
   if(summary.length)actions.push('Meses com número vindo de resumo histórico ('+m(summary)+'): estão informados, não verificados por chave. Só reimporte o período se tiver o relatório completo daquele intervalo.');
   if(noInfo.length)actions.push('Meses sem informação de pedidos ('+m(noInfo)+'): não há dia importado; nada a corrigir sem um relatório desse mês.');
   if(partial.length)actions.push('Meses com cobertura parcial ('+m(partial)+'): o total de pedidos cobre só parte dos dias do mês.');
+  if(openDay.length)actions.push('Meses com dia parcial ('+m(openDay)+'): a cobertura por chave não significa dia completo; o dia atual ou um arquivo gerado no mesmo dia pode mudar.');
   return {id:'orders',title:'Pedidos únicos (meses inteiros)',lastUpdate:null,
     dims:[{label:'Verificação',value:!list.length?'Sem informação':allKey?'Por chave':'Parcial ou informado',tone:!list.length?'none':allKey?'ok':'warn'}],
     lines:list.map(o=>[fmtMonth(o.month),label(o)]),

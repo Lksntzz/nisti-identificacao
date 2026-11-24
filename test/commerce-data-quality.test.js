@@ -64,11 +64,12 @@ test('pedidos: separa chave, resumo histórico, misto, parcial e sem informaçã
   assert.ok(c.notes.some(n=>/por dia/i.test(n)));
   const all=ordersCard({sales:{orders:[{month:'2026-10-01',orders:5,basis:'CHAVE',verified_by_key:true,coverage:'COMPLETA',days_by_key:31,days_expected:31}]}});
   assert.equal(all.dims[0].value,'Por chave');
-  const mix=ordersCard({sales:{orders:[{month:'2026-08-01',orders:9,basis:'MISTO',verified_by_key:false,coverage:'PARCIAL',days_by_key:1,days_by_summary:1,days_expected:31},
+  const mix=ordersCard({sales:{orders:[{month:'2026-08-01',orders:9,basis:'MISTO',verified_by_key:false,coverage:'PARCIAL',days_by_key:1,days_by_summary:1,days_with_data:2,key_coverage_pct:50,days_expected:31,days_partial:1,includes_partial_day:true},
     {month:'2026-07-01',orders:null,basis:'SEM_INFORMACAO',verified_by_key:false,coverage:'SEM_INFORMACAO',days_by_key:0,days_by_summary:0,days_expected:31}]}});
-  assert.ok(mix.lines[0][1].includes('base mista')&&mix.lines[0][1].includes('cobertura parcial: 2 de 31'));
+  assert.ok(mix.lines[0][1].includes('base mista')&&mix.lines[0][1].includes('cobertura parcial: 2 de 31 dias com dado'));
   assert.ok(mix.lines[1][1].startsWith('Sem informação'));
-  assert.ok(mix.actions.length===3,'resumo histórico, sem informação e parcial');
+  assert.ok(mix.lines[0][1].includes('1 de 2 dia(s) com dado por chave (50%)')&&mix.lines[0][1].includes('dia(s) parcial(is)'));
+  assert.ok(mix.actions.length===4,'resumo histórico, sem informação, parcial e dia parcial');
   assert.ok(!c.actions.some(a=>/aplique|reimporte tudo/i.test(a)));
 });
 test('GA-011: COMPLETO é só cobertura; resíduo inexplicado nunca aparece como conciliação aprovada',()=>{

@@ -105,24 +105,35 @@ begin
   -- A regra de contagem é da GA-019 e não é alterada: pedido contado POR DIA (pedido em dois dias conta 2).
   -- Aqui só se separa a BASE: por chave (dia da v2), resumo histórico (dia legado), misto, parcial ou sem informação.
   select coalesce(jsonb_agg(jsonb_build_object('month', m.mo,
-      'orders', case when m.k + m.h = 0 then null else (m.res ->> 'orders')::bigint end,
-      'basis', case when m.k + m.h = 0 then 'SEM_INFORMACAO' when m.h = 0 then 'CHAVE' when m.k = 0 then 'RESUMO_HISTORICO' else 'MISTO' end,
-      'verified_by_key', (m.k + m.h > 0 and m.h = 0 and (m.res ->> 'orders') is not null),
-      'days_by_key', m.k, 'days_by_summary', m.h, 'days_expected', m.expected,
-      'coverage', case when m.k + m.h = 0 then 'SEM_INFORMACAO' when m.k + m.h < m.expected then 'PARCIAL' else 'COMPLETA' end,
+      'orders', case when m.n = 0 then null else (m.res ->> 'orders')::bigint end,
+      'basis', case when m.n = 0 then 'SEM_INFORMACAO' when m.h = 0 then 'CHAVE' when m.k = 0 then 'RESUMO_HISTORICO' else 'MISTO' end,
+      'verified_by_key', (m.n > 0 and m.h = 0 and (m.res ->> 'orders') is not null),
+      -- DATAS DISTINTAS: um dia presente em várias partes do mesmo relatório conta uma vez só.
+      'days_with_data', least(m.n, m.expected), 'days_by_key', m.k, 'days_by_summary', m.h, 'days_expected', m.expected,
+      'days_complete', m.done, 'days_partial', m.part,
+      'key_coverage_pct', case when m.n = 0 then null else round(100 * m.k::numeric / m.n, 2) end,
+      'data_coverage_pct', round(100 * least(m.n, m.expected)::numeric / nullif(m.expected, 0), 2),
+      'includes_partial_day', m.part > 0,
+      -- cobertura de pedidos (dias com dado) e completude do dia (dia final) são coisas diferentes
+      'coverage', case when m.n = 0 then 'SEM_INFORMACAO' when m.n < m.expected or m.part > 0 then 'PARCIAL' else 'COMPLETA' end,
       'unresolved', m.res -> 'unresolved',
       'reported_in_summary', m.reported) order by m.mo desc), '[]'::jsonb)
   into v_orders
   from (
-    select x.mo, r.res, d.k, d.h, (least((x.mo + interval '1 month - 1 day')::date, v_today) - x.mo + 1) as expected,
+    select x.mo, r.res, d.k, d.h, d.n, d.done, d.part, (least((x.mo + interval '1 month - 1 day')::date, v_today) - x.mo + 1) as expected,
       (select sum(s.net_orders) from public.commerce_sales_summary_rows s
         where s.snapshot_id = (select id from public.commerce_sales_snapshots where is_current order by id desc limit 1)
           and s.platform_code = v_plat and date_trunc('month', s.period_start)::date = x.mo) as reported
     from (select distinct date_trunc('month', g)::date mo from generate_series(v_start, v_end, interval '1 day') g
           order by 1 desc limit 12) x
     cross join lateral (select public.commerce_sales_month_orders_v2(v_plat, x.mo) res) r
-    cross join lateral (select count(*) filter (where w.kind = 'V2') k, count(*) filter (where w.kind <> 'V2') h
-      from public.commerce_sales_day_winners_v2(v_plat, x.mo, least((x.mo + interval '1 month - 1 day')::date, v_today)) w) d
+    cross join lateral (
+      select count(*) filter (where t.has_key and not t.has_sum) k, count(*) filter (where t.has_sum) h, count(*) n,
+        count(*) filter (where t.all_final and t.sale_date < v_today) done,
+        count(*) filter (where not (t.all_final and t.sale_date < v_today)) part
+      from (select w.sale_date, bool_or(w.kind = 'V2') has_key, bool_or(w.kind <> 'V2') has_sum, bool_and(coalesce(w.is_final, false)) all_final
+            from public.commerce_sales_day_winners_v2(v_plat, x.mo, least((x.mo + interval '1 month - 1 day')::date, v_today)) w
+            group by w.sale_date) t) d
   ) m;
 
   v_sales := v_sales || jsonb_build_object(

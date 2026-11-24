@@ -176,6 +176,38 @@ withDq('pedidos únicos: mês com dias por chave e dias por resumo é MISTO e nu
   assert.equal(o.days_by_key, 1); assert.equal(o.days_by_summary, 1);
 });
 
+withDq('pedidos: duas partes com venda no mesmo dia contam o dia uma vez e a cobertura nunca passa de 100%', async (db) => {
+  const range = (a, b) => { const o = {}; for (let d = a; d <= b; d += 1) o[`2026-09-${String(d).padStart(2, '0')}`] = [day('AAA', 1, 10, [`p${d}`])]; return o; };
+  const p1 = await stage(db, { file: 'Order.all.parte1.xlsx', created: T('2026-10-05'), days: range(1, 15) });
+  await commit(db, p1);
+  const p2 = await stage(db, { file: 'Order.all.parte2.xlsx', created: T('2026-10-06'), days: range(15, 30) });
+  await commit(db, p2);
+  const o = (await db.dq('SHOPEE', '2026-09-01', '2026-09-30')).sales.orders.find((x) => x.month === '2026-09-01');
+  assert.equal(o.days_with_data, 30, 'dia 15 está nas duas partes e conta uma vez');
+  assert.equal(o.days_expected, 30);
+  assert.ok(o.days_with_data <= o.days_expected);
+  assert.equal(Number(o.data_coverage_pct), 100);
+  assert.equal(o.days_by_key + o.days_by_summary, o.days_with_data);
+  assert.equal(o.coverage, 'COMPLETA'); assert.equal(o.includes_partial_day, false); assert.equal(o.days_partial, 0);
+  assert.equal(o.verified_by_key, true); assert.equal(Number(o.key_coverage_pct), 100);
+});
+
+withDq('pedidos: cobertura por chave é diferente de dia completo; o dia atual é parcial mesmo com 100% por chave', async (db) => {
+  const today = iso(0);
+  const first = today.slice(0, 8) + '01';
+  const days = {}; const todayN = Number(today.slice(8));
+  for (let d = 1; d <= todayN; d += 1) days[first.slice(0, 8) + String(d).padStart(2, '0')] = [day('AAA', 1, 10, [`q${d}`])];
+  const a = await stage(db, { file: 'Order.all.mes.xlsx', created: `${today}T09:00:00-03:00`, days });
+  await commit(db, a);
+  const o = (await db.dq('SHOPEE', first, today)).sales.orders[0];
+  assert.equal(o.days_with_data, todayN); assert.equal(o.days_expected, todayN);
+  assert.equal(Number(o.key_coverage_pct), 100, 'todos os dias com dado vêm de chave');
+  assert.equal(o.basis, 'CHAVE');
+  assert.ok(o.days_partial >= 1, 'o dia de hoje não está fechado'); assert.equal(o.includes_partial_day, true);
+  assert.equal(o.days_complete + o.days_partial, o.days_with_data);
+  assert.equal(o.coverage, 'PARCIAL', '100% por chave não significa dia completo');
+});
+
 withDq('GA-011: COMPLETO é cobertura; resíduo ou diferença não explicada impede conciliação aprovada', async (db) => {
   await db.q(`create or replace function public.commerce_shopee_reconciliation_v1(p_start date, p_end date, p_limit integer)
     returns jsonb language sql stable as $$ select jsonb_build_object('status','COMPLETO','reconciled_pct', jsonb_build_object('revenue', 99),
