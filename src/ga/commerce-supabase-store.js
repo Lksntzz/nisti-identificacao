@@ -282,6 +282,20 @@ export async function commerceAnnualCompare(env,{platform='SHOPEE',gran='month',
   return {...out,coverage:Array.isArray(coverage)?coverage:[]};
 }
 
+// GA-018 — Qualidade dos dados. Leitura direta, SEM cache: o cache de leitura não muda quando entram Ads/desempenho,
+// então reutilizá-lo mostraria status velho. Mede o tempo da função central (response_ms).
+export async function commerceDataQuality(env,filters={}) {
+  const t0=Date.now();
+  const data=await supabaseRpc(env,'commerce_data_quality_v1',{
+    p_platform:cleanText(filters.platform),
+    p_start:filters.start||null,
+    p_end:filters.end||null,
+    p_detail:filters.detail===true
+  },{timeoutMs:25000});
+  const out=data&&typeof data==='object'&&!Array.isArray(data)?data:{};
+  return {...out,response_ms:Date.now()-t0};
+}
+
 export async function commerceSalesImportHistory(env,filters={}) {
   const platform=cleanText(filters.platform)||'TODAS';
   const data=await supabaseRpc(env,'commerce_sales_import_history_v1',{

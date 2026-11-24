@@ -48,6 +48,7 @@ import {
   commerceShopeePerformanceLatest,
   commerceListingPerformanceDiagnosis,
   commerceSalesImportHistory,
+  commerceDataQuality,
   commerceSalesDashboardV1,
   commerceDashboardAbcV2,commerceDashboardShippingSplitV1,commerceAppendShopeeFullDailyV1,commerceAppendShopeeOrderExtrasV1,
   commerceSalesDashboardSeriesV1,
@@ -746,6 +747,19 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(!['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![0,7,30,60,90].includes(days)||(month&&!PERIOD_RE.test(month)))
         return json({error:'Filtro do dashboard inválido.'},400);
       return json(await commerceSalesDashboardV1(env,{platform,days,month}));
+    }
+    if(method==='GET'&&pathname===BASE_PATH+'/data-quality'){
+      const platform=String(query(url,'platform')||'').toUpperCase();
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform))
+        return json({error:'Plataforma da qualidade dos dados inválida.'},400);
+      const start=String(query(url,'start')||'');
+      const end=String(query(url,'end')||'');
+      const isoDay=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v));
+      if((start&&!isoDay(start))||(end&&!isoDay(end)))return json({error:'Período inválido: use AAAA-MM-DD.'},400);
+      if(start&&end&&(start>end||(Date.parse(end)-Date.parse(start))/86400000>1100))
+        return json({error:'Período inválido: início depois do fim ou maior que 1100 dias.'},400);
+      const detail=String(query(url,'detail')||'0')==='1';
+      return json(await commerceDataQuality(env,{platform,start:start||null,end:end||null,detail}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/sales/import-history'){
       const platform=String(query(url,'platform')||'TODAS').toUpperCase();

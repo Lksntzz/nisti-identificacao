@@ -7,6 +7,7 @@ import CommerceCommercialPanel from './commerce-commercial-panel.jsx';
 import CommerceProductsView from './commerce-products-view.jsx';
 import CommerceDashboard from './commerce-dashboard.jsx';
 import CommerceImportHistory from './commerce-import-history.jsx';
+import CommerceDataQuality from './commerce-data-quality.jsx';
 import CommerceProblems from './commerce-problems.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { usePrivacy, setPrivate } from './commerce-privacy.js';
@@ -23,7 +24,8 @@ const NAV_ITEMS = Object.freeze([
   { id: 'dashboard', label: 'Dashboard', icon: 'chart' },
   { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },
   { id: 'planning', label: 'Planejamento de Produtos', icon: 'package' },
-  { id: 'imports', label: 'Histórico de importações', icon: 'list' }
+  { id: 'imports', label: 'Histórico de importações', icon: 'list' },
+  { id: 'quality', label: 'Qualidade dos dados', icon: 'list' }
 ]);
 
 const COMMERCIAL_SUBITEMS = Object.freeze([
@@ -37,6 +39,7 @@ const VIEW_TITLES = Object.freeze({
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
   imports: 'Histórico de importações',
+  quality: 'Qualidade dos dados',
   why: 'Anúncios com problema'
 });
 
@@ -345,6 +348,7 @@ export default function CommerceAdminAppV2() {
             {activeView === 'planning' && <CommerceProductsView />}
             {activeView === 'dashboard' && <CommerceDashboard onOpenTab={openPerformance} onOpenProblems={(f) => { setProblemsFilter({ ...(f || {}), nonce: Date.now() }); setActiveView('why'); }} onOpenCategories={() => { setCommercialView('categories'); setActiveView('catalog'); }} />}
             {activeView === 'imports' && <CommerceImportHistory />}
+            {activeView === 'quality' && <CommerceDataQuality />}
             {activeView === 'why' && <CommerceProblems key={problemsFilter?.nonce || 'menu'} initialFilter={problemsFilter} />}
           </div>
         </main>
