@@ -133,3 +133,17 @@ test('GA-013A: mês anterior é o mês de calendário imediatamente anterior, e 
   const p=Object.fromEntries(part.evolution.months.map(x=>[x.month,x]));
   assert.equal(p['2026-08'].incomplete,true); assert.equal(p['2026-08'].incomplete_from,'2026-08-10');
 });
+
+test('contrato real do mensal: "month" chega como data (aaaa-mm-01); a visão normaliza para aaaa-mm',()=>{
+  const m=(d,u)=>({month:d,units_shopee:u,days_with_sales:20,first_day:d,last_day:d});
+  const mo=monthly({months:[m('2026-09-01',60),m('2026-10-01',120),m('2026-11-01',90)]});
+  const v=buildStrategicView(mk({monthly:mo}));
+  const by=Object.fromEntries(v.evolution.months.map(x=>[x.month,x]));
+  assert.deepEqual(Object.keys(by),['2026-09','2026-10','2026-11']);
+  assert.equal(by['2026-11'].previous.month,'2026-10'); assert.equal(by['2026-11'].previous.units,120); assert.equal(by['2026-11'].previous.absent,false);
+  assert.equal(by['2026-10'].previous.units,60);
+  assert.equal(by['2026-11'].incomplete,true); assert.equal(by['2026-11'].incomplete_until,'2026-11-23');
+  assert.equal(by['2026-10'].incomplete,false);
+  const hist=buildStrategicView(mk({monthly:mo,dqHistory:dq('SHOPEE','2025-01-01','2026-11-23')}));
+  assert.ok(hist.evolution.months.every(x=>x.coverage==='COMPROVADA'));
+});

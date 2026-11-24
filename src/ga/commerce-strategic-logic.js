@@ -213,7 +213,8 @@ function makeGroup({kind,available,rows,total,limit,verified,titles,counts,note,
 // Mês de calendário imediatamente anterior (aaaa-mm). Mês ausente da série NUNCA vira zero: fica null e "ausente".
 const prevMonthKey=m=>{const [y,mo]=m.split('-').map(Number);const d=new Date(Date.UTC(y,mo-2,1));return d.toISOString().slice(0,7);};
 function buildMonths(monthly,cov,dqHistory,platform,periods,key){
-  const list=monthly?.months||[];
+  // Contrato real: 'month' vem como data (aaaa-mm-01). A chave interna é sempre aaaa-mm.
+  const list=(monthly?.months||[]).map(m=>({...m,month:String(m.month).slice(0,7)}));
   const by=new Map(list.map(m=>[m.month,m]));
   const gi=gapInfo(dqHistory,platform,periods?.history);
   const flags=month=>{

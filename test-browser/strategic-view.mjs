@@ -33,7 +33,7 @@ export function payload(platform,days,{proven=true,failed=[],over={},prevOk=prov
       stopped:[{listing_id:3,platform,external_id:'C3',title:'Caderno Parado',units_ever:30,last_sale:'2026-10-01',days_since:53}],stopped_total:400,
       no_sales:[{listing_id:4,platform,external_id:'D4',title:'Anúncio Sem Venda',units_ever:0,last_sale:null}],no_sales_never:9,unlinked:{listings:2},
       window_days_with_sales:days,coverage:[{platform,first_day:'2025-01-01',last_day:'2026-11-23',last_import:'2026-11-24T10:00:00Z'}]},
-    monthly:{months:[['2026-08',50],['2026-10',120],['2026-11',90]].map(([month,u])=>({month,['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:u,days_with_sales:20}))},
+    monthly:{months:[['2026-08',50],['2026-10',120],['2026-11',90]].map(([month,u])=>({month:month+'-01',['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:u,days_with_sales:20}))},
     series:{platform,days,daily:Array.from({length:days},(_,i)=>({day:new Date(Date.parse(cur.start)+i*86400000).toISOString().slice(0,10),['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:(over.gaps&&(i===3||i===4))?0:10+i,['prev_units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:8+(i%3)*2}))},
     categories:failed.includes('categories')?null:{platform,cur_from:cur.start,cur_to:cur.end,base_from:'2025'+cur.start.slice(4),base_to:'2025'+cur.end.slice(4),
       total:{cur:UNITS[platform],base:90},categories:[{name:'Agendas',cur:90,base:60,cols:[{name:'Floral',cur:50,base:30}]}]},
