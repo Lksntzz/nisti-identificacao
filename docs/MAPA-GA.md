@@ -301,7 +301,7 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - **Lotes abertos:** a tela recomenda analisar antes de decidir; não incentiva aplicar relatório antigo nem parte pendente. **Interface:** não mostra cartões de período anterior durante carregamento, erro ou período inválido; respeita o modo privacidade do GA (valores em R$ mascarados).
 - **Testes:** `test/db/commerce-data-quality.db.test.js` (Postgres local: cobertura parcial/sem informação, isolamento entre plataformas, GA-019, GA-011 simulada, filtro de período, relatórios sobrepostos, nova importação reflete na hora, permissões, somente leitura, desempenho) e `test/commerce-data-quality.test.js`.
 
-## GA-013 — Visão estratégica individual (24/11/2026, PR EM RASCUNHO, sem migração)
+## GA-013 — Visão estratégica individual (24/11/2026, PUBLICADA, sem migração)
 
 - **O que é:** menu "Visão estratégica" (depois de Dashboard) para Shopee, ML Antigo e ML Novo, 7/30/60/90 dias. Só unidades; sem valores financeiros nem ticket. Dashboard atual intocado.
 - **Fluxo:** tela `commerce-strategic-view.jsx` → `GET /api/admin/commerce/strategic-view` (fora de `/sales-dashboard/`: sem cache de borda) → `commerceStrategicViewV1` → regras puras em `commerce-strategic-logic.js`.
@@ -317,6 +317,10 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - **Testes:** `test/commerce-strategic-*.test.js` (fictícios) e `test-browser/strategic-view.mjs` (Chromium real: troca rápida, não comprovado, falhas parciais, resposta de outra conta, celular).
 - **Preservação do Dashboard:** `commerce-strategic-ui.test.js` compara os arquivos com a `main` por árvore (busca só a ponta da `main` em checkout raso; no CI falha se não achar) e confere que nenhum lado importa o outro.
 - **Banco:** nenhuma migração, nenhuma alteração de SQL.
+- **Publicação:** PR #920, merge squash `c1121d3` (checks `build` e `database` verdes; Chromium UI verde), Deploy Production verde. Nenhuma migração, nenhum SQL alterado.
+- **Conferência pós-deploy (somente leitura, dados reais, 24/11/2026):** o site de produção exige login e o ambiente de trabalho não alcança o domínio, então a rota HTTP não foi chamada daqui; as mesmas funções do banco foram consultadas para as 3 contas x 7/30/60/90 dias e as respostas passaram nas validações da rota (contas, dias, datas da série, `coverage` do resumo): 12 de 12 combinações aceitas. Nota: validação visual em produção feita pelo Lucas.
+- **Cobertura real hoje (GA-018):** período atual completo só em 7 e 30 dias; período anterior completo só em 7 dias; histórico parcial nas 3 contas. Efeito: em 7 dias crescimento/queda/parada são confirmados; em 30 dias só "parou" é confirmado (crescimento/queda ficam candidatos); em 60 e 90 dias tudo é candidato; "sem venda" é sempre do histórico importado, não verificado.
+- **Dashboard:** arquivos intactos (teste de preservação no CI) e a função `commerce_dashboard_v1` responde normalmente.
 
 ## GA-021 — Unificação da fonte de vendas da Shopee (24/11/2026, PUBLICADA)
 - **Defeito:** dez funções liam `commerce_shopee_sales_sku_daily_v1` (tabela legada) crua, sem olhar o status do lote. Lotes abertos (STAGED) e versões antigas de um dia entravam na conta. Em 24/11/2026 os lotes abertos 77 e 78 (mesmos dados duas vezes) inflavam a Shopee nos períodos que incluem os dias 04 e 05/11. O efeito dos lotes é o mesmo em 30 dias, 90 dias e no ano; a diferença total medida contra a base por anúncio da GA-019 é um pouco maior porque inclui SKUs sem vínculo, que essa base não enxerga e que a correção preserva. O Mercado Livre não era afetado.
@@ -334,6 +338,6 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 |---|---|---|
 | GA-018 — Central de Qualidade dos Dados | Publicada em 24/11/2026 | Ver parágrafo acima |
 | GA-012 — Seletor de plataformas do Dashboard Comercial | Publicada em 24/11/2026 (PR #916, `acd91c4`); validação visual em produção pendente | Ver parágrafo acima. Pendências futuras (SQL): Ads da Shopee no `commerce_dashboard_overview_v1` para qualquer plataforma; IDs coincidentes no `commerce_ml_performance_latest_v1` |
-| **GA-021 — Unificação da fonte de vendas da Shopee** | **Publicada em 24/11/2026 (PR #918; migração aplicada)** | Ver seção "GA-021". GA-013 em PR rascunho (ver seção). |
+| **GA-021 — Unificação da fonte de vendas da Shopee** | **Publicada em 24/11/2026 (PR #918; migração aplicada)** | Ver seção "GA-021". GA-013 publicada (ver seção). GA-014 a GA-017 aguardam validação visual do Lucas. |
 | GA-018A — Refino visual da Qualidade dos dados | Publicada em 24/11/2026 (PR #914, commit `9837b34`; só interface, sem migração) | Resumo no topo, 4 seções, máx. 3 cartões por linha, "Ver detalhes"/"Ver motivo", importações abertas em tabela. Conciliação geral só aprovada se GA-019 e GA-011 (Shopee) aplicáveis estiverem conciliadas; Ads ML conta uma vez; traço em preço/estoque indisponível |
 | **GA-020 — Classificação e validação das vendas do Mercado Livre** | **Proposta; não implementar** | Classificação correta dos status; devoluções e reembolsos; receitas derivadas x confirmadas; mostrar todas as inconsistências do arquivo de uma vez. **O dono não autoriza preencher receita ausente por estimativa.** |
