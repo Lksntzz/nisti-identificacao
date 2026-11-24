@@ -4,10 +4,13 @@ import fs from 'node:fs';
 
 test('Painel Comercial (explorer): filtros em ordem Plataforma, Situação, Período e as 3 abas viram o filtro Situação', () => {
   const ui = fs.readFileSync('src/ga/commerce-dashboard.jsx', 'utf8');
-  const a = ui.indexOf("mode==='explorer'&&<Dropdown label=\"Plataforma\"");
+  // GA-012: a plataforma agora é o seletor segmentado (fora do Dropdown), acima da Situação e do Período.
+  const a = ui.indexOf('<PlatformSelector');
   const b = ui.indexOf("<Dropdown label=\"Situação\"");
   const c = ui.indexOf('<PeriodPicker');
-  assert.ok(a > 0 && b > a && c > b, 'ordem Plataforma → Situação → Período');
+  assert.ok(b > 0 && c > b, 'ordem Situação → Período');
+  assert.ok(a > c, 'seletor de plataforma renderizado logo abaixo do cabeçalho, fora da lista de filtros');
+  assert.doesNotMatch(ui, /<Dropdown label="Plataforma"/);
   assert.match(ui, /\['drops','Em queda'\+countOf\('drops'\)/);
   // Pararam foi juntada em Sem vendas (filtro "Vendia e parou"): não existe mais como aba própria.
   assert.doesNotMatch(ui, /\['stopped','Pararam'/);

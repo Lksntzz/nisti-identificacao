@@ -134,7 +134,9 @@ test('SKU sem cadastro usa o nome do relatório de vendas e a consulta de catego
 test('dashboard: filtro inteligente bloqueia plataforma sem vendas no mês e filtra os meses da plataforma', () => {
   const d = fs.readFileSync('src/ga/commerce-dashboard.jsx','utf8');
   assert.match(d, /Sem vendas importadas em/);
-  assert.match(d, /options=\{platformOptions\}/);
+  // GA-012: o filtro inteligente só avisa (dica); nunca bloqueia nem troca a conta sozinho.
+  assert.match(d, /hints=\{platHints\}/);
+  assert.doesNotMatch(d, /platformBlocked|platformOptions/);
   assert.match(d, /hasSales\(r,platform\)/);
   assert.match(d, /sales-dashboard\/monthly\?platform=TODAS/);
 });

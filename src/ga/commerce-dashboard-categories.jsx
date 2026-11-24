@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
+import {matchesPlatform} from './commerce-platform-scope-logic.js';
 import {pickSummaryYear,summarizeCategories} from './commerce-dashboard-categories-logic.js';
 import './commerce-dashboard-categories.css';
 
@@ -12,17 +13,22 @@ const pct=(cur,base)=>num(base)>0?(num(cur)-num(base))/num(base)*100:null;
 const PLAT_LABEL={TODAS:'todas as plataformas',SHOPEE:'Shopee',ML_ANTIGO:'Mercado Livre antigo',ML_NOVO:'Mercado Livre novo'};
 
 export default function CategoriesSummary({platform,onOpen}) {
-  const [state,setState]=useState({loading:true,error:'',data:null,year:null});
+  // O estado carrega a conta de origem: no primeiro quadro depois de trocar de conta nada da conta anterior é mostrado.
+  const [raw,setState]=useState({key:platform,loading:true,error:'',data:null,year:null});
+  const state=raw.key===platform?raw:{key:platform,loading:true,error:'',data:null,year:null};
   useEffect(()=>{
     const controller=new AbortController();
-    setState({loading:true,error:'',data:null,year:null});
+    setState({key:platform,loading:true,error:'',data:null,year:null});
     (async()=>{
       const cov=await fetchCommercialManager('/api/admin/commerce/sales-compare/annual-coverage',{signal:controller.signal});
       const year=pickSummaryYear(cov?.coverage,platform);
       if(!year)throw new Error('Sem histórico do ano anterior para comparar.');
       const data=await fetchCommercialManager('/api/admin/commerce/sales-compare/categories?platform='+encodeURIComponent(platform)+'&year='+year+'&mode=ytd',{signal:controller.signal});
-      if(!controller.signal.aborted)setState({loading:false,error:'',data,year});
-    })().catch(e=>{if(!controller.signal.aborted)setState({loading:false,error:e?.message||'Resumo indisponível.',data:null,year:null});});
+      if(controller.signal.aborted)return;
+      // Resposta que informa outra plataforma que a pedida não entra.
+      if(!matchesPlatform(data,platform))throw new Error('Resumo indisponível.');
+      setState({key:platform,loading:false,error:'',data,year});
+    })().catch(e=>{if(!controller.signal.aborted)setState({key:platform,loading:false,error:e?.message||'Resumo indisponível.',data:null,year:null});});
     return()=>controller.abort();
   },[platform]);
   const {loading,error,data,year}=state;

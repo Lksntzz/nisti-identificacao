@@ -2,16 +2,19 @@ import React from 'react';
 import {maskMoney} from './commerce-privacy.js';
 import {PLATS} from './commerce-dashboard-charts.jsx';
 import {PLATFORM_LABEL,PROBLEM_PCT,headline,windowWarning,listingsNote} from './commerce-problems-logic.js';
+import {filterAttentionPlatforms,platformLabel} from './commerce-platform-scope-logic.js';
 
 const money=v=>maskMoney(v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}));
 const num=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
 const pct=(v,d=1)=>v==null?'—':(v>0?'+':'')+Number(v).toLocaleString('pt-BR',{maximumFractionDigits:d})+'%';
 
 // Atenção: uma linha por plataforma, dizendo se está pior e quais anúncios explicam. Clicar abre o painel Anúncios com problema.
-export function AttentionByPlatform({plats,counts,window:win,unavailable,error,onOpen}){
+export function AttentionByPlatform({plats:allPlats,platform='TODAS',counts,window:win,unavailable,error,onOpen}){
+  const plats=filterAttentionPlatforms(allPlats,platform);
   if(unavailable)return <p className="ndb-empty">Para ver quem está piorando, escolha 30, 60 ou 90 dias.</p>;
   if(error)return <p className="ndb-empty">Consulta indisponível agora. Tente de novo em instantes.</p>;
   if(!plats)return <p className="ndb-empty">Carregando…</p>;
+  if(!plats.length)return <p className="ndb-empty">Sem informação: não há comparação de {platformLabel(platform)} neste período.</p>;
   const warn=windowWarning(win);
   return <>
     {warn&&<p className="ndb-warn">{warn}</p>}
