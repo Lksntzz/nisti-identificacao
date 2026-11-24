@@ -157,6 +157,8 @@ export function priceStockCard(data){
   const p=data?.price_stock||{};const reg=p.registered_price||{};const rea=p.realized_price||{};const stk=p.stock||{};
   const label=(s,photo)=>s==='DISPONIVEL'?'Disponível':s==='DISPONIVEL_FOTO'?'Foto disponível'+(photo?' (declarado)':''):s==='PARCIAL'?'Cobertura parcial':s==='SEM_VALOR_VALIDO'?'Sem valor válido':'Sem informação';
   const tone=s=>s==='SEM_INFORMACAO'||s==='SEM_VALOR_VALIDO'?'none':s==='PARCIAL'?'warn':s==='DISPONIVEL'?'ok':'info';
+  // Fonte indisponível (SEM_INFORMACAO) → traço; zero só quando a fonte existe e o valor é de fato 0.
+  const off=(status,v)=>status==='SEM_INFORMACAO'||v==null?'—':num(v);
   const actions=[];
   if(reg.status==='SEM_INFORMACAO')actions.push('Preço cadastrado e estoque não existem para esta plataforma; não há ação possível nesta versão.');
   if(reg.status==='SEM_VALOR_VALIDO')actions.push('As variações existem, mas nenhuma tem preço válido. Atualize o catálogo antes de usar.');
@@ -166,10 +168,10 @@ export function priceStockCard(data){
   if(stk.possibly_nominal)actions.push('O valor '+stk.most_common_value+' se repete em '+pct(stk.most_common_share_pct)+' das variações: indício de estoque nominal. Não use como estoque real.');
   return {id:'price-stock',title:'Preço e estoque',lastUpdate:reg.snapshot_last_checked_at||null,
     dims:[{label:'Preço cadastrado',value:label(reg.status,true),tone:tone(reg.status)},{label:'Preço realizado',value:label(rea.status),tone:tone(rea.status)},{label:'Estoque (valor declarado)',value:label(stk.status,true),tone:stk.possibly_nominal?'warn':tone(stk.status)}],
-    lines:[['Variações na foto do catálogo',reg.variations==null?'—':num(reg.variations)],
-      ['Com preço válido',reg.variations_with_price==null?'—':num(reg.variations_with_price)],
-      ['Com estoque válido',stk.variations_with_stock==null?'—':num(stk.variations_with_stock)],
-      ['Anúncios com preço realizado no período',rea.listings_with_units==null?'—':num(rea.listings_with_units)]],
+    lines:[['Variações na foto do catálogo',off(reg.status,reg.variations)],
+      ['Com preço válido',off(reg.status,reg.variations_with_price)],
+      ['Com estoque válido',off(stk.status,stk.variations_with_stock)],
+      ['Anúncios com preço realizado no período',off(rea.status,rea.listings_with_units)]],
     details:[],notes:[reg.note,rea.note,stk.note].filter(Boolean),actions};
 }
 
@@ -232,22 +234,33 @@ export function summaryItems(data){
   if(!data)return [];
   const s=data.sales||{};const rec=s.reconciliation||{};const g=data.ga011_shopee||null;
   const divMonths=(rec.divergent_months||[]);
-  const anyDiv=rec.status==='DIVERGENTE'||g?.reconciliation_status==='DIVERGENTE';
-  const reconKey=anyDiv?'DIVERGENTE':rec.status==='CONCILIADO_INTERNAMENTE'?'CONCILIADO_INTERNAMENTE':'SEM_INFORMACAO';
-  const [reconText,reconTone]=RECONCILIATION[reconKey];
+  // Conciliações aplicáveis, separadas: GA-019 (vendas/pedidos, todas as plataformas) e GA-011 (só Shopee).
+  const norm=st=>RECONCILIATION[st]?st:'SEM_INFORMACAO';
+  const applicable=[['Vendas e pedidos (GA-019)',norm(rec.status)]];
+  if(data.platform==='SHOPEE'||g)applicable.push(['Shopee (GA-011)',norm(g?.reconciliation_status)]);
+  const states=applicable.map(a=>a[1]);
+  let reconText,reconTone;
+  if(states.includes('DIVERGENTE'))[reconText,reconTone]=RECONCILIATION.DIVERGENTE;
+  else if(states.every(x=>x==='CONCILIADO_INTERNAMENTE'))[reconText,reconTone]=RECONCILIATION.CONCILIADO_INTERNAMENTE;
+  else if(states.every(x=>x==='SEM_INFORMACAO'))[reconText,reconTone]=RECONCILIATION.SEM_INFORMACAO;
+  else [reconText,reconTone]=['Parcial: parte sem informação','warn'];
+  const reconSub=applicable.length>1||reconTone!=='ok'?applicable.map(([l,st])=>l+': '+RECONCILIATION[st][0]).join(' · '):undefined;
   const [freshText,freshTone]=pick(FRESHNESS,s.freshness);
   const reports=data.reports||[];
-  const noInfo=reports.filter(r=>r.freshness==='SEM_INFORMACAO').length
+  // Ads do Mercado Livre (ADS_ML) é a mesma fonte do Ads genérico: conta uma vez só.
+  const sourceInfo=new Map();
+  for(const r of reports){const k=r.kind==='ADS_ML'?'ADS':r.kind;sourceInfo.set(k,(sourceInfo.get(k)||false)||r.freshness!=='SEM_INFORMACAO');}
+  const noInfo=[...sourceInfo.values()].filter(has=>!has).length
     +(data.catalog?.freshness==='SEM_INFORMACAO'?1:0)
     +((data.price_stock?.registered_price?.status==='SEM_INFORMACAO'&&data.price_stock?.stock?.status==='SEM_INFORMACAO')?1:0);
-  const totalSources=reports.length+2;
+  const totalSources=sourceInfo.size+2;
   const critical=[];
   if(s.freshness==='DESATUALIZADO')critical.push('vendas desatualizadas');
   if(n(s.days_without_information)>0)critical.push('dias sem informação nas vendas');
   if(rec.status==='DIVERGENTE')critical.push('divergência na conciliação interna');
   if(g?.reconciliation_status==='DIVERGENTE')critical.push('resíduo sem explicação na GA-011');
   return [
-    {key:'recon',label:'Conciliação interna',value:reconText,tone:reconTone,hint:'Consistência entre os arquivos importados; não conferido no marketplace.'},
+    {key:'recon',label:'Conciliação interna',value:reconText,sub:reconSub,tone:reconTone,hint:'Consistência entre os arquivos importados; não conferido no marketplace.'},
     {key:'last',label:'Última atualização de vendas',value:fmtDate(s.last_sale_day)||'—',sub:freshText,tone:freshTone,hint:'Vendas: desatualizado se o último dia tem mais de 1 dia de atraso.'},
     {key:'div',label:'Períodos divergentes',value:rec.status==='SEM_INFORMACAO'||rec.months_checked==null?'—':String(divMonths.length),sub:divMonths.length?divMonths.map(m=>fmtMonth(m.month)).join(', '):(rec.months_checked?rec.months_checked+' mês(es) conferido(s)':''),tone:divMonths.length?'bad':(rec.months_checked?'ok':'none'),hint:'Meses inteiros em que resumo, linhas e vendas diárias não batem.'},
     {key:'noinfo',label:'Fontes sem informação',value:noInfo+' de '+totalSources,tone:noInfo?'none':'ok',hint:'Relatórios, catálogo e preço/estoque sem nenhum dado importado.'},
