@@ -1,0 +1,30 @@
+/* Qualidade dos dados: mesma linguagem visual do histórico de importações. */
+.ndq-root{display:flex;flex-direction:column;gap:14px}
+.ndq-toolbar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.ndq-toolbar label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:#52637b}
+.ndq-toolbar select,.ndq-toolbar input[type=date]{min-height:36px;padding:0 10px;font-size:13px}
+.ndq-toolbar .ndq-check{flex-direction:row;align-items:center;gap:6px;min-height:36px}
+.ndq-presets{display:flex;gap:6px}
+.ndq-presets button,.ndq-refresh{min-height:36px;padding:0 12px;border:1px solid #d5dbe8;border-radius:10px;background:#fff;font-size:12px;font-weight:700;color:#314058;cursor:pointer}
+.ndq-presets button:hover,.ndq-refresh:hover{background:#f6faff}
+.ndq-disclaimer,.ndq-meta,.ndq-loading{margin:0;font-size:12px;color:#64748b}
+.ndq-error{margin:0;padding:10px 14px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px}
+.ndq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
+.ndq-card{background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 2px 6px rgba(15,23,42,.03)}
+.ndq-card header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ndq-card h4{margin:0;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#52637b}
+.ndq-last{font-size:11px;color:#64748b;white-space:nowrap}
+.ndq-dims{display:flex;gap:6px;flex-wrap:wrap}
+.ndq-pill{font-size:11px;padding:3px 9px;border-radius:999px;white-space:nowrap;background:#f1f5f9;color:#475569}
+.ndq-pill b{font-weight:800}
+.ndq-pill.is-ok{background:#dcfce7;color:#166534}.ndq-pill.is-warn{background:#fef3c7;color:#92400e}
+.ndq-pill.is-bad{background:#fee2e2;color:#991b1b}.ndq-pill.is-info{background:#e0f2fe;color:#075985}
+.ndq-card dl{margin:0;display:grid;grid-template-columns:1fr;gap:6px;padding-top:8px;border-top:1px solid #edf0f5}
+.ndq-card dl>div{display:flex;justify-content:space-between;gap:12px}
+.ndq-card dt{font-size:12px;color:#64748b}
+.ndq-card dd{margin:0;font-size:12px;font-weight:700;color:#0f172a;text-align:right;font-variant-numeric:tabular-nums}
+.ndq-card details{font-size:12px;color:#314058}
+.ndq-card ul{margin:4px 0 0;padding-left:18px;font-size:12px}
+.ndq-notes{color:#64748b}
+.ndq-actions{padding:8px 10px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:12px;color:#78350f}
+.ndq-actions ul{color:#78350f}
