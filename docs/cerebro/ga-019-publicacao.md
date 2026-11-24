@@ -1,6 +1,20 @@
 # GA-019 — publicar e reverter a importação de vendas por dia
 
-Procedimento da PR #910 (`commerce_commit_sales_import_v2`). **Nada aqui foi executado em produção.** Só executar depois da aprovação do Lucas. Contexto das regras: [[importacao]]; regras de deploy: [[deploy]]; backup: [[backup]].
+Procedimento da PR #910 (`commerce_commit_sales_import_v2`). **Status: CONCLUÍDA em 24/11/2026** (ver "Estado atual e encerramento" abaixo). O restante deste documento é o **registro do procedimento** usado e continua valendo como referência de reversão e de troca do segredo. Contexto das regras: [[importacao]]; regras de deploy: [[deploy]]; backup: [[backup]].
+
+## Estado atual e encerramento (24/11/2026)
+
+**GA-019 concluída e validada em produção.** Importações rotineiras liberadas pelo dono.
+
+- **Migração:** aplicada em produção em 24/11/2026 (o Supabase a registrou como versão `20261124125421`; o arquivo no repositório mantém o nome `20261123210000_commerce_commit_sales_import_v2.sql`). O texto aplicado foi conferido contra o arquivo aprovado (mesmos hashes das 11 funções e das 2 views).
+- **Código:** PR #910 mesclada por squash (commit `5cf25f2`); Deploy Production, Production Gate e Browser Smoke com sucesso.
+- **Segredo:** `COMMERCE_ORDER_KEY_SECRET` cadastrado na Cloudflare como Secret antes da migração (o valor nunca foi exposto).
+- **Validação em produção:** aprovada de forma independente (Atlas) e pelo dono. Recuperação histórica de outubro e novembro de 2026, vários meses no mesmo arquivo, arquivos em partes, importação incremental e reimportação do mesmo arquivo: todos aprovados.
+- **Números no encerramento:** snapshot atual **60**; último lote **93**; **45 períodos mensais conciliados** (`commerce_sales_reconcile_v2()`), nenhuma divergência interna; 6 commits v2 registrados em `commerce_sales_commit_log_v2`, nenhum revertido; nenhum lote em aberto criado depois da publicação.
+- **Preservado (não apagar):** as 12 cópias internas `backup.pre_ga019__*` (estado de antes da GA-019, snapshot 54) e todos os snapshots anteriores. Elas passaram a diferir das tabelas vivas de propósito, porque as importações seguintes as alteraram; servem como ponto de referência histórico, **não** como restauração simples (restaurá-las descartaria as importações feitas depois). Só remover a pedido expresso do dono (regra `bak_*`/cópias em [[backup]]).
+- **Reversão hoje:** `commerce_rollback_sales_import_v2` desfaz só o commit mais recente e uma única vez. Com vários commits já feitos, voltar mais que isso exige decisão do dono e as cópias acima; o procedimento da seção 6 continua descrito para consulta.
+- **Pendências de infraestrutura (continuam registradas):** (1) backup externo criptografado do banco, decisão de 24/11/2026 de publicar sem ele; (2) opcional: desmarcar "Allow deletions" na proteção da `main`; (3) o check "Supabase Preview" aparece vermelho na `main` ("Remote migration versions not found in local migrations directory"): é anterior à GA-019 (os commits anteriores também falham) e vem de nomes/versões de migração diferentes entre o repositório e o banco; não bloqueia o deploy.
+- **Proposta futura, sem implementação:** **GA-020 — Classificação e validação das vendas do Mercado Livre** (classificação correta dos status; tratamento de devoluções e reembolsos; identificação de receitas derivadas e confirmadas; exibição de todas as inconsistências do arquivo de uma vez). Motivo: o relatório de vendas do ML pode sair com receita em branco (aviso "Não foi possível exibir alguns dados" no cabeçalho); o GA bloqueia e a correção é reexportar. Regra vigente: **nunca preencher receita ausente por estimativa** sem autorização.
 
 ## Ordem obrigatória (e por quê)
 
