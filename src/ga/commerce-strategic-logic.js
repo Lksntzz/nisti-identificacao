@@ -69,7 +69,7 @@ export function movementLabel(kind,row,cov){
   }
   if(kind==='no_sales'){
     const never=!row?.last_sale&&!(num(row?.units_ever)>0);
-    if(never)return c.history?.proven?{label:'NUNCA_VENDEU',reason:null}
+    if(never)return c.history?.proven?{label:'SEM_VENDA_HISTORICO_IMPORTADO',reason:null}
       :{label:'SEM_VENDAS_HISTORICO_NAO_VERIFICADO',reason:'HISTORICO_NAO_COMPROVADO',coverage_reason:c.history?.reason||'NAO_COMPROVADA'};
     if(!c.current?.proven)return unclassified('PERIODO_ATUAL_NAO_COMPROVADO',c,'current');
     return {label:'SEM_VENDA_NO_PERIODO',reason:null};
@@ -103,28 +103,60 @@ export function salesSplit(platform,{split,overview}={}){
 }
 
 const KEY={SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'};
-const LIST_CAP=50;
+// Limites reais das listas do banco (funções existentes; não alteramos SQL). Ver docs/MAPA-GA.md.
+export const LIST_LIMITS=Object.freeze({champions:10,growth:10,drops:20,stopped:300,never:1000});
+const LIST_CAP=1000; // sem corte próprio: o único limite é o do banco (LIST_LIMITS)
 const NOTICE_TEXT={
-  HISTORICO_NAO_VERIFICADO:'O histórico completo ainda não foi verificado: as unidades aparecem, mas “nunca vendeu” não é afirmado.',
-  PERIODO_ATUAL_NAO_COMPROVADO:'A cobertura do período atual não está comprovada: nada é classificado como crescimento, queda ou parada.',
-  PERIODO_ANTERIOR_NAO_COMPROVADO:'A cobertura do período anterior não está comprovada: crescimento e queda não são classificados. Dados importados, não conferidos no marketplace.',
+  HISTORICO_NAO_VERIFICADO:'O histórico completo ainda não foi verificado: as unidades aparecem, mas a ausência de vendas no histórico não é afirmada.',
+  PERIODO_ATUAL_NAO_COMPROVADO:'A cobertura do período atual não está comprovada: nada é confirmado como crescimento, queda ou parada; as listas são apenas candidatos.',
+  PERIODO_ANTERIOR_NAO_COMPROVADO:'A cobertura do período anterior não está comprovada: crescimento e queda são apenas candidatos. Dados importados, não conferidos no marketplace.',
   SEM_INFORMACAO:'Sem informação: nenhuma venda importada para este período. Isso não significa zero vendas.'
 };
+const DROPS_ORDERING_NOTE='Os anúncios mostrados foram escolhidos pelo maior valor de venda perdido (em reais), e não pelas maiores perdas de unidades: esta lista não é um ranking por unidades. O total de quedas segue a regra por unidades.';
+const rangeText=r=>r.start+' a '+r.end;
+
+// Respostas de outra conta ou de outro período nunca entram na visão.
+function payloadValid(payload,platform,days){
+  if(!payload||typeof payload!=='object')return true;
+  const pl=payload.platform??payload.plat;
+  if(pl!=null&&pl!==platform)return false;
+  const d=payload.days??payload.window?.days;
+  if(d!=null&&Number(d)!==Number(days))return false;
+  return true;
+}
+
+function makeGroup({kind,available,rows,total,limit,verified,titles,counts,note,ordering,orderingNote,totalKnown=true}){
+  const items=available?rows:[];
+  const shown=items.length;
+  const truncated=available&&(totalKnown&&total!=null?total>shown:shown>=limit);
+  const candidate=kind==='CANDIDATO';
+  const n=total??shown;
+  return {kind,available,title:candidate?titles[1]:titles[0],
+    count_label:available&&(totalKnown||shown>0)?(candidate?counts[1](n):counts[0](n)):null,
+    total:available?(totalKnown?total??shown:null):null,shown,limit,truncated,
+    limit_note:!available?null:truncated?(totalKnown&&total!=null?'Lista limitada a '+limit+': '+shown+' de '+total+' exibidos; a lista não está completa.'
+      :'Lista limitada a '+limit+' anúncios; pode haver mais além dos exibidos.'):null,
+    ordering:ordering||null,ordering_note:orderingNote||null,note:note||null,verified,items};
+}
 
 export function buildStrategicView(p){
   const platform=p.platform,key=KEY[platform];
   const failed=new Set(p.failed||[]);
-  const periods=p.periods??strategicPeriods(p.dash);
+  const invalid=new Set();
+  const take=(name,payload)=>{if(payload&&!payloadValid(payload,platform,p.days)){invalid.add(name);return null;}return payload||null;};
+  const dash=take('dashboard',p.dash),overview=take('overview',p.overview),monthly=take('monthly',p.monthly),
+    series=take('series',p.series),categoriesRaw=take('categories',p.categories);
+  const periods=dash?(p.periods??strategicPeriods(dash)):null;
   const cov=coverageState({platform,periods,dqCurrent:p.dqCurrent,dqPrevious:p.dqPrevious,dqHistory:p.dqHistory});
   const own=rows=>(Array.isArray(rows)?rows:[]).filter(r=>r&&r.platform===platform);
   const base=r=>({listing_id:r.listing_id??null,external_id:r.external_id??null,title:r.title??null,units:num(r.units),units_previous:num(r.units_previous),
     traffic:trafficFor(platform,r,p.perf)});
-  const ov=p.overview||null,totals=p.dash?.totals||null;
+  const ov=overview,totals=dash?.totals||null;
   const status=periods&&totals?'OK':'SEM_INFORMACAO';
   const curU=num(totals?.cur_units),prevU=num(totals?.prev_units);
   const bothProven=cov.current.proven&&cov.previous.proven;
-  const partState=(name,value)=>failed.has(name)?'INDISPONIVEL':(name==='split'&&platform!=='SHOPEE')?'NAO_SE_APLICA':value==null?'SEM_DADOS':'OK';
-
+  const partState=(name,value)=>failed.has(name)?'INDISPONIVEL':invalid.has(name)?'RESPOSTA_INVALIDA':(name==='split'&&platform!=='SHOPEE')?'NAO_SE_APLICA':value==null?'SEM_DADOS':'OK';
+  const ovAvail=ov!=null;
   const notices=[];
   if(status==='SEM_INFORMACAO')notices.push({kind:'SEM_INFORMACAO',text:NOTICE_TEXT.SEM_INFORMACAO});
   else{
@@ -133,37 +165,88 @@ export function buildStrategicView(p){
     if(!cov.history.proven)notices.push({kind:'HISTORICO_NAO_VERIFICADO',text:NOTICE_TEXT.HISTORICO_NAO_VERIFICADO});
   }
 
-  const stopped=own(ov?.stopped).slice(0,LIST_CAP).map(r=>({...base(r),units_ever:num(r.units_ever),last_sale:r.last_sale??null,days_since:num(r.days_since),...movementLabel('stopped',r,cov)}));
-  const never=own(ov?.no_sales).filter(r=>!r.last_sale&&!(num(r.units_ever)>0)).slice(0,LIST_CAP)
+  // Base das unidades: o Dashboard soma vendas dos ANÚNCIOS vinculados; a Shopee também tem o total por SKU (inclui sem vínculo).
+  const split=platform==='SHOPEE'?salesSplit(platform,{split:p.split,overview:ov}):salesSplit(platform,{overview:ov});
+  const skuTotal=platform==='SHOPEE'&&split.total!=null&&periods
+    ?{current:split.total,unlinked:split.unlinked,basis:'TOTAL_POR_SKU',period:periods.current}:null;
+  if(platform==='SHOPEE'&&split.base!=null&&curU!=null&&split.base!==curU)
+    notices.push({kind:'BASE_UNIDADES_DIVERGENTE',text:'O total de unidades dos anúncios ('+curU+') não coincide com a base da divisão por SKU ('+split.base+'): conferir antes de comparar.'});
+
+  const candidate=ok=>ok?'CONFIRMADO':'CANDIDATO';
+  const stoppedRows=own(ov?.stopped).slice(0,LIST_CAP).map(r=>({...base(r),units_ever:num(r.units_ever),last_sale:r.last_sale??null,days_since:num(r.days_since),...movementLabel('stopped',r,cov)}));
+  const neverRows=own(ov?.no_sales).filter(r=>!r.last_sale&&!(num(r.units_ever)>0)).slice(0,LIST_CAP)
     .map(r=>({...base(r),units_ever:0,last_sale:null,...movementLabel('no_sales',r,cov)}));
+  const histStart=periods?.history?.start;
+  const movements={
+    growth:makeGroup({kind:candidate(bothProven),available:ovAvail,rows:own(ov?.growth).map(r=>({...base(r),...movementLabel('growth',r,cov)})),
+      total:null,totalKnown:false,limit:LIST_LIMITS.growth,verified:bothProven,
+      titles:['Crescimento','Possível crescimento (não confirmado)'],
+      counts:[n=>n+(n===1?' anúncio exibido':' anúncios exibidos')+', por maior ganho de unidades',n=>n+(n===1?' possível crescimento':' possíveis crescimentos')+' exibido(s), por maior ganho de unidades (não confirmados)'],ordering:'GANHO_DE_UNIDADES'}),
+    drops:makeGroup({kind:candidate(bothProven),available:dash!=null,rows:own(dash?.drops?.items).map(r=>({...base(r),...movementLabel('drop',r,cov)})),
+      total:num(dash?.drops?.total),limit:LIST_LIMITS.drops,verified:bothProven,
+      titles:['Queda','Possíveis quedas (não confirmadas)'],
+      counts:[n=>n+(n===1?' anúncio em queda':' anúncios em queda'),n=>n+(n===1?' possível queda (não confirmada)':' possíveis quedas (não confirmadas)')],
+      ordering:'VALOR_PERDIDO',orderingNote:DROPS_ORDERING_NOTE}),
+    stopped:makeGroup({kind:candidate(cov.current.proven),available:ovAvail,rows:stoppedRows,total:num(ov?.stopped_total),limit:LIST_LIMITS.stopped,
+      verified:cov.current.proven,titles:['Anúncios que pararam','Possíveis parados (não confirmados)'],
+      counts:[n=>n+(n===1?' anúncio parado':' anúncios parados'),n=>n+(n===1?' possível parado (não confirmado)':' possíveis parados (não confirmados)')],ordering:'ULTIMA_VENDA_MAIS_RECENTE',
+      note:cov.current.proven&&!cov.history.proven?'A data da última venda ainda não foi verificada em todo o histórico.':null}),
+    never:makeGroup({kind:candidate(cov.history.proven),available:ovAvail,rows:neverRows,total:num(ov?.no_sales_never),limit:LIST_LIMITS.never,
+      verified:cov.history.proven,titles:['Sem venda no histórico importado','Sem venda nos dados importados (histórico não verificado)'],
+      counts:[n=>n+(n===1?' anúncio ativo':' anúncios ativos')+' sem venda no histórico importado',n=>n+(n===1?' anúncio ativo':' anúncios ativos')+' sem venda nos dados importados (histórico não verificado)'],
+      note:histStart?(cov.history.proven?'Considera apenas as vendas importadas a partir de '+histStart+': não prova que o anúncio nunca vendeu antes de '+histStart+'.'
+        :'O histórico importado a partir de '+histStart+' tem dias sem cobertura comprovada: ausência de venda aqui não é afirmada.'):null})
+  };
+  movements.never.history_span=periods?.history||null;
+  
+
+  // Categorias: o banco compara o período com o MESMO período do ano anterior e termina na última venda importada do ano.
+  let categories=null;
+  if(categoriesRaw){
+    const c=categoriesRaw,cur={start:c.cur_from??null,end:c.cur_to??null},baseP={start:c.base_from??null,end:c.base_to??null};
+    const aligned=Boolean(periods&&cur.start===periods.current.start&&cur.end===periods.current.end);
+    const curState=aligned&&!p.dqCatCurrent?cov.current:stateOf(p.dqCatCurrent,platform,cur.start?cur:null);
+    const baseState=stateOf(p.dqCatBase,platform,baseP.start?baseP:null);
+    categories={basis:platform==='SHOPEE'?'TOTAL_POR_SKU':'POR_ANUNCIO',comparison:'ANO_ANTERIOR',period:{current:cur,base:baseP},aligned,
+      verified:{current:curState.proven,base:baseState.proven},
+      total:{units:num(c.total?.cur),base:num(c.total?.base)},
+      items:(c.categories||[]).map(x=>({name:x.name,units:num(x.cur),base:num(x.base),
+        collections:(x.cols||[]).slice(0,8).map(y=>({name:y.name,units:num(y.cur),base:num(y.base)}))}))};
+    if(cur.start&&baseP.start)notices.push({kind:'CATEGORIAS_COMPARACAO_ANUAL',text:'Categorias e coleções comparam '+rangeText(cur)+' com o mesmo período do ano anterior ('+rangeText(baseP)+'); não é o período imediatamente anterior das demais seções.'});
+    if(!aligned&&cur.start)notices.push({kind:'CATEGORIAS_PERIODO_DIFERENTE',text:'As categorias usam '+rangeText(cur)+' (até a última venda importada do ano, que pode ser um dia parcial), diferente do período fechado'+(periods?' '+rangeText(periods.current):'')+' das demais seções.'});
+    if(!categories.verified.current||!categories.verified.base){
+      const which=[!categories.verified.current&&'do período atual',!categories.verified.base&&'do mesmo período do ano anterior'].filter(Boolean).join(' e ');
+      notices.push({kind:'CATEGORIAS_NAO_VERIFICADAS',text:'A cobertura de vendas '+which+' nas categorias não está comprovada: valores não verificados.'});
+    }
+  }
+
   const out={
     platform,days:p.days,status,periods,coverage:cov,
     units:{current:status==='OK'?curU:null,previous:status==='OK'?prevU:null,
       change_pct:status==='OK'&&bothProven&&prevU>0?Math.round((curU-prevU)/prevU*1000)/10:null,
-      verified:{current:cov.current.proven,previous:cov.previous.proven}},
+      verified:{current:cov.current.proven,previous:cov.previous.proven},
+      basis:platform==='SHOPEE'?'ANUNCIOS_VINCULADOS':'POR_ANUNCIO',sku_total:skuTotal},
     listings:{active:num(ov?.listings?.active),inactive:num(ov?.listings?.inactive),inactive_with_sales:num(ov?.listings?.inactive_with_sales),
       active_without_sales:num(ov?.listings?.active_without_sales),selling_without_sku:num(ov?.unlinked?.listings)},
-    champions:own(ov?.top_units).map(base),
-    movements:{
-      growth:own(ov?.growth).map(r=>({...base(r),...movementLabel('growth',r,cov)})),
-      drops:own(p.dash?.drops?.items).map(r=>({...base(r),...movementLabel('drop',r,cov)})),
-      stopped:{total:num(ov?.stopped_total),items:stopped,verified:cov.current.proven},
-      never:{total:num(ov?.no_sales_never),items:never,verified:cov.history.proven}
-    },
+    champions:own(ov?.top_units).map(base),champions_available:ovAvail,champions_limit:LIST_LIMITS.champions,
+    movements,
     evolution:{
-      months:(p.monthly?.months||[]).map(m=>({month:m.month,units:num(m['units_'+key]),days_with_sales:num(m.days_with_sales)})).slice(-13),
-      daily:(p.series?.daily||[]).map(d=>({day:d.day,units:num(d['units_'+key]),units_previous:num(d['prev_units_'+key])}))
+      months:(monthly?.months||[]).map(m=>({month:m.month,units:num(m['units_'+key]),days_with_sales:num(m.days_with_sales)})).slice(-13),
+      daily:(series?.daily||[]).map(d=>({day:d.day,units:num(d['units_'+key]),units_previous:num(d['prev_units_'+key])})),
+      basis:platform==='SHOPEE'?'ANUNCIOS_VINCULADOS':'POR_ANUNCIO',
+      available:{months:monthly!=null,daily:series!=null}
     },
-    categories:p.categories?{total:{units:num(p.categories.total?.cur),previous:num(p.categories.total?.base)},
-      items:(p.categories.categories||[]).map(c=>({name:c.name,units:num(c.cur),previous:num(c.base),
-        collections:(c.cols||[]).slice(0,8).map(x=>({name:x.name,units:num(x.cur),previous:num(x.base)}))}))}:null,
-    sales_split:salesSplit(platform,{split:p.split,overview:ov}),
+    categories,
+    sales_split:split,
     traffic_available:Boolean((platform==='SHOPEE'?p.perf?.shopee?.reports:(p.perf?.ml?.reports||[]).filter(r=>r.account===(platform==='ML_NOVO'?'NOVO':'ANTIGO')))?.length),
     notices,
-    parts:{dashboard:partState('dashboard',p.dash),overview:partState('overview',p.overview),monthly:partState('monthly',p.monthly),
-      series:partState('series',p.series),categories:partState('categories',p.categories),split:partState('split',p.split),
+    sources:{cached_in_database:['dashboard','overview','series','monthly','categories'],live:['quality','split','performance'],
+      note:'Dashboard, resumo, evolução e categorias vêm do cache interno do banco (válido até a próxima importação, a virada do dia ou 6 horas). Cobertura, divisão por SKU e relatórios de visitas são consultados ao vivo.',
+      elapsed_ms:num(p.elapsed_ms)},
+    parts:{dashboard:partState('dashboard',dash),overview:partState('overview',overview),monthly:partState('monthly',monthly),
+      series:partState('series',series),categories:partState('categories',categoriesRaw),split:partState('split',p.split),
       quality:failed.has('quality')?'INDISPONIVEL':(p.dqCurrent||p.dqPrevious||p.dqHistory)?'OK':'SEM_DADOS',
-      performance:partState('performance',p.perf)}
+      performance:partState('performance',p.perf?.shopee||p.perf?.ml)}
   };
   return stripCommercial(out);
 }

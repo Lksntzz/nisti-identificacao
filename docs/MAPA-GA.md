@@ -303,13 +303,18 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 
 ## GA-013 — Visão estratégica individual (24/11/2026, PR EM RASCUNHO, sem migração)
 
-- **O que é:** menu "Visão estratégica" (depois de Dashboard) para Shopee, ML Antigo e ML Novo, 7/30/60/90 dias. Só unidades; sem faturamento, lucro, margem ou ticket. Dashboard atual intocado.
-- **Fluxo:** tela `commerce-strategic-view.jsx` → `GET /api/admin/commerce/strategic-view` (fora de `/sales-dashboard/`, sem cache) → `commerceStrategicViewV1` (reúne funções existentes) → regras puras em `commerce-strategic-logic.js`.
-- **Cobertura (GA-018):** crescimento/queda exigem período atual E anterior comprovados; "parou" exige o atual; "nunca vendeu" exige o histórico inteiro comprovado, senão aparece "sem vendas no histórico importado (não verificado)". Sem cobertura = "Sem classificação" com motivo. Unidades e campeões sempre aparecem, marcados "não verificado".
-- **Vendas Shopee (GA-021):** total x com vínculo x sem vínculo x outras causas x resíduo (o resíduo nunca vira "sem vínculo"). ML: anúncios vendendo sem SKU.
-- **Visitas/impressões/conversão:** só do relatório da mesma conta; ausente = não mostra.
-- **Limites conhecidos:** listas já limitadas pelo banco (10/10/20/300/1000); histórico acima de ~1100 dias não é comprovado.
-- **Banco:** nenhuma migração.
+- **O que é:** menu "Visão estratégica" (depois de Dashboard) para Shopee, ML Antigo e ML Novo, 7/30/60/90 dias. Só unidades; sem valores financeiros nem ticket. Dashboard atual intocado.
+- **Fluxo:** tela `commerce-strategic-view.jsx` → `GET /api/admin/commerce/strategic-view` (fora de `/sales-dashboard/`: sem cache de borda) → `commerceStrategicViewV1` → regras puras em `commerce-strategic-logic.js`.
+- **Validação:** o servidor rejeita conta/período inválidos e descarta qualquer parte cuja resposta traga outra conta ou outros dias (`RESPOSTA_INVALIDA`); a tela descarta resposta cuja conta ou dias não sejam os escolhidos agora.
+- **Cobertura (GA-018):** crescimento/queda exigem período atual E anterior comprovados; "parou" exige o atual. Sem cobertura, os títulos e contagens viram "possíveis … (não confirmados)" e cada anúncio fica "Não classificado". "Sem venda" vale só para o **histórico importado** (nunca para toda a existência do anúncio), mesmo com cobertura comprovada.
+- **Base das unidades (nunca misturar):** KPIs, listas e evolução = vendas dos anúncios vinculados (view por anúncio). Categorias e coleções na Shopee = total por SKU (inclui SKU sem vínculo); no ML = por anúncio. A Shopee mostra também o total por SKU como "outra base, não somar" e avisa se a base da divisão não bate com o Dashboard.
+- **Categorias:** o banco compara o período com o **mesmo período do ano anterior** e termina na última venda importada do ano (pode ser dia parcial). A tela mostra as datas reais, avisa quando não coincidem com o período fechado das demais seções e verifica a cobertura desses dois intervalos.
+- **Ranking de queda:** a lista (20) é escolhida pelo **maior valor de venda perdido**, não por unidades; o total de quedas segue a regra por unidades. Não existe fonte por unidades sem migração; a limitação é exibida na tela.
+- **Limites das listas (banco):** campeões 10, crescimento 10 (total desconhecido), quedas 20 (total conhecido), parados 300 (total conhecido), sem venda 1000. Lista truncada é identificada; consulta indisponível nunca vira lista vazia.
+- **Custo e cache:** medido direto no banco (sem gravar cache), 7/30 dias Shopee: Dashboard ~0,9 s, Resumo ~0,3 s, Categorias ~4,4 s, Qualidade dos dados ~0,8 s cada. Dashboard, Resumo, Série, Mensal e Categorias passam pelo cache interno do banco (`commerce_cached_read_v1`, válido até nova importação, virada do dia ou 6 h). Qualidade dos dados, divisão por SKU e relatórios de visitas são ao vivo (até 6 consultas de cobertura por abertura). A resposta traz `sources` e o tempo de montagem.
+- **Testes:** `test/commerce-strategic-*.test.js` (fictícios) e `test-browser/strategic-view.mjs` (Chromium real: troca rápida, não comprovado, falhas parciais, resposta de outra conta, celular).
+- **Preservação do Dashboard:** `commerce-strategic-ui.test.js` compara os arquivos com a `main` por árvore (busca só a ponta da `main` em checkout raso; no CI falha se não achar) e confere que nenhum lado importa o outro.
+- **Banco:** nenhuma migração, nenhuma alteração de SQL.
 
 ## GA-021 — Unificação da fonte de vendas da Shopee (24/11/2026, PUBLICADA)
 - **Defeito:** dez funções liam `commerce_shopee_sales_sku_daily_v1` (tabela legada) crua, sem olhar o status do lote. Lotes abertos (STAGED) e versões antigas de um dia entravam na conta. Em 24/11/2026 os lotes abertos 77 e 78 (mesmos dados duas vezes) inflavam a Shopee nos períodos que incluem os dias 04 e 05/11. O efeito dos lotes é o mesmo em 30 dias, 90 dias e no ano; a diferença total medida contra a base por anúncio da GA-019 é um pouco maior porque inclui SKUs sem vínculo, que essa base não enxerga e que a correção preserva. O Mercado Livre não era afetado.

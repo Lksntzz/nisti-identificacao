@@ -36,3 +36,6 @@
 .nsv-dl{margin:0;display:grid;gap:6px}.nsv-dl>div{display:flex;justify-content:space-between;font-size:13px}
 .nsv-dl dt{color:#64748b}.nsv-dl dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
 @media(max-width:900px){.nsv-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.nsv-two{grid-template-columns:1fr}}
+.nsv-block.is-candidate{border-style:dashed;border-color:#f0c36d;background:#fffdf7}
+.nsv-sources{font-size:11px}
+.nsv-tag.is-sem_venda_historico_importado{background:#e0f2fe;color:#075985}

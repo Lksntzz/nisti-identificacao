@@ -17,7 +17,7 @@ const mk=(over={})=>{
     overview:async (_e,a)=>{calls.push(['overview',a]);return {listings:{active:1},top_units:[],growth:[],stopped:[],no_sales:[]};},
     monthly:async (_e,a)=>{calls.push(['monthly',a]);return {months:[]};},
     series:async (_e,a)=>{calls.push(['series',a]);return {daily:[]};},
-    categories:async (_e,a)=>{calls.push(['categories',a]);return {total:{cur:1,base:1},categories:[]};},
+    categories:async (_e,a)=>{calls.push(['categories',a]);return {platform:a.platform,cur_from:'2026-11-17',cur_to:'2026-11-23',base_from:'2025-11-17',base_to:'2025-11-23',total:{cur:1,base:1},categories:[]};},
     shopeePerf:async()=>({reports:[],items:{}}),mlPerf:async()=>({reports:[],items:{}}),
     quality:async(_e,a)=>{calls.push(['quality',a]);return dq(a.platform,a.start,a.end,Math.round((Date.parse(a.end)-Date.parse(a.start))/86400000)+1);},
     split:async(_e,a)=>{calls.push(['split',a]);return {status:'COMPLETO',total_units:14,linked_units:14,unlinked_units:0,base_units:14,
@@ -34,7 +34,8 @@ test('store: monta a visão pedindo cada parte para a MESMA conta e para os per�
   for(const [name,a] of calls.filter(c=>['dashboard','overview','monthly','series','categories','quality'].includes(c[0])))
     assert.equal(a.platform,'SHOPEE',name+' pediu outra conta');
   const q=calls.filter(c=>c[0]==='quality').map(c=>[c[1].start,c[1].end]);
-  assert.deepEqual(q,[['2026-11-17','2026-11-23'],['2026-11-10','2026-11-16'],['2025-01-01','2026-11-23']]);
+  assert.deepEqual(q.slice(0,3),[['2026-11-17','2026-11-23'],['2026-11-10','2026-11-16'],['2025-01-01','2026-11-23']]);
+  assert.deepEqual(q.slice(3),[['2025-11-17','2025-11-23']],'base anual das categorias é verificada; o período atual alinhado é reaproveitado');
   assert.deepEqual(calls.find(c=>c[0]==='split')[1],{start:'2026-11-17',end:'2026-11-23'});
   assert.deepEqual(calls.find(c=>c[0]==='categories')[1],{platform:'SHOPEE',mode:'days',days:7});
   assert.equal(v.units.verified.current,true); assert.equal(v.units.verified.previous,true);
@@ -58,7 +59,7 @@ test('store: parte que falha vira indisponível e o resto continua',async()=>{
 test('store: histórico maior que 1100 dias não é afirmado como comprovado',async()=>{
   const {deps,calls}=mk({dashboard:async (_e,a)=>({...dash(a.platform),first_day:'2020-01-01'})});
   const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
-  assert.equal(calls.filter(c=>c[0]==='quality').length,2);
+  assert.equal(calls.filter(c=>c[0]==='quality').length,3,'atual, anterior e base anual das categorias; sem histórico');
   assert.equal(v.coverage.history.proven,false);
 });
 
@@ -79,4 +80,18 @@ test('rota: só as três contas, janelas 7/30/60/90, fora do cache de borda e se
   const fn=store.slice(store.indexOf('export async function commerceStrategicViewV1'));
   assert.doesNotMatch(fn,/method:\s*'(POST|PUT|DELETE|PATCH)'/);
   assert.doesNotMatch(fn,/cachedRpc\(env,'commerce_data_quality_v1'/);
+});
+
+test('store: categorias desalinhadas pedem a cobertura do próprio período delas',async()=>{
+  const {deps,calls}=mk({categories:async(_e,a)=>({platform:a.platform,cur_from:'2026-11-18',cur_to:'2026-11-24',base_from:'2025-11-18',base_to:'2025-11-24',total:{cur:1,base:1},categories:[]})});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  const q=calls.filter(c=>c[0]==='quality').map(c=>c[1].start+'|'+c[1].end);
+  assert.ok(q.includes('2026-11-18|2026-11-24')&&q.includes('2025-11-18|2025-11-24'));
+  assert.equal(v.categories.aligned,false); assert.ok(v.notices.some(n=>n.kind==='CATEGORIAS_PERIODO_DIFERENTE'));
+  assert.equal(typeof v.sources.elapsed_ms,'number');
+});
+test('store: resposta de outra conta devolvida por uma consulta é rejeitada',async()=>{
+  const {deps}=mk({overview:async()=>({platform:'ML_NOVO',listings:{active:9},top_units:[],growth:[],stopped:[],no_sales:[]})});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  assert.equal(v.parts.overview,'RESPOSTA_INVALIDA'); assert.equal(v.movements.growth.available,false);
 });

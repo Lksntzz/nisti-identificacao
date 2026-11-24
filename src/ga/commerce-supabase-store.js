@@ -1449,6 +1449,7 @@ export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) 
     series:commerceSalesDashboardSeriesV1,categories:commerceCategories,shopeePerf:commerceShopeePerformanceLatest,
     mlPerf:commerceMlPerformanceLatest,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit
   };
+  const t0=Date.now();
   const n=Number(days),failed=[];
   const settle=async(name,fn)=>{try{return await fn();}catch{if(!failed.includes(name))failed.push(name);return null;}};
   const [dash,overview,monthly,series,categories,shopeePerf,mlPerf]=await Promise.all([
@@ -1461,16 +1462,23 @@ export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) 
     platform!=='SHOPEE'?settle('performance',()=>d.mlPerf(env)):Promise.resolve(null)
   ]);
   const periods=strategicPeriods(dash);
-  let dqCurrent=null,dqPrevious=null,dqHistory=null,split=null;
+  const iso=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)?v:null;
+  const catCur=iso(categories?.cur_from)&&iso(categories?.cur_to)?{start:categories.cur_from,end:categories.cur_to}:null;
+  const catBase=iso(categories?.base_from)&&iso(categories?.base_to)?{start:categories.base_from,end:categories.base_to}:null;
+  const sameRange=(a,b)=>Boolean(a&&b&&a.start===b.start&&a.end===b.end);
+  let dqCurrent=null,dqPrevious=null,dqHistory=null,split=null,dqCatCurrent=null,dqCatBase=null;
   if(periods){
-    const q=period=>settle('quality',()=>d.quality(env,{platform,start:period.start,end:period.end}));
+    const q=period=>period?settle('quality',()=>d.quality(env,{platform,start:period.start,end:period.end})):Promise.resolve(null);
     const spanDays=(Date.parse(periods.history.end)-Date.parse(periods.history.start))/86400000+1;
-    [dqCurrent,dqPrevious,dqHistory,split]=await Promise.all([
+    [dqCurrent,dqPrevious,dqHistory,split,dqCatCurrent,dqCatBase]=await Promise.all([
       q(periods.current),q(periods.previous),
       spanDays<=STRATEGIC_MAX_HISTORY_DAYS?q(periods.history):Promise.resolve(null),
-      platform==='SHOPEE'?settle('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null)
+      platform==='SHOPEE'?settle('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null),
+      // Categorias usam as próprias datas (até a última venda do ano; base = mesmo período do ano anterior).
+      catCur&&!sameRange(catCur,periods.current)?q(catCur):Promise.resolve(null),
+      q(catBase)
     ]);
   }
-  return buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,
-    perf:{shopee:shopeePerf,ml:mlPerf},failed,periods});
+  return buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,dqCatCurrent,dqCatBase,
+    perf:{shopee:shopeePerf,ml:mlPerf},failed,periods,elapsed_ms:Date.now()-t0});
 }

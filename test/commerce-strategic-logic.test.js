@@ -85,7 +85,7 @@ test('parou: só o período atual precisa estar comprovado; última venda antiga
 test('nunca vendeu: só com TODO o histórico importado comprovado; senão "sem vendas no histórico importado"',()=>{
   const row={units_ever:0,last_sale:null};
   const hist={current:{proven:true},previous:{proven:true},history:{proven:true}};
-  assert.equal(movementLabel('no_sales',row,hist).label,'NUNCA_VENDEU');
+  assert.equal(movementLabel('no_sales',row,hist).label,'SEM_VENDA_HISTORICO_IMPORTADO');
   const noHist={current:{proven:true},previous:{proven:true},history:{proven:false,reason:'NAO_COMPROVADA'}};
   const r=movementLabel('no_sales',row,noHist);
   assert.equal(r.label,'SEM_VENDAS_HISTORICO_NAO_VERIFICADO');
@@ -164,12 +164,12 @@ const walk=(v,f,path='')=>{if(Array.isArray(v))v.forEach((x,i)=>walk(x,f,path+'[
 test('visão montada: unidades, situação, campeões, movimentos, evolução, categorias; nada comercial',()=>{
   const v=buildStrategicView(parts());
   assert.equal(v.platform,'SHOPEE'); assert.equal(v.days,7);
-  assert.deepEqual(v.units,{current:140,previous:100,change_pct:40,verified:{current:true,previous:true}});
+  assert.deepEqual({c:v.units.current,p:v.units.previous,ch:v.units.change_pct,v:v.units.verified},{c:140,p:100,ch:40,v:{current:true,previous:true}});
   assert.deepEqual(v.listings,{active:3,inactive:1,inactive_with_sales:0,active_without_sales:1,selling_without_sku:1});
   assert.equal(v.champions[0].external_id,'A1');
   assert.equal(v.champions[0].traffic.visits,700);
-  assert.equal(v.movements.growth[0].label,'CRESCIMENTO');
-  assert.equal(v.movements.drops[0].label,'QUEDA');
+  assert.equal(v.movements.growth.items[0].label,'CRESCIMENTO');
+  assert.equal(v.movements.drops.items[0].label,'QUEDA');
   assert.equal(v.movements.stopped.items[0].label,'PAROU');
   assert.equal(v.movements.stopped.items[0].last_sale_verified,false);
   assert.equal(v.movements.never.items[0].label,'SEM_VENDAS_HISTORICO_NAO_VERIFICADO');
@@ -181,15 +181,15 @@ test('visão montada: unidades, situação, campeões, movimentos, evolução, c
   assert.equal(v.notices.some(n=>n.kind==='HISTORICO_NAO_VERIFICADO'),true);
   const bad=[]; walk(v,(k,p)=>{if(FORBIDDEN_KEY_RE.test(k))bad.push(p+'.'+k);});
   assert.deepEqual(bad,[]);
-  assert.doesNotMatch(JSON.stringify(v),/faturamento|lucro|margem|ticket/i);
+  assert.doesNotMatch(JSON.stringify(v,(k,x)=>k==='ordering_note'?undefined:x),/faturamento|lucro|margem|ticket/i); // a única menção é o aviso de como o ranking de queda é escolhido
 });
 
 test('sem cobertura do período anterior (30 dias hoje): unidades aparecem, mas nada é classificado',()=>{
-  const v=buildStrategicView(parts({days:30,dqPrevious:partial('SHOPEE','2026-09-25','2026-10-24',30)}));
+  const v=buildStrategicView(parts({days:30,dash:dash({days:30,drops:{items:[{listing_id:2,platform:'SHOPEE',external_id:'B2',title:'Anúncio B',units:2,units_previous:10}],total:1}}),dqPrevious:partial('SHOPEE','2026-09-25','2026-10-24',30)}));
   assert.equal(v.units.verified.previous,false);
-  assert.equal(v.movements.growth[0].label,'SEM_CLASSIFICACAO');
-  assert.equal(v.movements.growth[0].reason,'PERIODO_ANTERIOR_NAO_COMPROVADO');
-  assert.equal(v.movements.drops[0].label,'SEM_CLASSIFICACAO');
+  assert.equal(v.movements.growth.items[0].label,'SEM_CLASSIFICACAO');
+  assert.equal(v.movements.growth.items[0].reason,'PERIODO_ANTERIOR_NAO_COMPROVADO');
+  assert.equal(v.movements.drops.items[0].label,'SEM_CLASSIFICACAO');
   assert.equal(v.movements.stopped.items[0].label,'PAROU'); // atual comprovado
   assert.equal(v.champions.length,1,'histórico/unidades continuam visíveis');
   assert.equal(v.notices.some(n=>n.kind==='PERIODO_ANTERIOR_NAO_COMPROVADO'),true);
@@ -197,7 +197,7 @@ test('sem cobertura do período anterior (30 dias hoje): unidades aparecem, mas 
 
 test('sem nenhuma cobertura: tudo vira "sem classificação", histórico visível e identificado',()=>{
   const v=buildStrategicView(parts({dqCurrent:null,dqPrevious:null,dqHistory:null}));
-  for(const r of [...v.movements.growth,...v.movements.drops,...v.movements.stopped.items])assert.equal(r.label,'SEM_CLASSIFICACAO');
+  for(const r of [...v.movements.growth.items,...v.movements.drops.items,...v.movements.stopped.items])assert.equal(r.label,'SEM_CLASSIFICACAO');
   assert.equal(v.movements.never.items.every(r=>r.label==='SEM_VENDAS_HISTORICO_NAO_VERIFICADO'||r.label==='SEM_CLASSIFICACAO'),true);
   assert.equal(v.units.current,140);
 });
@@ -234,5 +234,5 @@ test('isolamento: item de outra conta no overview nunca entra',()=>{
   p.overview.growth=[{platform:'SHOPEE',external_id:'G',title:'outra',units:50,units_previous:10}];
   const v=buildStrategicView(p);
   assert.deepEqual(v.champions.map(c=>c.external_id),['Y']);
-  assert.equal(v.movements.growth.length,0);
+  assert.equal(v.movements.growth.items.length,0);
 });

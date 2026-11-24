@@ -4,13 +4,17 @@ import {STRATEGIC_PLATFORMS,STRATEGIC_DAYS} from './commerce-strategic-logic.js'
 import {scopeKey,isCurrentScope,matchesPlatform} from './commerce-platform-scope-logic.js';
 import './commerce-strategic-view.css';
 
-// GA-013 — Visão estratégica por conta (somente leitura). Só unidades: nada de faturamento, lucro, margem ou ticket.
-// GA-012: a resposta fica guardada com a chave conta|período e é descartada se não for a escolha atual.
+// GA-013 — Visão estratégica por conta (somente leitura). Só unidades: nada de valores financeiros nem ticket.
+// GA-012: a resposta fica guardada com a chave conta|período e é descartada se conta OU dias não forem os escolhidos agora.
 const nf=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
-const LABEL={CRESCIMENTO:'Crescimento',QUEDA:'Queda',ESTAVEL:'Estável',POUCO_VOLUME:'Pouco volume',PAROU:'Parou',NUNCA_VENDEU:'Nunca vendeu',
-  SEM_VENDAS_HISTORICO_NAO_VERIFICADO:'Sem vendas no histórico importado (não verificado)',SEM_VENDA_NO_PERIODO:'Sem venda no período',SEM_CLASSIFICACAO:'Sem classificação'};
+const LABEL={CRESCIMENTO:'Crescimento',QUEDA:'Queda',ESTAVEL:'Estável',POUCO_VOLUME:'Pouco volume',PAROU:'Parou',
+  SEM_VENDA_HISTORICO_IMPORTADO:'Sem venda no histórico importado',
+  SEM_VENDAS_HISTORICO_NAO_VERIFICADO:'Sem venda nos dados importados (histórico não verificado)',
+  SEM_VENDA_NO_PERIODO:'Sem venda no período',SEM_CLASSIFICACAO:'Não classificado'};
 const REASON={PERIODO_ATUAL_NAO_COMPROVADO:'cobertura do período atual não comprovada',PERIODO_ANTERIOR_NAO_COMPROVADO:'cobertura do período anterior não comprovada',
   HISTORICO_NAO_COMPROVADO:'histórico não verificado'};
+const BASIS={ANUNCIOS_VINCULADOS:'vendas dos anúncios vinculados',POR_ANUNCIO:'vendas por anúncio',TOTAL_POR_SKU:'total por SKU (inclui SKU sem vínculo)'};
+const PART_PT={dashboard:'Dashboard',overview:'resumo de anúncios',monthly:'evolução mensal',series:'evolução diária',categories:'categorias',split:'divisão por SKU',quality:'cobertura',performance:'visitas e impressões'};
 
 function Traffic({t}){
   if(!t||(t.visits==null&&t.impressions==null&&t.conversion_pct==null))return null;
@@ -18,12 +22,27 @@ function Traffic({t}){
     {t.conversion_pct!=null&&<> · Conversão {String(t.conversion_pct).replace('.',',')}%</>}{t.period&&<> ({t.period.start} a {t.period.end})</>}</small>;
 }
 function Row({r,showPrev}){
-  return <li className="nsv-row"><div><b>{r.title||r.external_id||'Anúncio'}</b>{r.external_id&&<small> {r.external_id}</small>}<Traffic t={r.traffic}/></div>
+  return <li className="nsv-row"><div><b>{r.title||r.external_id||'Anúncio'}</b>{r.external_id&&<small> {r.external_id}</small>}<Traffic t={r.traffic}/>
+    {r.last_sale&&<small>Última venda importada: {r.last_sale}{r.last_sale_verified===false?' (data não verificada)':''}</small>}</div>
     <div className="nsv-nums">{r.units!=null&&<span>{nf(r.units)} un.</span>}{showPrev&&r.units_previous!=null&&<small>antes {nf(r.units_previous)}</small>}
       {r.label&&<em className={'nsv-tag is-'+r.label.toLowerCase()} title={REASON[r.reason]||''}>{LABEL[r.label]||r.label}</em>}</div></li>;
 }
-function Block({title,note,children,empty}){
-  return <section className="nsv-block"><h3>{title}</h3>{note&&<p className="nsv-note">{note}</p>}{empty?<p className="nsv-empty">{empty}</p>:children}</section>;
+function Block({title,children,notes=[],tone}){
+  return <section className={'nsv-block'+(tone?' is-'+tone:'')}><h3>{title}</h3>{notes.filter(Boolean).map((n,i)=><p key={i} className="nsv-note">{n}</p>)}{children}</section>;
+}
+// Grupo de movimentos: título/contagem vêm do servidor e já distinguem "confirmado" de "possível".
+const PREVIEW=10;
+function Group({g,showPrev,partName}){
+  const [all,setAll]=useState(false);
+  if(!g)return null;
+  const cand=g.kind==='CANDIDATO';
+  return <Block title={g.title} tone={cand?'candidate':null}
+    notes={[g.count_label,cand?'Candidatos pelos dados importados: a cobertura de vendas não comprova o período, então ainda não é uma classificação confirmada.':null,g.ordering_note,g.note,g.limit_note]}>
+    {!g.available?<p className="nsv-error" role="status">Consulta indisponível no momento ({PART_PT[partName]||partName}): isto não significa que não existam anúncios.</p>
+      :g.items.length===0?<p className="nsv-empty">Nenhum anúncio nesta lista.</p>
+      :<><ul className="nsv-list">{(all?g.items:g.items.slice(0,PREVIEW)).map(r=><Row key={r.listing_id||r.external_id} r={r} showPrev={showPrev}/>)}</ul>
+        {g.items.length>PREVIEW&&<button type="button" className="nsv-link" onClick={()=>setAll(x=>!x)}>{all?'Mostrar menos':'Mostrar todos os '+g.items.length+' carregados'}</button>}</>}
+  </Block>;
 }
 function Bars({items}){
   const max=Math.max(1,...items.map(i=>i.units||0));
@@ -37,7 +56,6 @@ export default function CommerceStrategicView(){
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [tick,setTick]=useState(0);
-  const [showAllNever,setShowAllNever]=useState(false);
   const key=scopeKey({platform,days});
   useEffect(()=>{
     setEntry(null);setError('');setLoading(true);
@@ -48,8 +66,12 @@ export default function CommerceStrategicView(){
       .finally(()=>{if(!c.signal.aborted)setLoading(false);});
     return()=>c.abort();
   },[key,tick]);
-  const v=isCurrentScope(entry,key)&&matchesPlatform(entry.data,platform)?entry.data:null;
+  const current=isCurrentScope(entry,key)?entry.data:null;
+  // Conta E período devolvidos precisam ser os escolhidos agora; qualquer outra resposta é descartada.
+  const v=current&&matchesPlatform(current,platform)&&Number(current.days)===days?current:null;
+  const wrong=Boolean(current)&&!v;
   const mv=v?.movements;
+  const bad=v?Object.entries(v.parts).filter(([,s])=>s==='INDISPONIVEL'||s==='RESPOSTA_INVALIDA'):[];
   return <section className="nsv-root" aria-label="Visão estratégica">
     <div className="nsv-toolbar">
       <div className="nsv-seg" role="radiogroup" aria-label="Conta">
@@ -61,47 +83,58 @@ export default function CommerceStrategicView(){
       </div>
       <button type="button" className="nsv-refresh" onClick={()=>setTick(t=>t+1)}>Atualizar</button>
     </div>
-    <p className="nsv-note">Somente unidades vendidas, a partir dos dados importados. Não mostra faturamento, lucro, margem nem ticket médio.</p>
+    <p className="nsv-note">Somente unidades, a partir dos dados importados. Não mostra valores financeiros.</p>
     {error&&<p className="nsv-error" role="alert">{error}</p>}
-    {loading&&<p className="nsv-note">Carregando…</p>}
+    {wrong&&<p className="nsv-error" role="alert">A resposta recebida não corresponde à conta ou ao período escolhidos e foi descartada.</p>}
+    {loading&&<p className="nsv-note" role="status">Carregando…</p>}
     {v&&<>
-      {v.periods&&<p className="nsv-note">Período atual: {v.periods.current.start} a {v.periods.current.end} · anterior: {v.periods.previous.start} a {v.periods.previous.end}</p>}
-      {v.notices.map(n=><p key={n.kind} className="nsv-warn" role="status">{n.text}</p>)}
+      {v.periods&&<p className="nsv-note" data-testid="periods">Período atual: {v.periods.current.start} a {v.periods.current.end} · anterior: {v.periods.previous.start} a {v.periods.previous.end}</p>}
+      {v.notices.map(n=><p key={n.kind} className="nsv-warn" role="status" data-notice={n.kind}>{n.text}</p>)}
+      {bad.length>0&&<p className="nsv-warn" role="status" data-testid="parts-down">Partes indisponíveis ou descartadas: {bad.map(([k,s])=>(PART_PT[k]||k)+(s==='RESPOSTA_INVALIDA'?' (resposta inválida)':'')).join(', ')}. O restante da tela continua válido.</p>}
       {v.status==='SEM_INFORMACAO'?<p className="nsv-empty">Sem informação de vendas para esta conta.</p>:<>
       <div className="nsv-kpis">
-        <div><span>Unidades no período</span><strong>{nf(v.units.current)}</strong>{!v.units.verified.current&&<small className="nsv-unv">não verificado</small>}</div>
-        <div><span>Período anterior</span><strong>{nf(v.units.previous)}</strong>{!v.units.verified.previous&&<small className="nsv-unv">não verificado</small>}</div>
-        <div><span>Variação</span><strong>{v.units.change_pct==null?'—':(v.units.change_pct>0?'+':'')+String(v.units.change_pct).replace('.',',')+'%'}</strong>
+        <div><span>Unidades no período · {BASIS[v.units.basis]}</span><strong data-testid="units-current">{nf(v.units.current)}</strong>{!v.units.verified.current&&<small className="nsv-unv">não verificado</small>}</div>
+        <div><span>Período anterior · mesma base</span><strong>{nf(v.units.previous)}</strong>{!v.units.verified.previous&&<small className="nsv-unv">não verificado</small>}</div>
+        <div><span>Variação (mesma base)</span><strong>{v.units.change_pct==null?'—':(v.units.change_pct>0?'+':'')+String(v.units.change_pct).replace('.',',')+'%'}</strong>
           {v.units.change_pct==null&&<small>exige os dois períodos verificados</small>}</div>
         <div><span>Anúncios ativos</span><strong>{nf(v.listings.active)}</strong><small>{nf(v.listings.active_without_sales)} sem venda · {nf(v.listings.inactive)} inativos</small></div>
       </div>
-      <Block title="Produtos campeões" empty={v.champions.length===0&&'Sem dados.'}><ul className="nsv-list">{v.champions.map(r=><Row key={r.listing_id||r.external_id} r={r}/>)}</ul></Block>
+      {v.units.sku_total&&<p className="nsv-note" data-testid="sku-total">Outra base, não somar: total por SKU no período atual = {nf(v.units.sku_total.current)} un. (inclui {nf(v.units.sku_total.unlinked)} de SKU sem vínculo).</p>}
+      <Block title="Produtos campeões (maiores unidades)" notes={['Até '+v.champions_limit+' anúncios, por unidades vendidas no período atual.']}>
+        {!v.champions_available?<p className="nsv-error" role="status">Consulta indisponível no momento.</p>:v.champions.length===0?<p className="nsv-empty">Sem dados.</p>
+          :<ul className="nsv-list">{v.champions.map(r=><Row key={r.listing_id||r.external_id} r={r}/>)}</ul>}</Block>
       <div className="nsv-two">
-        <Block title="Crescimento" empty={mv.growth.length===0&&'Nenhum anúncio.'}><ul className="nsv-list">{mv.growth.map(r=><Row key={r.listing_id||r.external_id} r={r} showPrev/>)}</ul></Block>
-        <Block title="Queda" empty={mv.drops.length===0&&'Nenhum anúncio.'}><ul className="nsv-list">{mv.drops.map(r=><Row key={r.listing_id||r.external_id} r={r} showPrev/>)}</ul></Block>
+        <Group g={mv.growth} showPrev partName="overview"/>
+        <Group g={mv.drops} showPrev partName="dashboard"/>
       </div>
-      <Block title={'Anúncios que pararam'+(mv.stopped.total!=null?' ('+nf(mv.stopped.total)+')':'')} note={!mv.stopped.verified?'Parada não verificada: o período atual não está comprovado.':'A data da última venda ainda não foi verificada em todo o histórico.'} empty={mv.stopped.items.length===0&&'Nenhum anúncio.'}>
-        <ul className="nsv-list">{mv.stopped.items.map(r=><Row key={r.listing_id||r.external_id} r={r}/>)}</ul></Block>
-      <Block title={'Anúncios que nunca venderam'+(mv.never.total!=null?' ('+nf(mv.never.total)+')':'')} note={!mv.never.verified?'Histórico não verificado: estes anúncios não têm venda nos dados importados, mas “nunca vendeu” não é afirmado.':null} empty={mv.never.items.length===0&&'Nenhum anúncio.'}>
-        <ul className="nsv-list">{(showAllNever?mv.never.items:mv.never.items.slice(0,10)).map(r=><Row key={r.listing_id||r.external_id} r={r}/>)}</ul>
-        {mv.never.items.length>10&&<button type="button" className="nsv-link" onClick={()=>setShowAllNever(s=>!s)}>{showAllNever?'Mostrar menos':'Mostrar todos ('+mv.never.items.length+')'}</button>}</Block>
-      <Block title="Evolução comercial" empty={v.evolution.months.length===0&&v.evolution.daily.length===0&&'Sem dados.'}>
+      <Group g={mv.stopped} partName="overview"/>
+      <Group g={mv.never} partName="overview"/>
+      <Block title={'Evolução comercial · '+BASIS[v.evolution.basis]}>
+        {!v.evolution.available.months&&!v.evolution.available.daily?<p className="nsv-error" role="status">Evolução indisponível no momento.</p>:<>
         {v.evolution.months.length>0&&<><h4>Por mês</h4><Bars items={v.evolution.months}/></>}
-        {v.evolution.daily.length>0&&<><h4>Por dia (período selecionado)</h4><Bars items={v.evolution.daily}/></>}</Block>
-      <Block title="Categorias e coleções" empty={v.categories==null?'Categorias indisponíveis no momento.':v.categories.items.length===0&&'Sem dados.'}>
-        {v.categories&&<ul className="nsv-list">{v.categories.items.map(c=><li key={c.name} className="nsv-row"><div><b>{c.name}</b>
-          {c.collections.length>0&&<small className="nsv-cols">{c.collections.map(x=>x.name+' '+nf(x.units)).join(' · ')}</small>}</div>
-          <div className="nsv-nums"><span>{nf(c.units)} un.</span><small>antes {nf(c.previous)}</small></div></li>)}</ul>}</Block>
+        {v.evolution.daily.length>0&&<><h4>Por dia (período selecionado)</h4><Bars items={v.evolution.daily}/></>}
+        {v.evolution.months.length===0&&v.evolution.daily.length===0&&<p className="nsv-empty">Sem dados.</p>}</>}</Block>
+      <Block title="Categorias e coleções"
+        notes={v.categories?['Unidades · '+BASIS[v.categories.basis]+'.',
+          'Comparação anual: período atual '+v.categories.period.current.start+' a '+v.categories.period.current.end+' contra o mesmo período do ano anterior ('+v.categories.period.base.start+' a '+v.categories.period.base.end+').',
+          !v.categories.aligned?'Este período não é o mesmo das demais seções.':null,
+          (!v.categories.verified.current||!v.categories.verified.base)?'Valores não verificados (cobertura não comprovada).':null]:[]}>
+        {v.categories==null?<p className={v.parts.categories==='SEM_DADOS'?'nsv-empty':'nsv-error'} role="status">{v.parts.categories==='SEM_DADOS'?'Sem dados.':'Categorias indisponíveis no momento.'}</p>
+          :v.categories.items.length===0?<p className="nsv-empty">Sem dados.</p>
+          :<ul className="nsv-list">{v.categories.items.map(c=><li key={c.name} className="nsv-row"><div><b>{c.name}</b>
+            {c.collections.length>0&&<small className="nsv-cols">{c.collections.map(x=>x.name+' '+nf(x.units)).join(' · ')}</small>}</div>
+            <div className="nsv-nums"><span>{nf(c.units)} un.</span><small>ano anterior {nf(c.base)}</small></div></li>)}</ul>}</Block>
       <Block title="Vendas sem vínculo e resíduo">
         {v.sales_split.kind==='SHOPEE'
-          ?(v.sales_split.total==null?<p className="nsv-empty">Sem informação para este período.</p>
-            :<dl className="nsv-dl"><div><dt>Total vendido</dt><dd>{nf(v.sales_split.total)}</dd></div><div><dt>Com vínculo</dt><dd>{nf(v.sales_split.linked)}</dd></div>
+          ?(v.sales_split.total==null?<p className={v.sales_split.status==='INDISPONIVEL'?'nsv-error':'nsv-empty'} role="status">{v.sales_split.status==='INDISPONIVEL'?'Consulta indisponível no momento.':'Sem informação para este período.'}</p>
+            :<dl className="nsv-dl"><div><dt>Total por SKU</dt><dd>{nf(v.sales_split.total)}</dd></div><div><dt>Com vínculo a anúncio</dt><dd>{nf(v.sales_split.linked)}</dd></div>
               <div><dt>Sem vínculo</dt><dd>{nf(v.sales_split.unlinked)}</dd></div><div><dt>Outras causas explicadas</dt><dd>{nf(v.sales_split.other_explained)}</dd></div>
               <div><dt>Resíduo não explicado</dt><dd>{nf(v.sales_split.residual)}</dd></div></dl>)
           :<p>{nf(v.sales_split.unlinked_listings)} anúncio(s) vendendo sem SKU vinculado.</p>}
         {v.sales_split.status==='INCONSISTENTE'&&<p className="nsv-warn">Os números não fecham entre si: conferir antes de usar.</p>}
       </Block></>}
       {!v.traffic_available&&<p className="nsv-note">Visitas, impressões e conversão: sem relatório importado desta conta.</p>}
+      <p className="nsv-note nsv-sources" data-testid="sources">{v.sources.note}{v.sources.elapsed_ms!=null&&' Montada em '+nf(v.sources.elapsed_ms)+' ms.'}</p>
     </>}
   </section>;
 }

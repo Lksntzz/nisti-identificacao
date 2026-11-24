@@ -80,6 +80,11 @@ jobs:
           CI: 'true'
         run: node test-browser/platform-dashboard.mjs
 
+      - name: Strategic View (GA-013) in real Chromium (fast switching, unproven periods, partial failures)
+        env:
+          CI: 'true'
+        run: node test-browser/strategic-view.mjs
+
       - name: Show local server errors only on failure
         if: failure()
         run: tail -n 70 /tmp/nisti-vite.log || true
