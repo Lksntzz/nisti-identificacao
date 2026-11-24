@@ -47,7 +47,7 @@ Como funciona: a trava atua **antes** do merge. O GitHub bloqueia o botão enqua
 
 ## 1. Backup
 
-1. Painel do Supabase → Database → Backups: anote se existe algum backup do próprio Supabase (o plano gratuito normalmente não tem). **O backup externo do projeto precisa existir antes da migração** ([[backup]]): faça o backup criptografado, confira a integridade e **teste a restauração num PostgreSQL isolado** (passo a passo em [[backup]], seção "Teste de restauração"). O banco tem cerca de 202 MB (217 MB com a cópia interna do item 2); o limite padrão do script agora é 300 MB, então não precisa mexer em nenhuma variável. Se o banco passar de 300 MB, o script recusa de propósito: confira a franquia de rede (plano gratuito: 5 GB por mês; o backup transfere algo como o tamanho do banco) e só então use `NISTI_BACKUP_MAX_MB` (até 500). Guarde a senha de criptografia fora do Drive.
+1. Painel do Supabase → Database → Backups: anote se existe algum backup do próprio Supabase (o plano gratuito normalmente não tem). **Decisão do dono (24/11/2026): publicar sem o backup externo; ele ficou como pendência de infraestrutura** ([[backup]]). Quando for feito, siga o passo a passo e **teste a restauração num PostgreSQL isolado** (seção "Teste de restauração" de [[backup]]). Sem ele, a única proteção é a cópia interna do item 2, que mora no mesmo banco: serve para desfazer a GA-019, não para perder o projeto. O banco tem cerca de 202 MB (217 MB com a cópia interna do item 2); o limite padrão do script agora é 300 MB, então não precisa mexer em nenhuma variável. Se o banco passar de 300 MB, o script recusa de propósito: confira a franquia de rede (plano gratuito: 5 GB por mês; o backup transfere algo como o tamanho do banco) e só então use `NISTI_BACKUP_MAX_MB` (até 500). Guarde a senha de criptografia fora do Drive.
 
    Para comparar o banco com o banco restaurado, rode isto no SQL Editor **logo antes e logo depois do backup** (os dois resultados têm de ser iguais; se forem diferentes, alguém mexeu no sistema durante o backup e a comparação com o banco restaurado precisa ser feita tabela a tabela):
 
@@ -83,7 +83,7 @@ create table backup.pre_ga019__commerce_shopee_order_extras_daily_v1 as select *
 revoke all on all tables in schema backup from public, anon, authenticated;
 ```
 
-   Conferência (a coluna `igual` deve ser `true` em todas as linhas):
+   Conferência (as colunas `igual` — mesma contagem — e `conteudo_igual` — mesmo conteúdo, linha a linha — devem ser `true` em todas as linhas; `conteudo_igual` é a que prova que a cópia ainda vale, porque pega alteração que não muda a contagem):
 
 <!-- sql:backup-check -->
 ```sql
@@ -91,7 +91,9 @@ select t.nome,
   (xpath('/row/n/text()', query_to_xml(format('select count(*) n from public.%I', t.nome), false, true, '')))[1]::text::bigint as original,
   (xpath('/row/n/text()', query_to_xml(format('select count(*) n from backup.%I', 'pre_ga019__' || t.nome), false, true, '')))[1]::text::bigint as copia,
   (xpath('/row/n/text()', query_to_xml(format('select count(*) n from public.%I', t.nome), false, true, '')))[1]::text::bigint
-   = (xpath('/row/n/text()', query_to_xml(format('select count(*) n from backup.%I', 'pre_ga019__' || t.nome), false, true, '')))[1]::text::bigint as igual
+   = (xpath('/row/n/text()', query_to_xml(format('select count(*) n from backup.%I', 'pre_ga019__' || t.nome), false, true, '')))[1]::text::bigint as igual,
+  (xpath('/row/h/text()', query_to_xml(format('select md5(coalesce(string_agg(to_jsonb(x)::text, %L order by to_jsonb(x)::text), %L)) h from public.%I x', '', '', t.nome), false, true, '')))[1]::text
+   = (xpath('/row/h/text()', query_to_xml(format('select md5(coalesce(string_agg(to_jsonb(x)::text, %L order by to_jsonb(x)::text), %L)) h from backup.%I x', '', '', 'pre_ga019__' || t.nome), false, true, '')))[1]::text as conteudo_igual
 from unnest(array['commerce_sales_snapshots', 'commerce_sales_import_batches', 'commerce_sales_summary_rows', 'commerce_sales_import_stage_summary',
   'commerce_sales_listing_daily_v1', 'commerce_shopee_sales_sku_daily_v1', 'commerce_shopee_sku_daily_superseded_v1', 'commerce_shopee_fin_daily_superseded_v1',
   'commerce_shopee_finance_daily_v1', 'commerce_shopee_finance_month_v1', 'commerce_shopee_full_daily_v1', 'commerce_shopee_order_extras_daily_v1']) as t(nome);
@@ -99,12 +101,12 @@ from unnest(array['commerce_sales_snapshots', 'commerce_sales_import_batches', '
 
    A tabela grande `commerce_sales_rows` (68 MB) não entra: a v2 só INSERE nela (linhas de snapshots novos), nunca altera as antigas. Estas cópias ficam até a validação terminar; só apague depois de o Lucas confirmar (nome `backup.pre_ga019__*`). A limpeza semanal automática do banco (`backup.take_snapshot_v1`) só apaga tabelas `s<número>__*`, então não toca nelas.
 
-   **A cópia é uma foto do momento em que foi feita.** Se a equipe importar vendas depois dela, a cópia fica velha. Por isso, no dia da publicação, rode a "linha de base" (item 3) e compare o `snapshot_atual` e a `versao_do_cache` com os valores anotados no dia da cópia: se forem iguais, ninguém importou nada e a cópia continua valendo; se mudaram, a cópia está desatualizada e é preciso criar outra (com outro prefixo, para não sobrescrever esta) antes da migração.
+   **A cópia é uma foto do momento em que foi feita.** Se a equipe importar vendas depois dela, a cópia fica velha. Por isso, no dia da publicação, rode de novo a conferência acima: se `conteudo_igual` vier `true` nas 12 linhas, nada mudou nessas tabelas desde a cópia e ela continua valendo. Se alguma vier `false`, a cópia está desatualizada e é preciso criar outra (com outro prefixo, para não sobrescrever esta) antes da migração. **Não use `versao_do_cache` para isso**: ela inclui a data de hoje e muda todo dia, mesmo sem nenhuma importação.
 3. **Linha de base** (anote ou salve o resultado; serve para comparar depois):
 
 <!-- sql:baseline -->
 ```sql
-select s.id as snapshot_atual, public.commerce_data_version_v1() as versao_do_cache from commerce_sales_snapshots s where s.is_current;
+select s.id as snapshot_atual, (select max(id) from commerce_sales_snapshots) as maior_snapshot, (select max(id) from commerce_sales_import_batches) as maior_lote, public.commerce_data_version_v1() as versao_do_cache from commerce_sales_snapshots s where s.is_current;
 select r.platform_code, to_char(r.period_start, 'YYYY-MM') as mes, sum(r.units) as unidades, round(sum(r.product_revenue), 2) as receita, sum(r.net_orders) as pedidos
 from commerce_sales_summary_rows r join commerce_sales_snapshots s on s.id = r.snapshot_id and s.is_current
 group by 1, 2 order by 1, 2;

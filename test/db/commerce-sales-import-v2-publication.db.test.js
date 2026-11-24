@@ -216,6 +216,12 @@ withDb('runbook: pré-checagem, backup interno com conferência e linha de base 
   assert.equal(check.length, 12);
   assert.ok(check.every((r) => r.igual === true), JSON.stringify(check));
   assert.ok(check.find((r) => r.nome === 'commerce_sales_summary_rows').original > 0, 'a cópia não é de tabela vazia');
+  assert.ok(check.every((r) => r.conteudo_igual === true), 'o conteúdo da cópia é idêntico ao original: ' + JSON.stringify(check));
+  // Alterar uma linha SEM mudar a contagem (o caso que a comparação por contagem não enxerga): o conteúdo tem de acusar.
+  await db.q(`update commerce_sales_summary_rows set units = units + 1 where ctid = (select ctid from commerce_sales_summary_rows limit 1)`);
+  const after = await db.q(docSql('backup-check'));
+  assert.ok(after.every((r) => r.igual === true), 'a contagem continua igual');
+  assert.deepEqual(after.filter((r) => r.conteudo_igual === false).map((r) => r.nome), ['commerce_sales_summary_rows'], 'só a tabela alterada aparece como diferente');
   const base = await db.main.query(docSql('baseline'));
   assert.ok(base[1].rows.length >= 2, 'linha de base por plataforma/mês');
   assert.equal((await db.one(`select has_table_privilege('anon', 'backup.pre_ga019__commerce_sales_snapshots', 'select') ok`)).ok, false, 'cópia fechada para anon');

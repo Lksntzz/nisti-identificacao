@@ -114,6 +114,14 @@ Só isto prova que o backup serve. Faça **depois** de `verify` e `inspect`. O t
 
 **O que este teste prova e o que não prova:** prova que o arquivo é íntegro e que os dados das tabelas voltam completos. Não prova que um projeto Supabase novo ficaria idêntico (autenticação, extensões, funções do `cron`, permissões): numa catástrofe real, a restauração é num projeto Supabase novo, e isso ainda não foi ensaiado.
 
+## Pendência de infraestrutura: backup externo do banco (registrada em 24/11/2026)
+
+**Decisão do dono:** publicar a GA-019 **sem** o backup externo criptografado. Ele continua sendo uma pendência de infraestrutura do NISTI ID, sem data definida.
+
+- **O que cobre hoje:** só a cópia interna das 12 tabelas de vendas (`backup.pre_ga019__*`, conteúdo conferido linha a linha em 24/11/2026) e o backup semanal interno (`backup.take_snapshot_v1`, 4 versões, 12 tabelas do catálogo e vendas). Ambos ficam **dentro do mesmo banco do Supabase**.
+- **O que não cobre:** perda ou corrupção do projeto Supabase inteiro, erro de quem tem acesso ao banco, e as demais ~126 tabelas do `public` e os schemas `auth`/`storage`. Nada disso sobrevive fora do Supabase. O plano gratuito não tem backup automático próprio.
+- **Para fechar:** seguir "Passo a passo no Windows" e "Teste de restauração" acima (limite de 300 MB já ajustado) e marcar os itens do "Estado". Recomendado antes da próxima mudança estrutural no banco.
+
 ## Imagens R2 (pendente)
 
 O dump do PostgreSQL **não contém** as imagens do R2. Não usar o antigo exportador baseado em D1. Antes de copiar: conferir cota e operações no painel da Cloudflare, levantar o índice **atual** de chaves a partir do Supabase, fazer uma amostra pequena em disco local privado, conferir SHA-256 e só então autorizar a cópia integral. O workflow manual de índice e ZIP criptografado está em [[EXPORTAR-IMAGENS-ORIGINAIS-SUPABASE]] e também não substitui backup.
@@ -126,7 +134,7 @@ Uma vez por semana no início, e antes de grande importação ou mudança no ban
 
 - [x] Pastas privadas criadas no Drive (banco e imagens).
 - [x] Scripts de backup criptografado, com limite de 300 MB e conferência de integridade.
-- [ ] Primeira exportação criptografada gerada no computador do administrador.
+- [ ] Primeira exportação criptografada gerada no computador do administrador. **PENDENTE (decisão de 24/11/2026: publicar a GA-019 sem ela).**
 - [ ] Dois arquivos confirmados no Drive.
 - [ ] Integridade verificada e restauração de teste em PostgreSQL isolado.
 - [ ] Backup das imagens do R2, depois de checar as cotas.

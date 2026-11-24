@@ -33,7 +33,7 @@ Todas as áreas principais têm nota. Para assunto sem nota, a fonte é o códig
 
 ## Pendências conhecidas (resolver e apagar daqui)
 
-- **Backup:** nenhuma cópia do banco confirmada; primeira exportação nunca registrada. Ver [[backup]].
+- **Backup:** nenhuma cópia **externa** do banco confirmada; primeira exportação nunca registrada. Em 24/11/2026 o dono decidiu publicar a GA-019 sem ela (só há cópias dentro do próprio Supabase). Ver [[backup]].
 - **Limite de requisições:** causa do erro "Muitas requisições" no Publicar do Mural não confirmada. Ver [[limites-requisicoes]].
 
 ## Outros documentos em `docs/`
