@@ -85,6 +85,7 @@ export function ordersCard(data){
   return {id:'orders',title:'Pedidos únicos (meses inteiros)',lastUpdate:null,
     dims:[{label:'Verificação',value:!list.length?'Sem informação':allKey?'Por chave':'Parcial ou informado',tone:!list.length?'none':allKey?'ok':'warn'}],
     lines:list.map(o=>[fmtMonth(o.month),label(o)]),
+    brief:list.map(o=>[fmtMonth(o.month),o.orders==null?'Sem informação':num(o.orders)+' · '+(o.basis==='CHAVE'?'por chave':o.basis==='RESUMO_HISTORICO'?'resumo histórico':'base mista')+(o.coverage==='PARCIAL'?' · parcial':'')]),
     details:[],notes:['Contagem por DIA (regra da GA-019): pedido que aparece em dois dias conta duas vezes.',data?.sales?.months_scope_note||'Pedidos mensais usam meses inteiros, mesmo que o filtro cubra só parte do mês.'],actions};
 }
 
@@ -156,6 +157,8 @@ export function priceStockCard(data){
   const p=data?.price_stock||{};const reg=p.registered_price||{};const rea=p.realized_price||{};const stk=p.stock||{};
   const label=(s,photo)=>s==='DISPONIVEL'?'Disponível':s==='DISPONIVEL_FOTO'?'Foto disponível'+(photo?' (declarado)':''):s==='PARCIAL'?'Cobertura parcial':s==='SEM_VALOR_VALIDO'?'Sem valor válido':'Sem informação';
   const tone=s=>s==='SEM_INFORMACAO'||s==='SEM_VALOR_VALIDO'?'none':s==='PARCIAL'?'warn':s==='DISPONIVEL'?'ok':'info';
+  // Fonte indisponível (SEM_INFORMACAO) → traço; zero só quando a fonte existe e o valor é de fato 0.
+  const off=(status,v)=>status==='SEM_INFORMACAO'||v==null?'—':num(v);
   const actions=[];
   if(reg.status==='SEM_INFORMACAO')actions.push('Preço cadastrado e estoque não existem para esta plataforma; não há ação possível nesta versão.');
   if(reg.status==='SEM_VALOR_VALIDO')actions.push('As variações existem, mas nenhuma tem preço válido. Atualize o catálogo antes de usar.');
@@ -165,10 +168,10 @@ export function priceStockCard(data){
   if(stk.possibly_nominal)actions.push('O valor '+stk.most_common_value+' se repete em '+pct(stk.most_common_share_pct)+' das variações: indício de estoque nominal. Não use como estoque real.');
   return {id:'price-stock',title:'Preço e estoque',lastUpdate:reg.snapshot_last_checked_at||null,
     dims:[{label:'Preço cadastrado',value:label(reg.status,true),tone:tone(reg.status)},{label:'Preço realizado',value:label(rea.status),tone:tone(rea.status)},{label:'Estoque (valor declarado)',value:label(stk.status,true),tone:stk.possibly_nominal?'warn':tone(stk.status)}],
-    lines:[['Variações na foto do catálogo',reg.variations==null?'—':num(reg.variations)],
-      ['Com preço válido',reg.variations_with_price==null?'—':num(reg.variations_with_price)],
-      ['Com estoque válido',stk.variations_with_stock==null?'—':num(stk.variations_with_stock)],
-      ['Anúncios com preço realizado no período',rea.listings_with_units==null?'—':num(rea.listings_with_units)]],
+    lines:[['Variações na foto do catálogo',off(reg.status,reg.variations)],
+      ['Com preço válido',off(reg.status,reg.variations_with_price)],
+      ['Com estoque válido',off(stk.status,stk.variations_with_stock)],
+      ['Anúncios com preço realizado no período',off(rea.status,rea.listings_with_units)]],
     details:[],notes:[reg.note,rea.note,stk.note].filter(Boolean),actions};
 }
 
@@ -184,4 +187,83 @@ export function batchesCard(data){
 export function buildCards(data){
   if(!data)return [];
   return [salesCard(data),ordersCard(data),linkCard(data),...reportCards(data),catalogCard(data),priceStockCard(data),batchesCard(data)].filter(Boolean);
+}
+
+// ---------- GA-018A: apresentação (só reorganiza; não cria nem altera indicador) ----------
+export const SECTIONS=Object.freeze([
+  {id:'sales',title:'Vendas e consistência',ids:['sales','orders','link']},
+  {id:'sources',title:'Fontes complementares',prefix:'report-'},
+  {id:'catalog',title:'Cadastro comercial',ids:['catalog','price-stock']},
+  {id:'ops',title:'Operação',ids:['batches']}
+]);
+export function groupCards(cards){
+  return SECTIONS.map(sec=>({id:sec.id,title:sec.title,cards:cards.filter(c=>sec.prefix?c.id.startsWith(sec.prefix):sec.ids.includes(c.id))})).filter(g=>g.cards.length);
+}
+// Indicadores principais de cada cartão (o resto aparece em "Ver detalhes"); sem rótulo reconhecido, usa os 3 primeiros.
+const PRIMARY=Object.freeze({
+  sales:['Último dia com venda registrada','Dias sem informação','Meses conferidos internamente'],
+  link:['Receita vinculada a anúncio','SKUs sem vínculo','Resíduo (unidades)','Sem anúncio cadastrado','Unidades','Receita'],
+  catalog:['Anúncios no catálogo do GA','Sem verificação recente (total)','Verificação mais recente'],
+  'price-stock':['Com preço válido','Com estoque válido','Anúncios com preço realizado no período']
+});
+const REPORT_PRIMARY=['Relatórios','Último período termina em','Pares sobrepostos'];
+export function shortText(text,max=96){
+  const t=String(text||'').trim();
+  const first=t.split(/(?<=[.!?])\s/)[0]||t;
+  return first.length>max?first.slice(0,max-1).trimEnd()+'…':first;
+}
+export function compactCard(card){
+  const wanted=card.id.startsWith('report-')?REPORT_PRIMARY:PRIMARY[card.id];
+  let primary=card.brief?card.brief.slice(0,3):null;
+  if(!primary){
+    const picked=wanted?card.lines.filter(([k])=>wanted.includes(k)):[];
+    primary=(picked.length?picked:card.lines).slice(0,3);
+  }
+  const primaryKeys=new Set(primary.map(([k])=>k));
+  const more=card.brief?card.lines:card.lines.filter(([k])=>!primaryKeys.has(k));
+  const extra=Math.max(0,card.actions.length-1);
+  return {...card,primary,more,
+    shortAction:card.actions.length?shortText(card.actions[0])+(extra?' (+'+extra+')':''):'',
+    hasDetails:more.length>0||card.details.length>0||card.notes.length>0};
+}
+export function batchRows(data){
+  return (data?.open_batches||[]).map(b=>({id:b.batch_id,file:b.file,rows:b.rows,dataThrough:b.data_through,
+    status:b.status==='STAGED'?'Lida, não aplicada':b.status}));
+}
+export function summaryItems(data){
+  if(!data)return [];
+  const s=data.sales||{};const rec=s.reconciliation||{};const g=data.ga011_shopee||null;
+  const divMonths=(rec.divergent_months||[]);
+  // Conciliações aplicáveis, separadas: GA-019 (vendas/pedidos, todas as plataformas) e GA-011 (só Shopee).
+  const norm=st=>RECONCILIATION[st]?st:'SEM_INFORMACAO';
+  const applicable=[['Vendas e pedidos (GA-019)',norm(rec.status)]];
+  if(data.platform==='SHOPEE'||g)applicable.push(['Shopee (GA-011)',norm(g?.reconciliation_status)]);
+  const states=applicable.map(a=>a[1]);
+  let reconText,reconTone;
+  if(states.includes('DIVERGENTE'))[reconText,reconTone]=RECONCILIATION.DIVERGENTE;
+  else if(states.every(x=>x==='CONCILIADO_INTERNAMENTE'))[reconText,reconTone]=RECONCILIATION.CONCILIADO_INTERNAMENTE;
+  else if(states.every(x=>x==='SEM_INFORMACAO'))[reconText,reconTone]=RECONCILIATION.SEM_INFORMACAO;
+  else [reconText,reconTone]=['Parcial: parte sem informação','warn'];
+  const reconSub=applicable.length>1||reconTone!=='ok'?applicable.map(([l,st])=>l+': '+RECONCILIATION[st][0]).join(' · '):undefined;
+  const [freshText,freshTone]=pick(FRESHNESS,s.freshness);
+  const reports=data.reports||[];
+  // Ads do Mercado Livre (ADS_ML) é a mesma fonte do Ads genérico: conta uma vez só.
+  const sourceInfo=new Map();
+  for(const r of reports){const k=r.kind==='ADS_ML'?'ADS':r.kind;sourceInfo.set(k,(sourceInfo.get(k)||false)||r.freshness!=='SEM_INFORMACAO');}
+  const noInfo=[...sourceInfo.values()].filter(has=>!has).length
+    +(data.catalog?.freshness==='SEM_INFORMACAO'?1:0)
+    +((data.price_stock?.registered_price?.status==='SEM_INFORMACAO'&&data.price_stock?.stock?.status==='SEM_INFORMACAO')?1:0);
+  const totalSources=sourceInfo.size+2;
+  const critical=[];
+  if(s.freshness==='DESATUALIZADO')critical.push('vendas desatualizadas');
+  if(n(s.days_without_information)>0)critical.push('dias sem informação nas vendas');
+  if(rec.status==='DIVERGENTE')critical.push('divergência na conciliação interna');
+  if(g?.reconciliation_status==='DIVERGENTE')critical.push('resíduo sem explicação na GA-011');
+  return [
+    {key:'recon',label:'Conciliação interna',value:reconText,sub:reconSub,tone:reconTone,hint:'Consistência entre os arquivos importados; não conferido no marketplace.'},
+    {key:'last',label:'Última atualização de vendas',value:fmtDate(s.last_sale_day)||'—',sub:freshText,tone:freshTone,hint:'Vendas: desatualizado se o último dia tem mais de 1 dia de atraso.'},
+    {key:'div',label:'Períodos divergentes',value:rec.status==='SEM_INFORMACAO'||rec.months_checked==null?'—':String(divMonths.length),sub:divMonths.length?divMonths.map(m=>fmtMonth(m.month)).join(', '):(rec.months_checked?rec.months_checked+' mês(es) conferido(s)':''),tone:divMonths.length?'bad':(rec.months_checked?'ok':'none'),hint:'Meses inteiros em que resumo, linhas e vendas diárias não batem.'},
+    {key:'noinfo',label:'Fontes sem informação',value:noInfo+' de '+totalSources,tone:noInfo?'none':'ok',hint:'Relatórios, catálogo e preço/estoque sem nenhum dado importado.'},
+    {key:'crit',label:'Pendências críticas',value:String(critical.length),sub:critical.length?critical.join('; '):'nenhuma',tone:critical.length?'bad':'ok',hint:'Contagem de: vendas desatualizadas, dias sem informação, divergência na conciliação interna ou resíduo sem explicação na GA-011. Não é nota de qualidade.'}
+  ];
 }

@@ -9,7 +9,7 @@
 .ndq-presets button:hover,.ndq-refresh:hover{background:#f6faff}
 .ndq-disclaimer,.ndq-meta,.ndq-loading{margin:0;font-size:12px;color:#64748b}
 .ndq-error{margin:0;padding:10px 14px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px}
-.ndq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
+.ndq-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
 .ndq-card{background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 2px 6px rgba(15,23,42,.03)}
 .ndq-card header{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ndq-card h4{margin:0;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#52637b}
@@ -28,3 +28,34 @@
 .ndq-notes{color:#64748b}
 .ndq-actions{padding:8px 10px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:12px;color:#78350f}
 .ndq-actions ul{color:#78350f}
+
+/* GA-018A — refino visual */
+.ndq-root{gap:18px}
+.ndq-root *{overflow-wrap:anywhere}
+.ndq-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.ndq-sum{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid #e6eaf2;border-left:4px solid #cbd5e1}
+.ndq-sum .lbl{font-size:11px;font-weight:700;color:#64748b;line-height:1.3}
+.ndq-sum strong{font-size:15px;line-height:1.25;color:#0f172a}
+.ndq-sum small{font-size:11px;color:#64748b;line-height:1.3}
+.ndq-sum.is-ok{border-left-color:#22c55e}.ndq-sum.is-warn{border-left-color:#f59e0b}.ndq-sum.is-bad{border-left-color:#ef4444}.ndq-sum.is-info{border-left-color:#38bdf8}
+.ndq-section{display:flex;flex-direction:column;gap:10px}
+.ndq-section h3{margin:0;font-size:14px;font-weight:800;color:#0f172a;padding-bottom:6px;border-bottom:1px solid #e6eaf2}
+.ndq-card{gap:12px;line-height:1.45}
+.ndq-card.is-wide{grid-column:1/-1}
+.ndq-card dl{gap:8px}
+.ndq-card dt{line-height:1.35}
+.ndq-card dd{max-width:60%}
+.ndq-action{padding:8px 10px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:12px;color:#78350f;display:flex;flex-direction:column;gap:6px}
+.ndq-action p{margin:0;line-height:1.4}
+.ndq-action ul{margin:0;padding-left:18px;color:#78350f}
+.ndq-link{align-self:flex-start;border:0;background:none;padding:0;font-size:12px;font-weight:700;color:#1d4ed8;cursor:pointer;text-decoration:underline}
+.ndq-more{display:flex;flex-direction:column;gap:8px;border-top:1px solid #edf0f5;padding-top:8px}
+.ndq-more dl{border-top:0;padding-top:0;margin-top:6px}
+.ndq-more ul{margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.45;color:#475569}
+.ndq-table{width:100%;border-collapse:collapse;font-size:12px}
+.ndq-table th{text-align:left;font-size:11px;color:#64748b;font-weight:700;padding:4px 8px;border-bottom:1px solid #e6eaf2}
+.ndq-table td{padding:6px 8px;border-bottom:1px solid #f1f4f9;vertical-align:top}
+.ndq-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.ndq-table .file{max-width:420px}
+@media (max-width:1100px){.ndq-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ndq-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:720px){.ndq-grid,.ndq-summary{grid-template-columns:minmax(0,1fr)}}
