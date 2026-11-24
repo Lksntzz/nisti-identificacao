@@ -20,7 +20,7 @@ test('route validates platform and period; GA menu exposes the dashboard',()=>{
   assert.ok(router.includes("BASE_PATH+'/sales-dashboard'"));
   assert.ok(router.includes("['TODAS','SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)"));
   assert.ok(router.includes('![7,30,60,90].includes(days)'));
-  assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard onOpenTab={openPerformance}'));
+  assert.ok(app.includes("id: 'dashboard'")&&app.includes('<CommerceDashboard onOpenQuality={() => setActiveView(\'quality\')} onOpenTab={openPerformance}'));
 });
 test('every card has an info icon naming its data source',()=>{
   for(const key of ['abc','drops','best','alerts'])assert.ok(ui.includes('source="'+key+'"')||ui.includes("'"+key+"'"),key);
@@ -153,7 +153,8 @@ test('Dashboard: índice por código do anúncio, cache curto e sem pedido dupli
   assert.match(m,/create index if not exists commerce_listings_external_listing_idx/);
   const j=read('src/ga/commerce-dashboard.jsx');
   assert.match(j,/if\(platform==='TODAS'\)return undefined;/);
-  assert.match(j,/setMonthly\(monthlyAll\)/);
+  // GA-012: TODAS reaproveita monthlyAll (derivado), sem segundo pedido nem cópia por efeito.
+  assert.match(j,/const monthly=platform==='TODAS'\?monthlyAll:/);
   assert.match(read('src/edge-router.js'),/bumpReadCacheGeneration/);
   assert.match(read('src/ga/commerce-manager-fetch.js'),/fresh=1/);
 });

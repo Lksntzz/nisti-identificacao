@@ -75,6 +75,11 @@ jobs:
           CI: 'true'
         run: node test-browser/browser-smoke.mjs
 
+      - name: Platform selector of the Commercial Dashboard (slow and out-of-order responses)
+        env:
+          CI: 'true'
+        run: node test-browser/platform-dashboard.mjs
+
       - name: Show local server errors only on failure
         if: failure()
         run: tail -n 70 /tmp/nisti-vite.log || true

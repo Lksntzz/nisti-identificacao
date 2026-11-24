@@ -9,6 +9,9 @@ import CohortsTab from './commerce-cohorts.jsx';
 import CategoriesSummary from './commerce-dashboard-categories.jsx';
 import SalesReport from './commerce-sales-report.jsx';
 import {SalesTrend,MonthsTrend,MonthMatrix,PlatformSplit,PlatformTable} from './commerce-dashboard-charts.jsx';
+import PlatformSelector from './commerce-platform-selector.jsx';
+import PlatformQualityStrip from './commerce-platform-quality-strip.jsx';
+import {scopeKey,makeEntry,isCurrentScope,matchesPlatform,perfStatus,salesNotice,platformLabel} from './commerce-platform-scope-logic.js';
 import './commerce-dashboard.css';
 import { maskMoney, isPrivate } from './commerce-privacy.js';
 
@@ -30,9 +33,9 @@ const SOURCES={
   kpiUnits:'Fonte: '+SALES_SRC+'. Soma das unidades vendidas no período. A variação compara com o período anterior de mesmo tamanho.',
   kpiTicket:'Calculado: faturamento ÷ unidades vendidas no período. É o preço médio realizado por unidade, não por pedido. A variação compara com o período anterior.',
   kpiDaily:'Calculado: faturamento do período ÷ dias do período (em "todo o histórico", ÷ dias que tiveram venda importada).',
-  daily:'Fonte: '+SALES_SRC+'. Cada barra é um dia, separada por plataforma (Mercado Livre soma ML Antigo e ML Novo). A linha tracejada é o dia equivalente do período anterior. Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
+  daily:'Fonte: '+SALES_SRC+'. Cada barra é um dia, separada por plataforma (Shopee, ML Antigo e ML Novo). A linha tracejada é o dia equivalente do período anterior. Dias sem venda importada aparecem como zero; confira o Histórico de importações se houver buracos.',
   history:'Fonte: '+SALES_SRC+', somada por mês civil desde a primeira venda importada. Não muda com o filtro de período. Clique em um mês para filtrar o dashboard por ele. Barras mais claras = mês incompleto.',
-  platform:'Fonte: '+SALES_SRC+'. Divide o faturamento do período entre Shopee e Mercado Livre (ML Antigo e ML Novo juntos). Para ver cada conta do Mercado Livre separada, use o filtro Plataforma.',
+  platform:'Fonte: '+SALES_SRC+'. Divide o faturamento do período entre Shopee, ML Antigo e ML Novo (contas independentes). Para ver uma conta isolada, use o seletor de plataforma.',
   monthly:'Fonte: '+SALES_SRC+'. Unidades vendidas por mês desde a primeira venda importada; não muda com o filtro de período. Só há vendas de 2026: para ver sazonalidade de verdade é preciso importar o ano anterior.',
   summary:'Calculado a partir das vendas do período filtrado: média por dia, melhor e pior dia, dias sem venda e dia da semana mais forte vêm do gráfico de vendas por dia; mês mais forte vem do histórico mensal (só meses completos); concentração da classe A vem da Curva ABC.',
   top:'Fonte: '+SALES_SRC+'. Os 15 anúncios com maior faturamento no período, com a variação contra o período anterior de mesmo tamanho. Título e situação vêm do cadastro de anúncios do sistema.',
@@ -248,8 +251,8 @@ function GrowingList({rows,all,hasOverview}){
   </li>)}</ul>;
 }
 
-function LowConversionList({rows,hasPerf,note}){
-  if(!hasPerf)return <p className="ndb-empty">Importe o relatório de desempenho do Mercado Livre ou da Shopee para ver visitas e conversão.</p>;
+function LowConversionList({rows,hasPerf,note,platform='TODAS'}){
+  if(!hasPerf)return <p className="ndb-empty">{platform==='TODAS'?'Importe o relatório de desempenho do Mercado Livre ou da Shopee para ver visitas e conversão.':'Sem informação: nenhum relatório de desempenho importado para '+platformLabel(platform)+'.'}</p>;
   if(!rows.length)return <p className="ndb-empty">Nenhum anúncio com muitas visitas e conversão baixa.</p>;
   return <><ul className="ndb-side-list">{rows.map(r=><li key={r.platform+r.external_id}>
     <div className="ndb-side-main"><strong title={r.title||''}>{r.title||r.external_id}</strong><small>{r.multi?(PLATFORM_LABEL[r.platform]||r.platform)+' · ':''}{num(r.visits)} visitas · {num(r.units)} un. no período</small></div>
@@ -364,7 +367,7 @@ export function Dropdown({label,value,options,onChange}){
   </div>;
 }
 
-export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,onOpenProblems=null,onOpenCategories=null,actions=null,initialFilter=null}){
+export default function CommerceDashboard({mode='overview',initialTab=null,onOpenTab=null,onOpenProblems=null,onOpenCategories=null,onOpenQuality=null,actions=null,initialFilter=null}){
   const [shared0]=useState(()=>getSharedFilter());
   const [platform,setPlatform]=useState(initialFilter?.platform||shared0.platform);
   const [query,setQuery]=useState('');
@@ -372,19 +375,24 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const [month,setMonth]=useState(initialFilter?.month??shared0.month);
   useEffect(()=>{setSharedFilter({platform,days,month});},[platform,days,month]);
   const yearSel=/^20\d{2}$/.test(month);
-  const [data,setData]=useState(null);
-  const [overview,setOverview]=useState(null);
+  // GA-012: tudo que depende de plataforma/período/mês é guardado com a chave do escopo em que foi pedido.
+  // Ao trocar de conta a resposta anterior some na hora e uma resposta atrasada de outra conta nunca entra.
+  const scope=scopeKey({platform,days,month});
+  const [dataE,setDataE]=useState(null);
+  const [overviewE,setOverviewE]=useState(null);
+  const data=isCurrentScope(dataE,scope)&&matchesPlatform(dataE.data,platform)?dataE.data:null;
+  const overview=isCurrentScope(overviewE,scope)?overviewE.data:null;
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [cls,setCls]=useState(null);
   const [abcPlat,setAbcPlat]=useState('TODAS');
-  const [abcData,setAbcData]=useState(null);
+  const [abcE,setAbcE]=useState(null);
   const [curve,setCurve]=useState(false);
   const [tab,setTabRaw]=useState(initialTab==='never'||initialTab==='stopped'?'nosales':initialTab||'best');
   const [focus,setFocus]=useState(Boolean(initialTab));
   const setTab=k=>{setTabRaw(k);setFocus(true);};
   const [helpOpen,setHelpOpen]=useState(false);
-  const [monthly,setMonthly]=useState(null);
+  const [monthlyE,setMonthlyE]=useState(null);
   const [reportOpen,setReportOpen]=useState(false);
   const [platTab,setPlatTab]=useState('compare');
   // O resumo de Categorias é pesado: só começa 2,5 s depois do resto carregar, para não estourar o limite de 8 s do banco.
@@ -406,35 +414,36 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   useEffect(()=>{
     const controller=new AbortController();
     const q='?platform='+platform+'&days='+days+(month?'&month='+month:'');
-    setLoading(true);setError('');
+    setLoading(true);setError('');setDataE(null);setOverviewE(null);
     fetchCommercialManager('/api/admin/commerce/sales-dashboard'+q,{signal:controller.signal})
-      .then(setData).catch(e=>{if(!controller.signal.aborted)setError((e.message||'Não foi possível carregar o dashboard.')+(e.technicalCode||e.status?' (código: '+[e.status,e.technicalCode].filter(Boolean).join(' · ')+(e.technicalDetail?' · '+e.technicalDetail:'')+')':''));})
+      .then(d=>{if(!controller.signal.aborted)setDataE(makeEntry(scope,d));}).catch(e=>{if(!controller.signal.aborted)setError((e.message||'Não foi possível carregar o dashboard.')+(e.technicalCode||e.status?' (código: '+[e.status,e.technicalCode].filter(Boolean).join(' · ')+(e.technicalDetail?' · '+e.technicalDetail:'')+')':''));})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/overview'+q,{signal:controller.signal})
-      .then(setOverview).catch(()=>{if(!controller.signal.aborted)setOverview(null);});
+      .then(d=>{if(!controller.signal.aborted)setOverviewE(makeEntry(scope,d));}).catch(()=>{if(!controller.signal.aborted)setOverviewE(null);});
     return()=>controller.abort();
   },[platform,days,month]);
-  const [series,setSeries]=useState(null);
+  const [seriesE,setSeriesE]=useState(null);
+  const series=isCurrentScope(seriesE,scope)?seriesE.data:null;
   useEffect(()=>{
     if(mode!=='overview')return undefined;
-    setSeries(null);
+    setSeriesE(null);
     if((days===0&&!month)||yearSel)return undefined;
     const controller=new AbortController();
     const url='/api/admin/commerce/sales-dashboard/series?platform='+platform+(month?'&month='+month:'&days='+days);
     fetchCommercialManager(url,{signal:controller.signal})
-      .then(setSeries).catch(()=>{if(!controller.signal.aborted)setSeries(null);});
+      .then(d=>{if(!controller.signal.aborted)setSeriesE(makeEntry(scope,d));}).catch(()=>{if(!controller.signal.aborted)setSeriesE(null);});
     return()=>controller.abort();
   },[platform,days,month,mode]);
   useEffect(()=>{
     const controller=new AbortController();
-    setMonthly(null);
+    setMonthlyE(null);
     if(platform==='TODAS')return undefined; // o mesmo dado de "monthlyAll": não pede duas vezes
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform='+platform,{signal:controller.signal})
-      .then(setMonthly).catch(()=>{if(!controller.signal.aborted)setMonthly(null);});
+      .then(d=>{if(!controller.signal.aborted&&matchesPlatform(d,platform))setMonthlyE(makeEntry(platform,d));}).catch(()=>{if(!controller.signal.aborted)setMonthlyE(null);});
     return()=>controller.abort();
   },[platform]);
   const [monthlyAll,setMonthlyAll]=useState(null);
-  useEffect(()=>{if(platform==='TODAS')setMonthly(monthlyAll);},[platform,monthlyAll]);
+  const monthly=platform==='TODAS'?monthlyAll:(isCurrentScope(monthlyE,platform)?monthlyE.data:null);
   useEffect(()=>{
     const controller=new AbortController();
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/monthly?platform=TODAS',{signal:controller.signal})
@@ -447,14 +456,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const rowsAll=monthlyAll?.months||null;
   // Vale para mês (YYYY-MM) e para ano (YYYY): há venda da plataforma em algum mês do período.
   const periodHas=(plat,m)=>(rowsAll||[]).some(r=>String(r.month).startsWith(m)&&hasSales(r,plat));
-  const platformOptions=PLATFORMS.map(([id,label])=>[id,label,
-    rowsAll&&month&&id!=='TODAS'&&!periodHas(id,month)?'Sem vendas importadas em '+(yearSel?month:monthLabel(month+'-01')+'/'+month.slice(2,4)):null]);
-  const platformBlocked=Boolean(platformOptions.find(o=>o[0]===platform)?.[2]);
-  useEffect(()=>{
-    if(!platformBlocked||!rowsAll)return;
-    const ok=['SHOPEE','ML_ANTIGO','ML_NOVO'].filter(p=>periodHas(p,month));
-    setPlatform(ok.length===1?ok[0]:'TODAS');
-  },[platformBlocked,month,rowsAll]);
+  // Nenhuma opção é desativada nem troca sozinha: a dica só avisa que a conta não tem venda no mês escolhido.
+  const platHints={};
+  if(rowsAll&&month)for(const [id] of PLATFORMS){if(id!=='TODAS'&&!periodHas(id,month))platHints[id]='Sem vendas importadas em '+(yearSel?month:monthLabel(month+'-01')+'/'+month.slice(2,4));}
   const abcP=platform==='TODAS'?abcPlat:platform;
   const all=days===0&&!month;
   const problemDays=[30,60,90].includes(days)&&!month?days:null;
@@ -487,12 +491,13 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   // Colunas opcionais da tabela Curva ABC + data de criação (mesma fonte da aba "Cadastros por mês").
   const [bestCols,setBestCols]=useState(readCols);
   const toggleCol=k=>setBestCols(cur=>{const next=cur.includes(k)?cur.filter(x=>x!==k):[...cur,k];try{localStorage.setItem(COLS_KEY,JSON.stringify(next));}catch(e){}return next;});
-  const showCreated=bestCols.includes('created'),showVisits=bestCols.includes('visits'),showConv=bestCols.includes('conv');  const [cohortData,setCohortData]=useState(null);
+  const showCreated=bestCols.includes('created'),showVisits=bestCols.includes('visits'),showConv=bestCols.includes('conv');  const [cohortE,setCohortE]=useState(null);
+  const cohortData=isCurrentScope(cohortE,platform)&&matchesPlatform(cohortE.data,platform)?cohortE.data:null;
   useEffect(()=>{
     if(tab!=='best'||!showCreated)return;
     const controller=new AbortController();
-    setCohortData(null);
-    fetchCommercialManager('/api/admin/commerce/sales-dashboard/cohorts?platform='+platform,{signal:controller.signal}).then(setCohortData).catch(()=>{});
+    setCohortE(null);
+    fetchCommercialManager('/api/admin/commerce/sales-dashboard/cohorts?platform='+platform,{signal:controller.signal}).then(d=>{if(!controller.signal.aborted)setCohortE(makeEntry(platform,d));}).catch(()=>{});
     return()=>controller.abort();
   },[tab,platform,showCreated]);
   const createdById=useMemo(()=>{
@@ -504,8 +509,9 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     }));
     return map;
   },[cohortData]);
-  const perfNotes=[...(mlPerf?.reports||[]).map(x=>(x.account==='NOVO'?'ML Novo':'ML Antigo')+' '+dm(x.start)+' a '+dm(x.end)),
-    ...(spPerf?.reports||[]).map(x=>'Shopee '+dm(x.start)+' a '+dm(x.end))];
+  // Relatórios de desempenho por conta: ML Antigo sem relatório não herda o de ML Novo nem o da Shopee.
+  const perf=perfStatus(platform,{ml:mlPerf,shopee:spPerf});
+  const perfNotes=perf.notes;
   const growingRows=useMemo(()=>(overview?.growth||[]).filter(r=>platform==='TODAS'||r.platform===platform).slice(0,8).map(r=>({...r,multi:platform==='TODAS'})),[overview,platform]);
   // Muita visita e pouca venda: só anúncios com ao menos 300 visitas e conversão abaixo de 1,5% no relatório de desempenho.
   const lowConvRows=useMemo(()=>{
@@ -522,7 +528,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
     (data?.top||[]).forEach(r=>add(r,Number(r.units)||0));
     return out.sort((a,b)=>b.visits-a.visits).slice(0,6);
   },[overview,data,perfItems,platform]);
-  const hasPerf=Object.keys(perfItems).length>0;
+  const hasPerf=perf.has;
   const drops=data?.drops?.items||[];
   const top=data?.top||[];
   const signalRows=useMemo(()=>drops.filter(r=>r.listing_id).map(r=>({id:r.listing_id})),[data]);
@@ -544,10 +550,8 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const bestCell=(rk,lid)=><BestMonthCell data={salesMonths[lid]} open={Boolean(openMonths[rk])} onToggle={()=>setOpenMonths(o=>({...o,[rk]:!o[rk]}))}/>;
   const salesRows=(rk,lid,sb,anchored,span)=><>{openDays[rk]&&sb&&<DailySalesRow anchored={anchored} data={sb} colSpan={span}/>}{openMonths[rk]&&salesMonths[lid]&&<MonthsPanelRow listingId={lid} data={salesMonths[lid]} colSpan={span}/>}</>;
   const totals=data?.totals||{};
-  const classes=abcData?.classes||[];
   const qn=normSearch(query);
   const hit=r=>!qn||[r.title,r.sku,r.ean,r.external_id,r.product_key].some(v=>normSearch(v).includes(qn));
-  const allItems=(abcData?.items||[]).filter(hit);
   const abcLabel=abcP==='TODAS'?'Global':(PLATFORM_LABEL[abcP]||abcP);
   const hasData=data&&data.last_day;
   const per=hasData?(all?{curFrom:data.first_day||data.current_start,curTo:data.last_day,prevFrom:null,prevTo:null}:month?{curFrom:data.current_start,curTo:addDays(data.current_start,span-1),prevFrom:data.previous_start,prevTo:addDays(data.previous_start,span-1)}:{curFrom:addDays(data.last_day,-days+1),curTo:data.last_day,prevFrom:addDays(data.last_day,-2*days+1),prevTo:addDays(data.last_day,-days)}):null;
@@ -556,12 +560,16 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   // Curva ABC: por SKU, no período escolhido (ano, mês ou janela), por plataforma ou global.
   const abcFrom=!data?.last_day?null:yearSel?month+'-01-01':per?.curFrom||null;
   const abcTo=!data?.last_day?null:yearSel?(month+'-12-31'<data.last_day?month+'-12-31':data.last_day):per?.curTo||null;
+  const abcKey=[abcP,abcFrom,abcTo].join('|');
+  const abcData=isCurrentScope(abcE,abcKey)?abcE.data:null;
+  const classes=abcData?.classes||[];
+  const allItems=(abcData?.items||[]).filter(hit);
   useEffect(()=>{
+    setAbcE(null);
     if(!abcFrom||!abcTo)return undefined;
     const controller=new AbortController();
-    setAbcData(null);
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/abc?platform='+abcP+'&start='+abcFrom+'&end='+abcTo,{signal:controller.signal})
-      .then(setAbcData).catch(()=>{if(!controller.signal.aborted)setAbcData(null);});
+      .then(d=>{if(!controller.signal.aborted&&matchesPlatform(d,abcP))setAbcE(makeEntry(abcKey,d));}).catch(()=>{if(!controller.signal.aborted)setAbcE(null);});
     return()=>controller.abort();
   },[abcP,abcFrom,abcTo]);
   // Faturamento Shopee por tipo de envio (Full x envio próprio): só meses inteiros do período.
@@ -634,21 +642,20 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
   const yearMonths=(monthly?.months||[]).filter(r=>!yearSel||String(r.month).startsWith(month));
   const splitRows=(all||yearSel)?yearMonths:series?.daily;
   const filters=<>
-    {mode==='explorer'&&<Dropdown label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform}/>}
     {mode==='explorer'&&<Dropdown label="Situação" value={SITUATION_TABS.includes(tab)?tab:'__none'} options={situationOptions} onChange={pickSituation}/>}
     <PeriodPicker days={days} month={month} periods={PERIODS} available={availableMonths} yearOption onDays={v=>{setMonth('');setDays(v);}} onMonth={setMonth}/>
     <InfoIcon text={SOURCES.period} label="Período"/>
-    {mode!=='explorer'&&<Dropdown label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform}/>}
     {mode==='explorer'&&<label className="ndb-search" title="Busca nos anúncios que aparecem nas listas abaixo (nome, SKU ou código do anúncio).">
       <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Produto, SKU ou código" aria-label="Buscar produto, SKU ou código do anúncio"/>
     </label>}
     {actions}
   </>;
   const whyRows=drops.filter(hit);
-  return <section className={'ndb-root'+(mode==='explorer'?' is-explorer':'')} aria-label="Dashboard comercial">
+  const scopeNotice=!loading&&data?salesNotice({platform,coverage:platform==='TODAS'?null:(ov.coverage||[]).find(c=>c.platform===platform),data}):null;
+  return <section className={'ndb-root'+(mode==='explorer'?' is-explorer':'')} aria-label="Dashboard comercial" aria-busy={loading} data-platform={platform}>
     <header className="ndb-head">
       <div className="ndb-head-title"><div>
-        <p>{loading?'Consultando…':hasData?(all?fmtDayFull(per.curFrom)+' a '+fmtDayFull(data.last_day)+' · todo o histórico, sem comparação':fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · anterior: '+fmtDayFull(per.prevFrom)+' a '+fmtDayFull(per.prevTo)):'Visão geral do desempenho dos produtos'}</p></div></div>
+        <p>{loading?'Consultando '+platformLabel(platform)+'…':hasData?(all?fmtDayFull(per.curFrom)+' a '+fmtDayFull(data.last_day)+' · todo o histórico, sem comparação':fmtDayFull(data.current_start)+' a '+fmtDayFull(data.last_day)+' · anterior: '+fmtDayFull(per.prevFrom)+' a '+fmtDayFull(per.prevTo)):'Visão geral do desempenho dos produtos'}</p></div></div>
       <div className="ndb-head-filters">
         {filters}
         <small>{updated?'Última importação: '+when(updated):hasData?'Dados até '+fmtDayFull(data.last_day):''}</small>
@@ -656,6 +663,11 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
         {mode==='overview'&&<button type="button" className="ndb-help-btn" onClick={()=>setReportOpen(true)}>Relatório de anúncios sem vendas</button>}
       </div>
     </header>
+    <div className="ndb-scope-row">
+      <PlatformSelector value={platform} onChange={setPlatform} hints={platHints}/>
+      <PlatformQualityStrip platform={platform} days={days} month={month} ready={Boolean(data)} onOpenQuality={onOpenQuality}/>
+      {scopeNotice&&<p className={'ndb-notice '+(scopeNotice.kind==='ZERO'?'is-zero':'is-sem')} role="status" data-notice={scopeNotice.kind}>{scopeNotice.text}</p>}
+    </div>
     {reportOpen&&<SalesReport platform={platform} days={days} onClose={()=>setReportOpen(false)}/>}
     {error&&<p className="ndb-error" role="alert">{error}</p>}
     {hasData&&!all&&data.previous_complete===false&&<p className="ndb-warn">Não há vendas importadas para todo o período anterior; as variações podem estar incompletas.</p>}
@@ -759,7 +771,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
       </div>
       <aside className="ndb-right">
         {mode==='overview'&&<Panel title="Atenção" icon="alert" source="alerts" className="ndb-attention">
-          <AttentionByPlatform plats={problems?.plats?.platforms} counts={problems?.groups?.counts} window={problems?.plats?.window} unavailable={!problemDays} error={problemsError} onOpen={onOpenProblems||(()=>goTab('drops'))}/>
+          <AttentionByPlatform platform={platform} plats={problems?.plats?.platforms} counts={problems?.groups?.counts} window={problems?.plats?.window} unavailable={!problemDays} error={problemsError} onOpen={onOpenProblems||(()=>goTab('drops'))}/>
         </Panel>}
         {mode==='overview'&&platform!=='TODAS'&&<Panel title="Resumo do período" icon="list" source="summary">
           <PlatformSummary daily={splitRows} platform={platform} all={all||yearSel}/>
@@ -776,7 +788,7 @@ export default function CommerceDashboard({mode='overview',initialTab=null,onOpe
           </div>
         </Panel>}
         {<Panel title="Em alta" icon="down" source="growing" className="ndb-side-panel ndb-grow-panel"><GrowingList rows={growingRows} all={all} hasOverview={Boolean(overview)}/></Panel>}
-        {mode==='explorer'&&<Panel title="Muita visita, pouca venda" icon="eye" source="lowconv" className="ndb-side-panel"><LowConversionList rows={lowConvRows} hasPerf={hasPerf} note={perfNotes.length?'Relatórios: '+perfNotes.join(' · ')+'. Visitas e conversão valem para o período de cada relatório.':''}/></Panel>}
+        {mode==='explorer'&&<Panel title="Muita visita, pouca venda" icon="eye" source="lowconv" className="ndb-side-panel"><LowConversionList platform={platform} rows={lowConvRows} hasPerf={hasPerf} note={perfNotes.length?'Relatórios: '+perfNotes.join(' · ')+'. Visitas e conversão valem para o período de cada relatório.':''}/></Panel>}
         {mode==='explorer'&&<Panel title="Vendas por mês (unidades)" icon="chart" source="monthly" className="ndb-side-panel"><MonthlyUnits months={monthly?.months} platform={platform} onPick={setMonth}/></Panel>}
       </aside>
     </div>

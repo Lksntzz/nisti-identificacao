@@ -1,0 +1,20 @@
+/* GA-012 — seletor de plataformas e faixa de qualidade (compactos, sem cartões novos) */
+.ndb-scope{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:#eef2f8;border:1px solid #dde4f0}
+.ndb-scope-opt{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:0 13px;border:0;border-radius:9px;background:transparent;font-size:13px;font-weight:700;color:#475569;cursor:pointer;white-space:nowrap}
+.ndb-scope-opt i{width:9px;height:9px;border-radius:50%;background:var(--scope-color,#64748b);flex:none}
+.ndb-scope-opt:hover{background:#e3e9f4}
+.ndb-scope-opt.is-active{background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(15,23,42,.14),inset 0 0 0 1.5px var(--scope-color,#64748b)}
+.ndb-scope-opt.is-muted:not(.is-active){opacity:.65}
+.ndb-scope-opt:focus-visible{outline:2px solid #1d4ed8;outline-offset:1px}
+.ndb-scope-row{display:flex;flex-direction:column;gap:8px;margin:0 0 4px}
+.ndb-qstrip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:12px;color:#475569;line-height:1.4}
+.ndb-qstrip b{color:#0f172a}
+.ndb-qpill{padding:2px 9px;border-radius:999px;background:#f1f5f9;color:#475569;font-weight:600}
+.ndb-qpill.is-ok{background:#dcfce7;color:#166534}.ndb-qpill.is-warn{background:#fef3c7;color:#92400e}
+.ndb-qpill.is-bad{background:#fee2e2;color:#991b1b}.ndb-qpill.is-info{background:#e0f2fe;color:#075985}
+.ndb-qmuted{color:#64748b}
+.ndb-qlink{border:0;background:none;padding:0;font-size:12px;font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer}
+.ndb-notice{margin:6px 0 0;padding:9px 13px;border-radius:10px;font-size:13px;line-height:1.45}
+.ndb-notice.is-sem{background:#f1f5f9;color:#334155;border:1px dashed #94a3b8}
+.ndb-notice.is-zero{background:#fffbeb;color:#78350f;border:1px solid #fde68a}
+@media (max-width:720px){.ndb-scope{display:flex;width:100%;overflow-x:auto}.ndb-scope-opt{flex:1;padding:0 10px}}

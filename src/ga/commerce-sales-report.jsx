@@ -29,8 +29,9 @@ export default function SalesReport({platform,days:daysProp,onClose}){
   const [full,setFull]=useState(false);const [data,setData]=useState(null);const [error,setError]=useState('');
   useEffect(()=>{
     const c=new AbortController();
+    setData(null);setError('');
     fetchCommercialManager('/api/admin/commerce/sales-dashboard/report-no-sales?platform='+platform+'&days='+days,{signal:c.signal})
-      .then(setData).catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível gerar o relatório.');});
+      .then(d=>{if(!c.signal.aborted)setData(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível gerar o relatório.');});
     document.body.classList.add('nsr-printing');
     return()=>{c.abort();document.body.classList.remove('nsr-printing');};
   },[platform,days]);
