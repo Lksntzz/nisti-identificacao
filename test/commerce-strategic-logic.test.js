@@ -165,7 +165,7 @@ test('visão montada: unidades, situação, campeões, movimentos, evolução, c
   const v=buildStrategicView(parts());
   assert.equal(v.platform,'SHOPEE'); assert.equal(v.days,7);
   assert.deepEqual({c:v.units.current,p:v.units.previous,ch:v.units.change_pct,v:v.units.verified},{c:140,p:100,ch:40,v:{current:true,previous:true}});
-  assert.deepEqual(v.listings,{active:3,inactive:1,inactive_with_sales:0,active_without_sales:1,selling_without_sku:1,coverage_verified:true,active_without_sales_label:'sem venda no período'});
+  assert.deepEqual(v.listings,{active:3,inactive:1,inactive_with_sales:0,active_without_sales:1,selling_without_sku:1,with_sales:3,with_sales_includes_inactive:true,with_sales_note:'inclui anúncios inativos e anúncios sem cadastro que venderam no período (0 inativos)',coverage_verified:true,active_without_sales_label:'sem venda no período'});
   assert.equal(v.champions[0].external_id,'A1');
   assert.equal(v.champions[0].traffic.visits,700);
   assert.equal(v.movements.growth.items[0].label,'CRESCIMENTO');

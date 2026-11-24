@@ -209,6 +209,43 @@ function makeGroup({kind,available,rows,total,limit,verified,titles,counts,note,
     ordering:ordering||null,ordering_note:orderingNote||null,note:note||null,verified,items};
 }
 
+
+// Mês de calendário imediatamente anterior (aaaa-mm). Mês ausente da série NUNCA vira zero: fica null e "ausente".
+const prevMonthKey=m=>{const [y,mo]=m.split('-').map(Number);const d=new Date(Date.UTC(y,mo-2,1));return d.toISOString().slice(0,7);};
+function buildMonths(monthly,cov,dqHistory,platform,periods,key){
+  const list=monthly?.months||[];
+  const by=new Map(list.map(m=>[m.month,m]));
+  const gi=gapInfo(dqHistory,platform,periods?.history);
+  const flags=month=>{
+    const out={incomplete:false};
+    const end=periods?.history?.end,start=periods?.history?.start;
+    if(end&&month===end.slice(0,7)&&end<monthEnd(month)){out.incomplete=true;out.incomplete_until=end;}
+    if(start&&month===start.slice(0,7)&&start>month+'-01'){out.incomplete=true;out.incomplete_from=start;}
+    return out;
+  };
+  return list.map(m=>{
+    const pk=prevMonthKey(m.month),pm=by.get(pk);
+    return {month:m.month,units:num(m['units_'+key]),days_with_sales:num(m.days_with_sales),
+      coverage:monthCoverage(m.month,cov.history.proven,gi),...flags(m.month),
+      previous:pm?{month:pk,units:num(pm['units_'+key]),absent:false,coverage:monthCoverage(pk,cov.history.proven,gi),...flags(pk)}
+        :{month:pk,units:null,absent:true,coverage:'NAO_VERIFICADA',incomplete:false}};
+  }).slice(-13);
+}
+// Dia sem informação é LACUNA (null), nunca zero; a cobertura do período anterior é avaliada à parte, dia a dia.
+const addDays=(iso,n)=>new Date(Date.parse(iso)+n*86400000).toISOString().slice(0,10);
+function buildDaily(series,cov,dqCurrent,dqPrevious,platform,periods,key){
+  const rows=series?.daily||[];
+  const curGi=gapInfo(dqCurrent,platform,periods?.current),prevGi=gapInfo(dqPrevious,platform,periods?.previous);
+  return rows.map((d,i)=>{
+    const day=String(d.day).slice(0,10);
+    const state=dayState(day,cov.current.proven,curGi);
+    const pDay=periods?.previous?addDays(periods.previous.start,i):null;
+    const pState=pDay?dayState(pDay,cov.previous.proven,prevGi):'NAO_VERIFICADO';
+    return {day,units:state==='SEM_INFORMACAO'?null:num(d['units_'+key]),state,
+      units_previous:pState==='SEM_INFORMACAO'?null:num(d['prev_units_'+key]),previous_state:pState,previous_day:pDay};
+  });
+}
+
 export function buildStrategicView(p){
   const platform=p.platform,key=KEY[platform];
   const failed=new Set(p.failed||[]);
@@ -311,16 +348,17 @@ export function buildStrategicView(p){
       basis:platform==='SHOPEE'?'ANUNCIOS_VINCULADOS':'POR_ANUNCIO',sku_total:skuTotal},
     listings:{active:num(ov?.listings?.active),inactive:num(ov?.listings?.inactive),inactive_with_sales:num(ov?.listings?.inactive_with_sales),
       active_without_sales:num(ov?.listings?.active_without_sales),selling_without_sku:num(ov?.unlinked?.listings),
+      // Contrato real do Dashboard: totals.listings = anúncios com venda no período, SEM filtro de situação (inclui inativos e sem cadastro).
+      with_sales:status==='OK'?num(totals?.listings):null,with_sales_includes_inactive:true,
+      with_sales_note:'inclui anúncios inativos e anúncios sem cadastro que venderam no período'+(num(ov?.listings?.inactive_with_sales)!=null?' ('+num(ov.listings.inactive_with_sales)+' inativos)':''),
       coverage_verified:cov.current.proven,
       active_without_sales_label:cov.current.proven?'sem venda no período':'sem venda nos dados importados (cobertura não comprovada)'},
     champions:own(ov?.top_units).map(base),champions_available:ovAvail,champions_verified:cov.current.proven,
     champions_note:cov.current.proven?null:'Ranking pelas vendas importadas: a cobertura do período atual não comprovada pode alterar a ordem e as unidades.',champions_limit:LIST_LIMITS.champions,
     movements,
     evolution:{
-      months:(monthly?.months||[]).map(m=>({month:m.month,units:num(m['units_'+key]),days_with_sales:num(m.days_with_sales),
-        coverage:monthCoverage(m.month,cov.history.proven,gapInfo(p.dqHistory,platform,periods?.history))})).slice(-13),
-      daily:(series?.daily||[]).map(d=>({day:d.day,units:num(d['units_'+key]),units_previous:num(d['prev_units_'+key]),
-        state:dayState(String(d.day).slice(0,10),cov.current.proven,gapInfo(p.dqCurrent,platform,periods?.current))})),
+      months:buildMonths(monthly,cov,p.dqHistory,platform,periods,key),
+      daily:buildDaily(series,cov,p.dqCurrent,p.dqPrevious,platform,periods,key),
       verified:{months:cov.history.proven,daily:cov.current.proven,daily_previous:cov.previous.proven},
       basis:platform==='SHOPEE'?'ANUNCIOS_VINCULADOS':'POR_ANUNCIO',
       available:{months:monthly!=null,daily:series!=null}
