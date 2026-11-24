@@ -149,7 +149,7 @@ const parts=(over={})=>{
                 {listing_id:3,platform:'SHOPEE',external_id:'C3',title:'Anúncio C',units_ever:30,last_sale:'2026-10-01',units_previous:0}],
       no_sales_total:2,no_sales_never:1,unlinked:{revenue:5,listings:1,revenue_total:9},ads:{rows:[{gmv:1,spend:2}]},coverage:[{platform:'SHOPEE'}]},
     monthly:{months:[{month:'2026-10',shopee:9,units_shopee:120,days_with_sales:31},{month:'2026-11',shopee:8,units_shopee:90,days_with_sales:23}]},
-    series:{daily:[{day:'2026-11-22',units_shopee:20,prev_units_shopee:15,prev_revenue:3},{day:'2026-11-23',units_shopee:22,prev_units_shopee:14}]},
+    series:{platform:'SHOPEE',days:7,daily:[...['17','18','19','20','21'].map(d=>({day:'2026-11-'+d,units_shopee:1,prev_units_shopee:1})),{day:'2026-11-22',units_shopee:20,prev_units_shopee:15,prev_revenue:3},{day:'2026-11-23',units_shopee:22,prev_units_shopee:14}]},
     categories:{total:{cur:140,base:100,cur_rev:1,base_rev:1},categories:[{name:'Cat X',cur:90,base:60,cur_rev:5,base_rev:4,cols:[{name:'Col 1',cur:50,base:30,cur_rev:1,base_rev:1}]}]},
     split:{status:'COMPLETO',total_units:140,linked_units:135,unlinked_units:5,unlinked_sku_count:1,base_units:135,
       difference:{units:-5,unlinked_effect_units:-5,other_explained_units:0,residual_units:0,explained:true},
@@ -165,7 +165,7 @@ test('visão montada: unidades, situação, campeões, movimentos, evolução, c
   const v=buildStrategicView(parts());
   assert.equal(v.platform,'SHOPEE'); assert.equal(v.days,7);
   assert.deepEqual({c:v.units.current,p:v.units.previous,ch:v.units.change_pct,v:v.units.verified},{c:140,p:100,ch:40,v:{current:true,previous:true}});
-  assert.deepEqual(v.listings,{active:3,inactive:1,inactive_with_sales:0,active_without_sales:1,selling_without_sku:1});
+  assert.deepEqual(v.listings,{active:3,inactive:1,inactive_with_sales:0,active_without_sales:1,selling_without_sku:1,coverage_verified:true,active_without_sales_label:'sem venda no período'});
   assert.equal(v.champions[0].external_id,'A1');
   assert.equal(v.champions[0].traffic.visits,700);
   assert.equal(v.movements.growth.items[0].label,'CRESCIMENTO');
@@ -175,7 +175,7 @@ test('visão montada: unidades, situação, campeões, movimentos, evolução, c
   assert.equal(v.movements.never.items[0].label,'SEM_VENDAS_HISTORICO_NAO_VERIFICADO');
   assert.equal(v.movements.never.verified,false);
   assert.deepEqual(v.evolution.months.map(m=>[m.month,m.units]),[['2026-10',120],['2026-11',90]]);
-  assert.deepEqual(v.evolution.daily.map(d=>[d.day,d.units,d.units_previous]),[['2026-11-22',20,15],['2026-11-23',22,14]]);
+  assert.deepEqual(v.evolution.daily.slice(-2).map(d=>[d.day,d.units,d.units_previous]),[['2026-11-22',20,15],['2026-11-23',22,14]]);
   assert.equal(v.categories.items[0].name,'Cat X'); assert.equal(v.categories.items[0].collections[0].name,'Col 1');
   assert.equal(v.sales_split.residual,0);
   assert.equal(v.notices.some(n=>n.kind==='HISTORICO_NAO_VERIFICADO'),true);
@@ -219,7 +219,7 @@ test('parte que falha vira indisponível sem derrubar o resto',()=>{
 test('ML: sem divisão total x vinculada e sem impressões inventadas',()=>{
   const v=buildStrategicView(parts({platform:'ML_NOVO',split:null,
     dash:dash({platform:'ML_NOVO'}),
-    overview:{...parts().overview,top_units:[{listing_id:9,platform:'ML_NOVO',external_id:'MLB1',title:'ML A',units:5,units_previous:4}],growth:[],stopped:[],stopped_total:0,no_sales:[],no_sales_total:0,no_sales_never:0},
+    overview:{...parts().overview,top_units:[{listing_id:9,platform:'ML_NOVO',external_id:'MLB1',title:'ML A',units:5,units_previous:4}],growth:[],stopped:[],stopped_total:0,no_sales:[],no_sales_total:0,no_sales_never:0,coverage:[{platform:'ML_NOVO',first_day:'2025-01-01',last_day:'2026-11-23'}]},
     dqCurrent:complete('ML_NOVO','2026-11-17','2026-11-23',7),dqPrevious:complete('ML_NOVO','2026-11-10','2026-11-16',7),dqHistory:null,
     perf:{shopee:{reports:[],items:{}},ml:{reports:[{account:'NOVO',start:'2026-11-01',end:'2026-11-14'}],items:{MLB1:{account:'NOVO',visits:40,conversion_pct:2.5,gross:9}}}}}));
   assert.equal(v.sales_split.kind,'ML');
@@ -232,6 +232,7 @@ test('isolamento: item de outra conta no overview nunca entra',()=>{
   p.overview.top_units=[{platform:'ML_NOVO',external_id:'X',title:'de outra conta',units:9,units_previous:1},
                         {platform:'ML_ANTIGO',external_id:'Y',title:'da conta',units:3,units_previous:1}];
   p.overview.growth=[{platform:'SHOPEE',external_id:'G',title:'outra',units:50,units_previous:10}];
+  p.overview.coverage=[{platform:'ML_ANTIGO',first_day:'2025-01-01',last_day:'2026-11-23'}];
   const v=buildStrategicView(p);
   assert.deepEqual(v.champions.map(c=>c.external_id),['Y']);
   assert.equal(v.movements.growth.items.length,0);

@@ -115,14 +115,84 @@ const NOTICE_TEXT={
 const DROPS_ORDERING_NOTE='Os anúncios mostrados foram escolhidos pelo maior valor de venda perdido (em reais), e não pelas maiores perdas de unidades: esta lista não é um ranking por unidades. O total de quedas segue a regra por unidades.';
 const rangeText=r=>r.start+' a '+r.end;
 
-// Respostas de outra conta ou de outro período nunca entram na visão.
-function payloadValid(payload,platform,days){
-  if(!payload||typeof payload!=='object')return true;
-  const pl=payload.platform??payload.plat;
-  if(pl!=null&&pl!==platform)return false;
-  const d=payload.days??payload.window?.days;
-  if(d!=null&&Number(d)!==Number(days))return false;
-  return true;
+// Respostas de outra conta ou de outro período nunca entram na visão. Cada fonte tem o contrato REAL da sua função:
+//  dashboard/série/mensal/categorias devolvem 'platform' no topo; o resumo (overview) NÃO devolve platform nem days no topo:
+//  a conta é conferida pela 'coverage' retornada e as datas por first_day/last_day e window_days_with_sales; a divisão por SKU
+//  devolve start/end. Quando a fonte não permite confirmação independente, o nível é NAO_CONFIRMAVEL e a limitação é declarada.
+const LIMITATION={
+  overview:'Resumo: a função não devolve conta nem dias no nível principal e a cobertura retornada veio vazia; sem conferência independente da conta nem das datas (os anúncios foram filtrados pela conta de cada linha).',
+  series:'Evolução diária: a resposta veio sem dias; não há datas para conferir.',
+  split:'Divisão por SKU: a resposta não informa as datas consultadas; não foi possível confirmar o período.',
+  monthly:'Evolução mensal: a resposta não informa a conta; não foi possível confirmar de forma independente.',
+  categories:'Categorias: a resposta não informa a conta nem as datas; não foi possível confirmar de forma independente.'
+};
+const spanDays=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/86400000)+1;
+function checkSource(name,pl,{platform,days,dash,periods}){
+  if(!pl||typeof pl!=='object')return {ok:true,level:null};
+  const top=pl.platform??pl.plat;
+  if(top!=null&&top!==platform)return {ok:false};
+  const topDays=pl.days??pl.window?.days;
+  if(topDays!=null&&Number(topDays)!==Number(days))return {ok:false};
+  const confirmed={ok:true,level:'CONFIRMADA'},unknown={ok:true,level:'NAO_CONFIRMAVEL'};
+  switch(name){
+    case 'dashboard':return top!=null&&topDays!=null?confirmed:unknown;
+    case 'overview':{
+      const cov=Array.isArray(pl.coverage)?pl.coverage:[];
+      if(cov.some(c=>c&&c.platform!=null&&c.platform!==platform))return {ok:false};
+      const mine=cov.find(c=>c&&c.platform===platform);
+      if(mine&&dash){
+        if(mine.last_day&&dash.last_day&&String(mine.last_day).slice(0,10)!==String(dash.last_day).slice(0,10))return {ok:false};
+        if(mine.first_day&&dash.first_day&&String(mine.first_day).slice(0,10)!==String(dash.first_day).slice(0,10))return {ok:false};
+      }
+      const w=num(pl.window_days_with_sales);
+      if(w!=null&&w>Number(days))return {ok:false};
+      return mine||top!=null?confirmed:unknown;
+    }
+    case 'monthly':{
+      if(dash&&pl.last_day&&dash.last_day&&String(pl.last_day).slice(0,10)!==String(dash.last_day).slice(0,10))return {ok:false};
+      if(dash&&pl.first_day&&dash.first_day&&String(pl.first_day).slice(0,10)!==String(dash.first_day).slice(0,10))return {ok:false};
+      return top!=null?confirmed:unknown;
+    }
+    case 'series':{
+      const d=Array.isArray(pl.daily)?pl.daily:[];
+      if(!d.length)return unknown;
+      if(!periods)return unknown;
+      if(d.length!==Number(days)||String(d[0].day).slice(0,10)!==periods.current.start||String(d[d.length-1].day).slice(0,10)!==periods.current.end)return {ok:false};
+      return confirmed;
+    }
+    case 'split':{
+      if(!pl.start||!pl.end||!periods)return unknown;
+      return String(pl.start).slice(0,10)===periods.current.start&&String(pl.end).slice(0,10)===periods.current.end?confirmed:{ok:false};
+    }
+    case 'categories':{
+      if(pl.cur_from&&pl.cur_to&&spanDays(pl.cur_from,pl.cur_to)!==Number(days))return {ok:false};
+      return top!=null&&pl.cur_from?confirmed:unknown;
+    }
+    default:return confirmed;
+  }
+}
+
+// Cobertura por mês/dia a partir da GA-018 do histórico/período atual (nunca inventa: sem prova = não verificada).
+const monthEnd=m=>{const [y,mo]=m.split('-').map(Number);return new Date(Date.UTC(y,mo,0)).toISOString().slice(0,10);};
+function gapInfo(dq,platform,period){
+  const sl=dq?.sales;
+  if(!sl||dq.platform!==platform||!period||dq.period?.start!==period.start||dq.period?.end!==period.end)return null;
+  if(!Array.isArray(sl.missing_ranges))return null;
+  const listed=sl.missing_ranges.reduce((a,r)=>a+(num(r.days)??spanDays(r.start,r.end)),0);
+  const missing=num(sl.days_without_information)??0;
+  return {ranges:sl.missing_ranges,complete:listed>=missing,otherIssues:(num(sl.partial_days)||0)>0||(num(sl.days_with_records_unverified)||0)>0};
+}
+function monthCoverage(month,histProven,gi){
+  if(histProven)return 'COMPROVADA';
+  if(!gi)return 'NAO_VERIFICADA';
+  const ms=month+'-01',me=monthEnd(month);
+  if(gi.ranges.some(r=>r.start<=me&&r.end>=ms))return 'COM_LACUNA';
+  return gi.complete&&!gi.otherIssues?'COMPROVADA':'NAO_VERIFICADA';
+}
+function dayState(day,curProven,gi){
+  if(curProven)return 'OK';
+  if(gi&&gi.complete&&gi.ranges.some(r=>r.start<=day&&r.end>=day))return 'SEM_INFORMACAO';
+  return 'NAO_VERIFICADO';
 }
 
 function makeGroup({kind,available,rows,total,limit,verified,titles,counts,note,ordering,orderingNote,totalKnown=true}){
@@ -143,10 +213,23 @@ export function buildStrategicView(p){
   const platform=p.platform,key=KEY[platform];
   const failed=new Set(p.failed||[]);
   const invalid=new Set();
-  const take=(name,payload)=>{if(payload&&!payloadValid(payload,platform,p.days)){invalid.add(name);return null;}return payload||null;};
-  const dash=take('dashboard',p.dash),overview=take('overview',p.overview),monthly=take('monthly',p.monthly),
-    series=take('series',p.series),categoriesRaw=take('categories',p.categories);
+  const levels={},limitations=[];
+  const dash0=p.dash&&checkSource('dashboard',p.dash,{platform,days:p.days}).ok?p.dash:null;
+  if(p.dash&&!dash0)invalid.add('dashboard');
+  const dash=dash0;
   const periods=dash?(p.periods??strategicPeriods(dash)):null;
+  const ctx={platform,days:p.days,dash,periods};
+  const take=(name,payload)=>{
+    if(!payload)return null;
+    const r=checkSource(name,payload,ctx);
+    if(!r.ok){invalid.add(name);return null;}
+    levels[name]=r.level;
+    if(r.level==='NAO_CONFIRMAVEL'&&LIMITATION[name])limitations.push(LIMITATION[name]);
+    return payload;
+  };
+  if(dash)levels.dashboard=checkSource('dashboard',dash,{platform,days:p.days}).level;
+  const overview=take('overview',p.overview),monthly=take('monthly',p.monthly),series=take('series',p.series),
+    categoriesRaw=take('categories',p.categories),splitRaw=take('split',p.split);
   const cov=coverageState({platform,periods,dqCurrent:p.dqCurrent,dqPrevious:p.dqPrevious,dqHistory:p.dqHistory});
   const own=rows=>(Array.isArray(rows)?rows:[]).filter(r=>r&&r.platform===platform);
   const base=r=>({listing_id:r.listing_id??null,external_id:r.external_id??null,title:r.title??null,units:num(r.units),units_previous:num(r.units_previous),
@@ -166,7 +249,7 @@ export function buildStrategicView(p){
   }
 
   // Base das unidades: o Dashboard soma vendas dos ANÚNCIOS vinculados; a Shopee também tem o total por SKU (inclui sem vínculo).
-  const split=platform==='SHOPEE'?salesSplit(platform,{split:p.split,overview:ov}):salesSplit(platform,{overview:ov});
+  const split=platform==='SHOPEE'?(invalid.has('split')?{kind:'SHOPEE',status:'RESPOSTA_INVALIDA',total:null,linked:null,unlinked:null,residual:null}:salesSplit(platform,{split:splitRaw,overview:ov})):salesSplit(platform,{overview:ov});
   const skuTotal=platform==='SHOPEE'&&split.total!=null&&periods
     ?{current:split.total,unlinked:split.unlinked,basis:'TOTAL_POR_SKU',period:periods.current}:null;
   if(platform==='SHOPEE'&&split.base!=null&&curU!=null&&split.base!==curU)
@@ -227,12 +310,18 @@ export function buildStrategicView(p){
       verified:{current:cov.current.proven,previous:cov.previous.proven},
       basis:platform==='SHOPEE'?'ANUNCIOS_VINCULADOS':'POR_ANUNCIO',sku_total:skuTotal},
     listings:{active:num(ov?.listings?.active),inactive:num(ov?.listings?.inactive),inactive_with_sales:num(ov?.listings?.inactive_with_sales),
-      active_without_sales:num(ov?.listings?.active_without_sales),selling_without_sku:num(ov?.unlinked?.listings)},
-    champions:own(ov?.top_units).map(base),champions_available:ovAvail,champions_limit:LIST_LIMITS.champions,
+      active_without_sales:num(ov?.listings?.active_without_sales),selling_without_sku:num(ov?.unlinked?.listings),
+      coverage_verified:cov.current.proven,
+      active_without_sales_label:cov.current.proven?'sem venda no período':'sem venda nos dados importados (cobertura não comprovada)'},
+    champions:own(ov?.top_units).map(base),champions_available:ovAvail,champions_verified:cov.current.proven,
+    champions_note:cov.current.proven?null:'Ranking pelas vendas importadas: a cobertura do período atual não comprovada pode alterar a ordem e as unidades.',champions_limit:LIST_LIMITS.champions,
     movements,
     evolution:{
-      months:(monthly?.months||[]).map(m=>({month:m.month,units:num(m['units_'+key]),days_with_sales:num(m.days_with_sales)})).slice(-13),
-      daily:(series?.daily||[]).map(d=>({day:d.day,units:num(d['units_'+key]),units_previous:num(d['prev_units_'+key])})),
+      months:(monthly?.months||[]).map(m=>({month:m.month,units:num(m['units_'+key]),days_with_sales:num(m.days_with_sales),
+        coverage:monthCoverage(m.month,cov.history.proven,gapInfo(p.dqHistory,platform,periods?.history))})).slice(-13),
+      daily:(series?.daily||[]).map(d=>({day:d.day,units:num(d['units_'+key]),units_previous:num(d['prev_units_'+key]),
+        state:dayState(String(d.day).slice(0,10),cov.current.proven,gapInfo(p.dqCurrent,platform,periods?.current))})),
+      verified:{months:cov.history.proven,daily:cov.current.proven,daily_previous:cov.previous.proven},
       basis:platform==='SHOPEE'?'ANUNCIOS_VINCULADOS':'POR_ANUNCIO',
       available:{months:monthly!=null,daily:series!=null}
     },
@@ -240,11 +329,12 @@ export function buildStrategicView(p){
     sales_split:split,
     traffic_available:Boolean((platform==='SHOPEE'?p.perf?.shopee?.reports:(p.perf?.ml?.reports||[]).filter(r=>r.account===(platform==='ML_NOVO'?'NOVO':'ANTIGO')))?.length),
     notices,
+    validation:{levels,limitations},
     sources:{cached_in_database:['dashboard','overview','series','monthly','categories'],live:['quality','split','performance'],
       note:'Dashboard, resumo, evolução e categorias vêm do cache interno do banco (válido até a próxima importação, a virada do dia ou 6 horas). Cobertura, divisão por SKU e relatórios de visitas são consultados ao vivo.',
       elapsed_ms:num(p.elapsed_ms)},
     parts:{dashboard:partState('dashboard',dash),overview:partState('overview',overview),monthly:partState('monthly',monthly),
-      series:partState('series',series),categories:partState('categories',categoriesRaw),split:partState('split',p.split),
+      series:partState('series',series),categories:partState('categories',categoriesRaw),split:partState('split',splitRaw),
       quality:failed.has('quality')?'INDISPONIVEL':(p.dqCurrent||p.dqPrevious||p.dqHistory)?'OK':'SEM_DADOS',
       performance:partState('performance',p.perf?.shopee||p.perf?.ml)}
   };

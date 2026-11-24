@@ -44,9 +44,12 @@ function Group({g,showPrev,partName}){
         {g.items.length>PREVIEW&&<button type="button" className="nsv-link" onClick={()=>setAll(x=>!x)}>{all?'Mostrar menos':'Mostrar todos os '+g.items.length+' carregados'}</button>}</>}
   </Block>;
 }
+const COV_TAG={COM_LACUNA:'com dias sem informação',NAO_VERIFICADA:'não verificado',SEM_INFORMACAO:'sem informação',NAO_VERIFICADO:'não verificado'};
 function Bars({items}){
   const max=Math.max(1,...items.map(i=>i.units||0));
-  return <ul className="nsv-bars">{items.map(i=><li key={i.month||i.day}><span>{i.month||i.day}</span><i style={{width:Math.round((i.units||0)/max*100)+'%'}}/><b>{nf(i.units)}</b></li>)}</ul>;
+  return <ul className="nsv-bars">{items.map(i=>{const st=i.coverage||i.state;const flag=st&&st!=='OK'&&st!=='COMPROVADA'?COV_TAG[st]:null;
+    return <li key={i.month||i.day} className={flag?'is-unverified':''} data-state={st||''}><span>{i.month||i.day}</span><i style={{width:Math.round((i.units||0)/max*100)+'%'}}/>
+      <b>{st==='SEM_INFORMACAO'?'sem info':nf(i.units)}{flag&&st!=='SEM_INFORMACAO'&&<small> {flag}</small>}</b></li>;})}</ul>;
 }
 
 export default function CommerceStrategicView(){
@@ -97,10 +100,10 @@ export default function CommerceStrategicView(){
         <div><span>Período anterior · mesma base</span><strong>{nf(v.units.previous)}</strong>{!v.units.verified.previous&&<small className="nsv-unv">não verificado</small>}</div>
         <div><span>Variação (mesma base)</span><strong>{v.units.change_pct==null?'—':(v.units.change_pct>0?'+':'')+String(v.units.change_pct).replace('.',',')+'%'}</strong>
           {v.units.change_pct==null&&<small>exige os dois períodos verificados</small>}</div>
-        <div><span>Anúncios ativos</span><strong>{nf(v.listings.active)}</strong><small>{nf(v.listings.active_without_sales)} sem venda · {nf(v.listings.inactive)} inativos</small></div>
+        <div><span>Anúncios ativos</span><strong>{nf(v.listings.active)}</strong><small className={v.listings.coverage_verified?'':'nsv-unv'} data-testid="no-sales-card">{nf(v.listings.active_without_sales)} {v.listings.active_without_sales_label} · {nf(v.listings.inactive)} inativos</small></div>
       </div>
       {v.units.sku_total&&<p className="nsv-note" data-testid="sku-total">Outra base, não somar: total por SKU no período atual = {nf(v.units.sku_total.current)} un. (inclui {nf(v.units.sku_total.unlinked)} de SKU sem vínculo).</p>}
-      <Block title="Produtos campeões (maiores unidades)" notes={['Até '+v.champions_limit+' anúncios, por unidades vendidas no período atual.']}>
+      <Block title="Produtos campeões (maiores unidades)" notes={['Até '+v.champions_limit+' anúncios, por unidades vendidas no período atual.',v.champions_note]} tone={v.champions_verified?null:'candidate'}>
         {!v.champions_available?<p className="nsv-error" role="status">Consulta indisponível no momento.</p>:v.champions.length===0?<p className="nsv-empty">Sem dados.</p>
           :<ul className="nsv-list">{v.champions.map(r=><Row key={r.listing_id||r.external_id} r={r}/>)}</ul>}</Block>
       <div className="nsv-two">
@@ -111,8 +114,8 @@ export default function CommerceStrategicView(){
       <Group g={mv.never} partName="overview"/>
       <Block title={'Evolução comercial · '+BASIS[v.evolution.basis]}>
         {!v.evolution.available.months&&!v.evolution.available.daily?<p className="nsv-error" role="status">Evolução indisponível no momento.</p>:<>
-        {v.evolution.months.length>0&&<><h4>Por mês</h4><Bars items={v.evolution.months}/></>}
-        {v.evolution.daily.length>0&&<><h4>Por dia (período selecionado)</h4><Bars items={v.evolution.daily}/></>}
+        {v.evolution.months.length>0&&<><h4>Por mês</h4>{!v.evolution.verified.months&&<p className="nsv-note" data-testid="months-note">Soma dos dias importados: meses marcados têm dias sem informação ou sem verificação; um valor baixo ali não prova ausência de vendas.</p>}<Bars items={v.evolution.months}/></>}
+        {v.evolution.daily.length>0&&<><h4>Por dia (período selecionado)</h4>{!v.evolution.verified.daily&&<p className="nsv-note" data-testid="daily-note">Cobertura do período atual não comprovada: dias marcados não provam ausência de vendas.</p>}{!v.evolution.verified.daily_previous&&<p className="nsv-note">Valores do período anterior não verificados.</p>}<Bars items={v.evolution.daily}/></>}
         {v.evolution.months.length===0&&v.evolution.daily.length===0&&<p className="nsv-empty">Sem dados.</p>}</>}</Block>
       <Block title="Categorias e coleções"
         notes={v.categories?['Unidades · '+BASIS[v.categories.basis]+'.',
@@ -135,6 +138,7 @@ export default function CommerceStrategicView(){
       </Block></>}
       {!v.traffic_available&&<p className="nsv-note">Visitas, impressões e conversão: sem relatório importado desta conta.</p>}
       <p className="nsv-note nsv-sources" data-testid="sources">{v.sources.note}{v.sources.elapsed_ms!=null&&' Montada em '+nf(v.sources.elapsed_ms)+' ms.'}</p>
+      {v.validation.limitations.length>0&&<p className="nsv-note nsv-sources" data-testid="limitations">Conferência de origem limitada: {v.validation.limitations.join(' ')}</p>}
     </>}
   </section>;
 }

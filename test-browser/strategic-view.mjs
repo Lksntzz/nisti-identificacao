@@ -28,16 +28,17 @@ export function payload(platform,days,{proven=true,failed=[],over={},prevOk=prov
       top_units:[{listing_id:1,platform,external_id:'A1',title:'Agenda '+NAME[platform]+' Campeã',units:80,units_previous:50}],
       growth:[{listing_id:1,platform,external_id:'A1',title:'Agenda '+NAME[platform]+' Campeã',units:80,units_previous:50}],
       stopped:[{listing_id:3,platform,external_id:'C3',title:'Caderno Parado',units_ever:30,last_sale:'2026-10-01',days_since:53}],stopped_total:400,
-      no_sales:[{listing_id:4,platform,external_id:'D4',title:'Anúncio Sem Venda',units_ever:0,last_sale:null}],no_sales_never:9,unlinked:{listings:2}},
+      no_sales:[{listing_id:4,platform,external_id:'D4',title:'Anúncio Sem Venda',units_ever:0,last_sale:null}],no_sales_never:9,unlinked:{listings:2},
+      window_days_with_sales:days,coverage:[{platform,first_day:'2025-01-01',last_day:'2026-11-23',last_import:'2026-11-24T10:00:00Z'}]},
     monthly:{months:[{month:'2026-10',['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:120,days_with_sales:31}]},
-    series:{daily:[{day:'2026-11-23',['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:22}]},
+    series:{platform,days,daily:Array.from({length:days},(_,i)=>({day:new Date(Date.parse(cur.start)+i*86400000).toISOString().slice(0,10),['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:10+i}))},
     categories:failed.includes('categories')?null:{platform,cur_from:cur.start,cur_to:cur.end,base_from:'2025'+cur.start.slice(4),base_to:'2025'+cur.end.slice(4),
       total:{cur:UNITS[platform],base:90},categories:[{name:'Agendas',cur:90,base:60,cols:[{name:'Floral',cur:50,base:30}]}]},
     split:platform==='SHOPEE'?{status:'COMPLETO',total_units:UNITS[platform]+5,linked_units:UNITS[platform],unlinked_units:5,base_units:UNITS[platform],
       difference:{units:-5,other_explained_units:0,residual_units:0},reconciliation:{status:'EXPLICADA'},coverage:{missing_days:0}}:null,
     dqCurrent:proven?dq(platform,cur.start,cur.end):dq(platform,cur.start,cur.end,false),
     dqPrevious:prevOk?dq(platform,prev.start,prev.end):dq(platform,prev.start,prev.end,false),
-    dqHistory:dq(platform,hist.start,hist.end,false),dqCatBase:dq(platform,'2025'+cur.start.slice(4),'2025'+cur.end.slice(4)),
+    dqHistory:dq(platform,hist.start,hist.end,false),dqCurrentRanges:null,dqCatBase:dq(platform,'2025'+cur.start.slice(4),'2025'+cur.end.slice(4)),
     perf:{shopee:{reports:[],items:{}},ml:{reports:[],items:{}}},...over.parts});
 }
 
@@ -142,6 +143,21 @@ test('período comprovado: títulos confirmados e histórico importado identific
   assert.doesNotMatch(t,/nunca vendeu|nunca venderam/i);
   assert.match(t,/Outra base, não somar: total por SKU/);
   assert.match(t,/vendas dos anúncios vinculados/);
+  await context.close();
+});
+
+test('cobertura não comprovada: cartão, campeões e evolução não transmitem certeza de ausência',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={proven:false,prevOk:false};
+  const {page,context}=await open(b,{sim});
+  await page.waitForSelector('[data-testid="units-current"]');
+  assert.match(await page.locator('[data-testid="no-sales-card"]').evaluate(e=>e.textContent),/sem venda nos dados importados \(cobertura não comprovada\)/);
+  const t=await body(page);
+  assert.match(t,/a cobertura do período atual não comprovada pode alterar a ordem/);
+  assert.match(await page.locator('[data-testid="daily-note"]').evaluate(e=>e.textContent),/não provam ausência de vendas/);
+  assert.match(await page.locator('[data-testid="months-note"]').evaluate(e=>e.textContent),/não prova ausência de vendas/);
+  assert.ok(await page.locator('.nsv-bars li[data-state="NAO_VERIFICADO"]').count()>0);
+  assert.match(await page.locator('[data-testid="limitations"]').evaluate(e=>e.textContent),/Conferência de origem limitada/);
+  if(SHOTS)await page.screenshot({path:SHOTS+'/shopee-cobertura-nao-comprovada.png',fullPage:true});
   await context.close();
 });
 
