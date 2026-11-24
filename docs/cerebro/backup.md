@@ -1,9 +1,54 @@
 # Backup do NISTI (banco Supabase e imagens R2)
 
-> [!warning] ATENÇÃO: não há backup do banco confirmado
-> Segundo os documentos que esta nota substitui (posição de 21/10/2026), a pasta de backups do banco estava **vazia**: a primeira cópia nunca foi gerada, e a existência de backups recuperáveis no Supabase **não foi confirmada**. Quem executa o procedimento abaixo é o administrador, no computador dele. **Confirmar o estado atual antes de assumir que existe cópia.** Conferir também no painel do Supabase: Database → Backups (quais existem, data, retenção, custo).
+> [!info] Estado em 24/11/2026: existe um backup externo verificado do banco
+> Primeiro backup externo do banco gerado no computador do administrador e restaurado com sucesso num PostgreSQL local isolado (ver "Backup externo de 24/11/2026"). A cópia fica numa pasta privada fora do Git. **Isso vale para aquela data**: antes de qualquer mudança arriscada, gerar outro. Conferir também no painel do Supabase: Database → Backups (quais existem, data, retenção, custo).
 
 Esta nota junta e substitui três documentos que se repetiam (`BACKUP-GRATUITO-NISTI`, `BACKUP-GOOGLE-DRIVE-NISTI` e `GOOGLE-DRIVE-BACKUP-NISTI`). Plano geral de proteção: [[PLANO-PROTECAO-E-RECUPERACAO]].
+
+## Backup externo de 24/11/2026 (resultado, sem dados comerciais)
+
+| Item | Valor |
+|---|---|
+| Data (UTC) | 2026-11-24 19:27 |
+| Servidor | PostgreSQL 17.6 (Supabase, sa-east-1) |
+| Escopo | schemas do app: `public`, `backup`, `commerce_cutover_backup_20260926`, `supabase_migrations` (226 tabelas) |
+| Tamanho | pasta 18,8 MB; dump 16,2 MB (16.954.111 bytes) |
+| SHA-256 do dump | `734c74248e89fc73db95d434d06fcd314aea19da85242340e2b10bfe55adb79b` |
+| Restauração | PASS em PostgreSQL local temporário (127.0.0.1), 56 s, produção intocada |
+
+**Como foi feito:** ferramentas externas ao Git (somente leitura na produção, senha digitada pelo administrador, nunca gravada). O backup congela um *snapshot* único (contagens, hash do conteúdo, inventários e `pg_dump` no mesmo instante) e grava, além do dump, os inventários de permissões, políticas RLS, proprietários, extensões e agendamentos, com `SHA256SUMS`.
+
+**Critério do teste de restauração (PASS só se tudo valer):**
+1. Todos os arquivos obrigatórios presentes, não vazios e com SHA-256 correto.
+2. Zero erros do `pg_restore` (única exceção contada: o schema `public` já existe) e zero falhas ao recriar perfis e extensões necessárias ao app. Extensões só da plataforma (`http`, `pg_cron`, `supabase_vault`) só são toleradas se nenhum objeto do app as usar.
+3. Cada tabela com mesma contagem **e mesmo hash de conteúdo** do snapshot.
+4. Inventário de objetos (tabelas, views, sequências, funções, triggers, índices, políticas) igual.
+5. Definições das políticas RLS e RLS ligado/forçado iguais.
+6. Permissões (GRANT, inclusive `WITH GRANT OPTION` e por coluna) iguais **depois de reaplicar `permissoes-reaplicar.sql`**.
+Proprietários originais ficam no inventário `donos.tsv`; a diferença após `--no-owner` é informativa.
+
+### Recuperação completa: reaplicar as permissões é OBRIGATÓRIO
+O `pg_dump` só revoga permissões de PUBLIC e do dono. Num banco do Supabase, os privilégios padrão da plataforma concedem a `anon`, `authenticated` e `service_role` acesso a objetos novos; objetos que a produção havia restringido voltam **abertos demais**. No teste, sem a reaplicação houve mais de mil permissões a mais (EXECUTE de `anon` e `authenticated` em todas as funções do app e acesso a mais de uma centena de tabelas); com ela, zero divergências. Portanto, numa recuperação completa:
+1. Restaurar o dump (`pg_restore --no-owner`).
+2. **Rodar `permissoes-reaplicar.sql`** (gerado a cada backup; revoga tudo dos perfis e concede exatamente o que a produção tinha). Sem este passo a recuperação não está concluída.
+3. Reaplicar proprietários que diferirem de `postgres` a partir de `donos.tsv` e conferir políticas RLS.
+4. Conferir contagens e testar o app (login, telas do GA) antes de religar o tráfego.
+
+### Reverter a migração GA-021 NÃO é restaurar o banco
+| | Reversão da GA-021 | Restauração integral |
+|---|---|---|
+| O que é | `docs/reversao/GA-021-reversao.sql` (bloco `DO`) | `pg_restore` do backup externo |
+| Efeito | Devolve só as dez funções à leitura da tabela legada e limpa 4 famílias de cache; não toca em vendas, lotes, snapshots nem tabelas | Substitui o conteúdo do banco pelo do dia do backup (perde tudo que veio depois) |
+| Quando | Problema causado só pela migração (telas de Categorias/ABC/frete) | Perda ou corrupção de dados |
+| Custo | Reintroduz o defeito dos lotes abertos, mas sem perda de dados | Perda de dados posteriores ao backup; exige reaplicar permissões |
+| Backup necessário | Já existe (24/11/2026) | Backup mais recente possível |
+Nunca usar a restauração integral para desfazer só a GA-021.
+
+### Limites conhecidos
+- Não houve ensaio de restauração num projeto Supabase novo (o teste usou PostgreSQL local com privilégios padrão simulados).
+- Schemas internos do Supabase (`auth`, `storage`, `vault`, `cron`, `realtime`) fora do dump: na data estavam vazios (as tarefas do `pg_cron` ficam registradas). Revisar o escopo se passarem a ter conteúdo.
+- Chaves de API e segredos (Cloudflare, GitHub) não fazem parte do banco.
+- O `.dump` contém dados comerciais: pasta privada, fora do Git, nunca no Drive sem criptografia.
 
 ## Regras que não mudam
 
