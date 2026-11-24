@@ -3,7 +3,7 @@ import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import './commerce-data-quality.css';
 import {PLATFORMS,PLATFORM_SHORT,buildCards,presetPeriod,validPeriod,fmtDate} from './commerce-data-quality-logic.js';
 
-// GA-018 — Central de Qualidade dos Dados. Somente leitura: nada aqui altera dados. Sem nota geral de qualidade.
+// GA-018 — Central de Qualidade dos Dados (somente leitura; nada aqui altera dados).
 export default function CommerceDataQuality(){
   const initial=presetPeriod('30');
   const [platform,setPlatform]=useState('SHOPEE');

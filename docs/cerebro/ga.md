@@ -23,6 +23,8 @@ O navegador nunca fala com o banco. Toda função SQL do GA termina em `_vN` e s
 
 A tela **Comparação anual** foi removida em 05/11/2026 (PR #839) e o back-end sem uso foi apagado depois. Ver o fim do [[MAPA-GA]].
 
+- **Qualidade dos dados (GA-018, em revisão):** `commerce-data-quality.jsx` → `/api/admin/commerce/data-quality` → `commerce_data_quality_v1` (somente leitura, sem cache). Atualização, cobertura e conciliação são separadas; conciliação é só consistência interna. Detalhes no `docs/MAPA-GA.md`.
+
 ## Regras de negócio que já causaram erro
 
 - **Comparação por anúncio (histórico, tela removida):** a unidade era o número do anúncio (`external_listing_id`), nunca o SKU; "novo" = sem venda no ano-base inteiro; mês em andamento comparava o ano-base cortado na mesma data; ausência de dado não é zero (Mercado Livre 2025 nunca foi importado). Se a tela voltar, retomar essas regras.
