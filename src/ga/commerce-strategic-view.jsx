@@ -19,6 +19,7 @@ const REASON={PERIODO_ATUAL_NAO_COMPROVADO:'cobertura do período atual não com
   HISTORICO_NAO_COMPROVADO:'histórico não verificado'};
 const BASIS={ANUNCIOS_VINCULADOS:'vendas dos anúncios vinculados',POR_ANUNCIO:'vendas por anúncio',TOTAL_POR_SKU:'total por SKU (inclui SKU sem vínculo)'};
 const PART_PT={dashboard:'Dashboard',overview:'resumo de anúncios',monthly:'evolução mensal',series:'evolução diária',categories:'categorias',split:'divisão por SKU',quality:'cobertura',performance:'visitas e impressões'};
+const COV_TEXT={OK:'comprovada',COMPROVADA:'comprovada',SEM_INFORMACAO:'sem informação',COM_LACUNA:'com dias sem informação',NAO_VERIFICADO:'não verificada',NAO_VERIFICADA:'não verificada'};
 const COV_REASON={NAO_COMPROVADA:'cobertura incompleta',INDISPONIVEL:'consulta indisponível',SEM_INFORMACAO:'sem informação de vendas'};
 const ESSENTIAL=new Set(['SEM_INFORMACAO','PERIODO_ATUAL_NAO_COMPROVADO','PERIODO_ANTERIOR_NAO_COMPROVADO','BASE_UNIDADES_DIVERGENTE']);
 const GROUPS=[
@@ -31,7 +32,8 @@ const GROUPS=[
 function Traffic({t}){
   if(!t||(t.visits==null&&t.impressions==null&&t.conversion_pct==null))return <span className="nsv-muted">—</span>;
   return <span className="nsv-traffic">{t.visits!=null&&<>Visitas {nf(t.visits)}</>}{t.impressions!=null&&<> · Impr. {nf(t.impressions)}</>}
-    {t.conversion_pct!=null&&<> · Conv. {String(t.conversion_pct).replace('.',',')}%</>}</span>;
+    {t.conversion_pct!=null&&<> · Conv. {String(t.conversion_pct).replace('.',',')}%</>}
+    {t.period&&<small className="nsv-traffic-period" data-testid="traffic-period">relatório de {t.period.start} a {t.period.end}</small>}</span>;
 }
 function Tag({r}){
   if(!r.label)return null;
@@ -97,8 +99,9 @@ export default function CommerceStrategicView(){
   const essential=v?v.notices.filter(n=>ESSENTIAL.has(n.kind)):[];
   const bothProven=Boolean(v&&v.coverage.current.proven&&v.coverage.previous.proven);
 
-  const dailyPoints=useMemo(()=>v?v.evolution.daily.map(d=>({label:d.day.slice(5).split('-').reverse().join('/'),full:d.day,units:d.units,previous:d.units_previous,state:d.state})):[],[v]);
-  const monthPoints=useMemo(()=>v?v.evolution.months.map((m,i,a)=>({label:m.month.slice(5)+'/'+m.month.slice(2,4),full:m.month,units:m.units,previous:i>0?a[i-1].units:null,state:m.coverage})):[],[v]);
+  const dailyPoints=useMemo(()=>v?v.evolution.daily.map(d=>({label:d.day.slice(5).split('-').reverse().join('/'),full:d.day,units:d.units,previous:d.units_previous,state:d.state,previous_state:d.previous_state,previous_day:d.previous_day})):[],[v]);
+  const monthPoints=useMemo(()=>v?v.evolution.months.map(m=>({label:m.month.slice(5)+'/'+m.month.slice(2,4)+(m.incomplete?'*':''),full:m.month,units:m.units,previous:m.previous.units,previousInfo:m.previous,state:m.coverage,
+    incomplete:m.incomplete,incomplete_until:m.incomplete_until,incomplete_from:m.incomplete_from})):[],[v]);
   const collections=useMemo(()=>v?.categories?v.categories.items.flatMap(c=>c.collections.map(x=>({...x,category:c.name}))):[],[v]);
 
   const active=GROUPS.find(x=>x.id===group)||GROUPS[1];
@@ -133,8 +136,8 @@ export default function CommerceStrategicView(){
           <Kpi label="Unidades vendidas" value={nf(v.units.current)} testid="units-current" sub={v.units.verified.current?'período atual':'período atual · não verificado'} tone={v.units.verified.current?null:'warn'}/>
           <Kpi label="Período anterior" value={nf(v.units.previous)} sub={v.units.verified.previous?'mesma base':'mesma base · não verificado'} tone={v.units.verified.previous?null:'warn'}/>
           <Kpi label="Variação" value={pct(v.units.change_pct)} sub={v.units.change_pct==null?'exige os dois períodos verificados':'contra o período anterior'}/>
-          <Kpi label="Anúncios ativos" value={nf(v.listings.active)} sub={nf(v.listings.inactive)+' inativos'}/>
-          <Kpi label="Com vendas no período" value={nf(v.listings.with_sales)} sub={v.listings.coverage_verified?'registradas':'registradas · não verificado'} tone={v.listings.coverage_verified?null:'warn'}/>
+          <Kpi label="Anúncios ativos" value={nf(v.listings.active)} sub={nf(v.listings.inactive)+' inativos (fora desta contagem)'}/>
+          <Kpi label="Com vendas no período" value={nf(v.listings.with_sales)} testid="with-sales-value" subTestid="with-sales-note" sub={v.listings.with_sales_note+(v.listings.coverage_verified?'':' · não verificado')} tone={v.listings.coverage_verified?null:'warn'}/>
           <Kpi label="Sem vendas registradas" value={nf(v.listings.active_without_sales)} testid="no-sales-value" subTestid="no-sales-card"
             sub={v.listings.active_without_sales_label} tone={v.listings.coverage_verified?null:'warn'}/>
         </div>
@@ -169,12 +172,18 @@ export default function CommerceStrategicView(){
             <LineChart points={dailyPoints} currentLabel="Período atual" previousLabel="Período anterior"/></>)
           :(v.evolution.months.length===0?<p className="nsv-empty">Sem dados mensais.</p>:<>
             {!v.evolution.verified.months&&<p className="nsv-note" data-testid="months-note">Soma dos dias importados: meses hachurados têm dias sem informação ou sem verificação; um valor baixo ali não prova ausência de vendas.</p>}
-            <p className="nsv-note">Cada mês é comparado com o mês imediatamente anterior.</p>
+            <p className="nsv-note">Cada mês é comparado com o mês de calendário imediatamente anterior; mês ausente da série aparece como "ausente", nunca como zero. * = mês incompleto (em andamento ou com dados só a partir de uma data).</p>
             <BarChart points={monthPoints} currentLabel="Mês" previousLabel="Mês anterior"/></>)}
         <details className="nsv-details"><summary>Ver tabela dos valores</summary>
-          <div className="nsv-scroll"><table className="nsv-table"><thead><tr><th>{evo==='daily'?'Dia':'Mês'}</th><th className="num">Un.</th><th className="num">{evo==='daily'?'Período anterior':'Mês anterior'}</th><th>Cobertura</th></tr></thead>
-            <tbody>{(evo==='daily'?dailyPoints:monthPoints).map(p=><tr key={p.full}><td>{p.full}</td><td className="num">{nf(p.units)}</td><td className="num">{nf(p.previous)}</td>
-              <td>{p.state==='OK'||p.state==='COMPROVADA'?'comprovada':p.state==='SEM_INFORMACAO'?'sem informação':p.state==='COM_LACUNA'?'com lacuna':'não verificada'}</td></tr>)}</tbody></table></div>
+          <div className="nsv-scroll">{evo==='daily'
+            ?<table className="nsv-table" data-testid="evo-table-daily"><thead><tr><th>Dia</th><th className="num">Un.</th><th>Cobertura</th><th>Dia correspondente anterior</th><th className="num">Un. anterior</th><th>Cobertura do anterior</th></tr></thead>
+              <tbody>{dailyPoints.map(p=><tr key={p.full}><td>{p.full}</td><td className="num">{p.units!=null?nf(p.units):p.state==='SEM_INFORMACAO'?'sem informação':'—'}</td><td>{COV_TEXT[p.state]}</td>
+                <td>{p.previous_day||'—'}</td><td className="num">{p.previous!=null?nf(p.previous):p.previous_state==='SEM_INFORMACAO'?'sem informação':'—'}</td><td>{COV_TEXT[p.previous_state]}</td></tr>)}</tbody></table>
+            :<table className="nsv-table" data-testid="evo-table-monthly"><thead><tr><th>Mês</th><th className="num">Un.</th><th>Situação do mês</th><th>Mês anterior</th><th className="num">Un. anterior</th><th>Situação do anterior</th></tr></thead>
+              <tbody>{monthPoints.map(p=><tr key={p.full}><td>{p.full}</td><td className="num">{nf(p.units)}</td>
+                <td>{p.incomplete?'incompleto'+(p.incomplete_until?' (até '+p.incomplete_until+')':'')+(p.incomplete_from?' (desde '+p.incomplete_from+')':'')+' · ':''}{COV_TEXT[p.state]}</td>
+                <td>{p.previousInfo.month}</td><td className="num">{p.previousInfo.absent?'ausente da série':nf(p.previous)}</td>
+                <td>{p.previousInfo.absent?'—':(p.previousInfo.incomplete?'incompleto · ':'')+COV_TEXT[p.previousInfo.coverage]}</td></tr>)}</tbody></table>}</div>
         </details>
       </Section>
 

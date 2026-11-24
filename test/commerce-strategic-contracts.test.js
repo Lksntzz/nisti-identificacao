@@ -88,10 +88,48 @@ test('evolução histórica: mês com lacuna, mês sem verificação e dia sem i
   assert.ok(proven.evolution.months.every(x=>x.coverage==='COMPROVADA')); assert.ok(proven.evolution.daily.every(x=>x.state==='OK'));
 });
 
-test('GA-013A: anúncios com vendas vem da fonte (listings_selling do Dashboard), nunca calculado por subtração',()=>{
-  const v=buildStrategicView(mk({dash:dash({totals:{cur_units:135,prev_units:100,listings_selling:25}})}));
-  assert.equal(v.listings.with_sales,25);
-  const none=buildStrategicView(mk({dash:dash({totals:{cur_units:135,prev_units:100}})}));
-  assert.equal(none.listings.with_sales,null);
+test('GA-013A: anúncios com vendas vem de totals.listings do Dashboard (contrato real), inclui inativos',()=>{
+  const v=buildStrategicView(mk({dash:dash({totals:{cur_units:135,prev_units:100,listings:92}})}));
+  assert.equal(v.listings.with_sales,92);
+  assert.equal(v.listings.with_sales_includes_inactive,true);
+  assert.match(v.listings.with_sales_note,/inclui anúncios inativos/);
+  // o nome antigo/inexistente não é usado
+  const old=buildStrategicView(mk({dash:dash({totals:{cur_units:135,prev_units:100,listings_selling:25}})}));
+  assert.equal(old.listings.with_sales,null);
   assert.equal(buildStrategicView(mk({dash:null,periods:null})).listings.with_sales,null);
+});
+
+const rng=(start,end)=>({start,end,days:Math.round((Date.parse(end)-Date.parse(start))/864e5)+1});
+test('GA-013A: dia sem informação é lacuna (null), nunca zero; cobertura do período anterior é separada',()=>{
+  const cur=dq('SHOPEE','2026-11-17','2026-11-23',false,{missing_ranges:[rng('2026-11-20','2026-11-21')],days_without_information:2});
+  const prev=dq('SHOPEE','2026-11-10','2026-11-16',false,{missing_ranges:[rng('2026-11-12','2026-11-12')],days_without_information:1});
+  const sr=series({daily:series().daily.map((d,i)=>({...d,units_shopee:i===3||i===4?0:5,prev_units_shopee:i===2?0:4}))});
+  const v=buildStrategicView(mk({series:sr,dqCurrent:cur,dqPrevious:prev}));
+  const d=v.evolution.daily;
+  assert.equal(d[3].units,null); assert.equal(d[3].state,'SEM_INFORMACAO'); assert.equal(d[4].units,null);
+  assert.equal(d[0].units,5); assert.equal(d[0].state,'NAO_VERIFICADO');
+  assert.equal(d[2].units_previous,null); assert.equal(d[2].previous_state,'SEM_INFORMACAO');
+  assert.equal(d[0].units_previous,4); assert.equal(d[0].previous_state,'NAO_VERIFICADO');
+  assert.deepEqual(v.evolution.verified,{months:false,daily:false,daily_previous:false});
+});
+test('GA-013A: zero real em dia comprovado continua zero',()=>{
+  const sr=series({daily:series().daily.map((d,i)=>({...d,units_shopee:i===0?0:3,prev_units_shopee:i===0?0:3}))});
+  const v=buildStrategicView(mk({series:sr}));
+  assert.equal(v.evolution.daily[0].units,0); assert.equal(v.evolution.daily[0].units_previous,0);
+  assert.equal(v.evolution.daily[0].state,'OK'); assert.equal(v.evolution.daily[0].previous_state,'OK');
+});
+test('GA-013A: mês anterior é o mês de calendário imediatamente anterior, e meses incompletos são identificados',()=>{
+  const m=(month,u)=>({month,units_shopee:u,days_with_sales:20,first_day:month+'-01',last_day:month+'-28'});
+  const mo=monthly({months:[m('2026-08',50),m('2026-10',120),m('2026-11',90)]});
+  const v=buildStrategicView(mk({monthly:mo}));
+  const by=Object.fromEntries(v.evolution.months.map(x=>[x.month,x]));
+  assert.equal(by['2026-10'].previous.month,'2026-09'); assert.equal(by['2026-10'].previous.units,null,'setembro ausente da série: nunca vira zero');
+  assert.equal(by['2026-10'].previous.absent,true);
+  assert.equal(by['2026-11'].previous.month,'2026-10'); assert.equal(by['2026-11'].previous.units,120);
+  assert.equal(by['2026-11'].incomplete,true); assert.equal(by['2026-11'].incomplete_until,'2026-11-23');
+  assert.equal(by['2026-10'].incomplete,false);
+  assert.equal(by['2026-08'].previous.month,'2026-07');
+  const part=buildStrategicView(mk({dash:dash({first_day:'2026-08-10'}),periods:strategicPeriods(dash({first_day:'2026-08-10'})),monthly:monthly({first_day:'2026-08-10',months:[m('2026-08',50),m('2026-09',60)]})}));
+  const p=Object.fromEntries(part.evolution.months.map(x=>[x.month,x]));
+  assert.equal(p['2026-08'].incomplete,true); assert.equal(p['2026-08'].incomplete_from,'2026-08-10');
 });

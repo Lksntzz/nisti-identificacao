@@ -14,8 +14,11 @@ const NAME={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
 const tests=[];const test=(name,fn)=>tests.push({name,fn});
 
 const mkDash=(platform,days,over={})=>({platform,days,first_day:'2025-01-01',last_day:'2026-11-23',current_start:days===7?'2026-11-17':'2026-10-25',
-  previous_start:days===7?'2026-11-10':'2026-09-25',totals:{cur_units:UNITS[platform],prev_units:UNITS[platform]-20,cur_rev:1,prev_rev:1,listings_selling:25},
+  previous_start:days===7?'2026-11-10':'2026-09-25',totals:{cur_units:UNITS[platform],prev_units:UNITS[platform]-20,cur_rev:1,prev_rev:1,listings:25},
   drops:{total:57,items:[{listing_id:2,platform,external_id:'B2',title:'Capa Floral '+NAME[platform],units:2,units_previous:10}]},...over});
+const addDay=(iso,n)=>new Date(Date.parse(iso)+n*864e5).toISOString().slice(0,10);
+const dqGap=(platform,start,end,days)=>({platform,period:{start,end},sales:{status:'PARCIAL',requested_days:Math.round((Date.parse(end)-Date.parse(start))/864e5)+1,complete_days:Math.round((Date.parse(end)-Date.parse(start))/864e5)+1-days.length,
+  partial_days:0,days_without_information:days.length,days_with_records_unverified:0,missing_ranges:days.map(d=>({start:d,end:d,days:1}))}});
 const dq=(platform,start,end,ok=true)=>{const span=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
   return {platform,period:{start,end},sales:{status:ok?'COMPLETA':'PARCIAL',requested_days:span,complete_days:ok?span:span-3,partial_days:0,
     days_without_information:ok?0:3,days_with_records_unverified:0,missing_ranges:ok?[]:[{start,end:start,days:3}]}};};
@@ -30,16 +33,17 @@ export function payload(platform,days,{proven=true,failed=[],over={},prevOk=prov
       stopped:[{listing_id:3,platform,external_id:'C3',title:'Caderno Parado',units_ever:30,last_sale:'2026-10-01',days_since:53}],stopped_total:400,
       no_sales:[{listing_id:4,platform,external_id:'D4',title:'Anúncio Sem Venda',units_ever:0,last_sale:null}],no_sales_never:9,unlinked:{listings:2},
       window_days_with_sales:days,coverage:[{platform,first_day:'2025-01-01',last_day:'2026-11-23',last_import:'2026-11-24T10:00:00Z'}]},
-    monthly:{months:[{month:'2026-10',['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:120,days_with_sales:31}]},
-    series:{platform,days,daily:Array.from({length:days},(_,i)=>({day:new Date(Date.parse(cur.start)+i*86400000).toISOString().slice(0,10),['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:10+i,['prev_units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:8+(i%3)*2}))},
+    monthly:{months:[['2026-08',50],['2026-10',120],['2026-11',90]].map(([month,u])=>({month,['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:u,days_with_sales:20}))},
+    series:{platform,days,daily:Array.from({length:days},(_,i)=>({day:new Date(Date.parse(cur.start)+i*86400000).toISOString().slice(0,10),['units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:(over.gaps&&(i===3||i===4))?0:10+i,['prev_units_'+({SHOPEE:'shopee',ML_ANTIGO:'ml_antigo',ML_NOVO:'ml_novo'}[platform])]:8+(i%3)*2}))},
     categories:failed.includes('categories')?null:{platform,cur_from:cur.start,cur_to:cur.end,base_from:'2025'+cur.start.slice(4),base_to:'2025'+cur.end.slice(4),
       total:{cur:UNITS[platform],base:90},categories:[{name:'Agendas',cur:90,base:60,cols:[{name:'Floral',cur:50,base:30}]}]},
     split:platform==='SHOPEE'?{status:'COMPLETO',total_units:UNITS[platform]+5,linked_units:UNITS[platform],unlinked_units:5,base_units:UNITS[platform],
       difference:{units:-5,other_explained_units:0,residual_units:0},reconciliation:{status:'EXPLICADA'},coverage:{missing_days:0}}:null,
-    dqCurrent:proven?dq(platform,cur.start,cur.end):dq(platform,cur.start,cur.end,false),
-    dqPrevious:prevOk?dq(platform,prev.start,prev.end):dq(platform,prev.start,prev.end,false),
+    dqCurrent:over.gaps?dqGap(platform,cur.start,cur.end,[addDay(cur.start,3),addDay(cur.start,4)]):proven?dq(platform,cur.start,cur.end):dq(platform,cur.start,cur.end,false),
+    dqPrevious:over.gaps?dqGap(platform,prev.start,prev.end,[addDay(prev.start,2)]):prevOk?dq(platform,prev.start,prev.end):dq(platform,prev.start,prev.end,false),
     dqHistory:dq(platform,hist.start,hist.end,false),dqCurrentRanges:null,dqCatBase:dq(platform,'2025'+cur.start.slice(4),'2025'+cur.end.slice(4)),
-    perf:{shopee:{reports:[],items:{}},ml:{reports:[],items:{}}},...over.parts});
+    perf:platform==='SHOPEE'?{shopee:{reports:[{start:'2026-11-01',end:'2026-11-14'}],items:{A1:{visits:700,impressions:9000,conversion_pct:1.4}}},ml:{reports:[],items:{}}}
+      :{shopee:{reports:[],items:{}},ml:{reports:[{account:platform==='ML_NOVO'?'NOVO':'ANTIGO',start:'2026-11-01',end:'2026-11-14'}],items:{A1:{account:platform==='ML_NOVO'?'NOVO':'ANTIGO',visits:300,conversion_pct:2.1}}}},...over.parts});
 }
 
 function createSimulator(){
@@ -212,6 +216,57 @@ test('gráfico: diário e mensal, dica ao passar o mouse e tabela dos valores',a
   await page.locator('summary',{hasText:'Ver tabela dos valores'}).click();
   assert.ok(await page.locator('.nsv-sec').nth(2).locator('tbody tr').count()>=1);
   if(SHOTS){await page.getByRole('tab',{name:'Diária'}).click();await page.locator('.nsv-quality summary').click();await page.screenshot({path:SHOTS+'/shopee-qualidade-aberta.png',fullPage:true});}
+  await context.close();
+});
+
+test('lacunas: dia sem informação nunca vira zero, anterior tem cobertura própria e datas dos relatórios aparecem',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={over:{gaps:true}};
+  const {page,context}=await open(b,{sim});
+  await page.waitForSelector('[data-testid="units-current"]');
+  assert.equal(await page.locator('rect.nsv-gap').count(),2,'duas lacunas no período atual');
+  assert.equal(await page.locator('text.nsv-pgap').count(),1,'uma lacuna no período anterior, marcada à parte');
+  assert.equal(await page.locator('circle.nsv-dot:not(.prev)').count(),5,'os dois dias sem informação não são desenhados (nem como zero)');
+  assert.match(await page.locator('.nsv-legend').innerText(),/sem informação \(lacuna, não é zero\)/);
+  const box=await page.locator('.nsv-chart svg').boundingBox();
+  await page.mouse.move(box.x+box.width*(3/6),box.y+box.height*0.5);
+  const tip=await page.locator('.nsv-tip').innerText();
+  assert.match(tip,/Período atual: sem informação/);assert.doesNotMatch(tip,/Período atual: 0/);
+  await page.locator('summary',{hasText:'Ver tabela dos valores'}).click();
+  const t=await page.locator('[data-testid="evo-table-daily"]').innerText();
+  assert.match(t,/sem informação/);assert.match(t,/Cobertura do anterior/);assert.doesNotMatch(t,/\n2026-11-20\t0\t/);
+  const rows=await page.locator('[data-testid="evo-table-daily"] tbody tr').allInnerTexts();
+  assert.match(rows[3],/sem informação/);assert.doesNotMatch(rows[3].split('\t')[1],/^0$/);
+  if(SHOTS)await page.screenshot({path:SHOTS+'/shopee-lacunas.png',fullPage:true});
+  await context.close();
+});
+
+test('mensal: mês anterior de calendário, mês ausente e mês incompleto identificados',async b=>{
+  const {page,context}=await open(b);
+  await page.waitForSelector('[data-testid="units-current"]');
+  await page.getByRole('tab',{name:'Mensal'}).click();
+  assert.match(await page.locator('.nsv-legend').innerText(),/\*\s*mês incompleto/);
+  await page.locator('summary',{hasText:'Ver tabela dos valores'}).click();
+  const rows=await page.locator('[data-testid="evo-table-monthly"] tbody tr').allInnerTexts();
+  const oct=rows.find(r=>r.startsWith('2026-10')),nov=rows.find(r=>r.startsWith('2026-11'));
+  assert.match(oct,/2026-09[\s\S]*ausente da série/);
+  assert.match(nov,/incompleto \(até 2026-11-23\)/);assert.match(nov,/2026-10/);
+  assert.match(await page.locator('.nsv-chart svg').innerHTML(),/2026-11|11\/26\*/);
+  if(SHOTS)await page.screenshot({path:SHOTS+'/shopee-mensal.png',fullPage:true});
+  await context.close();
+});
+
+test('relatórios de visitas: datas aparecem; período anterior em #64748b tracejado e atual em #2a78d6; anúncios com vendas explica a base',async b=>{
+  const {page,context}=await open(b);
+  await page.waitForSelector('[data-testid="units-current"]');
+  const per=await page.locator('[data-testid="traffic-period"]').first().innerText();
+  assert.match(per,/relatório de 2026-11-01 a 2026-11-14/);
+  await page.getByRole('tab',{name:'Anúncios',exact:true}).click();
+  assert.match(await page.locator('.nsv-sec').nth(3).locator('[data-testid="traffic-period"]').first().innerText(),/2026-11-01 a 2026-11-14/);
+  const st=await page.evaluate(()=>{const q=s=>getComputedStyle(document.querySelector(s));
+    return {prev:q('.nsv-line.prev').stroke,dash:q('.nsv-line.prev').strokeDasharray,cur:q('.nsv-line.cur').stroke};});
+  assert.equal(st.prev,'rgb(100, 116, 139)');assert.notEqual(st.dash,'none');assert.equal(st.cur,'rgb(42, 120, 214)');
+  assert.equal(await page.locator('[data-testid="with-sales-value"]').innerText(),'25');
+  assert.match(await page.locator('[data-testid="with-sales-note"]').innerText(),/inclui anúncios inativos/);
   await context.close();
 });
 

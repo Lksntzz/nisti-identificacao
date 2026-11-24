@@ -1,5 +1,5 @@
 /* GA-013A — Visão estratégica: mesma linguagem dos painéis do GA (cartões brancos, borda #e6eaf2, títulos em caixa alta #52637b). */
-.nsv-root{display:flex;flex-direction:column;gap:16px;--nsv-cur:#2a78d6;--nsv-prev:#eda100;--nsv-ink:#0f172a;--nsv-soft:#64748b}
+.nsv-root{display:flex;flex-direction:column;gap:16px;--nsv-cur:#2a78d6;--nsv-prev:#64748b;--nsv-ink:#0f172a;--nsv-soft:#64748b}
 .nsv-root *{overflow-wrap:anywhere}
 .nsv-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .nsv-periods{font-size:12px;color:var(--nsv-soft)}
@@ -75,6 +75,11 @@
 .nsv-legend span,.nsv-tip span{display:inline-flex;align-items:center;gap:6px}
 .sw{display:inline-block;width:14px;height:0;border-top:3px solid var(--nsv-cur);border-radius:2px}
 .sw.prev{border-top:3px dashed var(--nsv-prev)}
+.sw.gap{width:12px;height:10px;border:0;border-radius:2px;background:repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 3px,#f8fafc 3px,#f8fafc 6px)}
+.nsv-star{font-size:14px;line-height:1;color:var(--nsv-cur)}
+.nsv-gap{fill:#f1f5f9;stroke:#cbd5e1;stroke-width:1;stroke-dasharray:3 3}
+.nsv-bar-partial{fill:none;stroke:var(--nsv-cur);stroke-width:1.5;stroke-dasharray:4 3}
+.nsv-dot.prev.hollow{stroke:var(--nsv-prev)}
 .sw.hollow{width:9px;height:9px;border:2px solid var(--nsv-cur);border-radius:50%;background:#fff}
 .nsv-chart-box{position:relative;overflow-x:auto}
 .nsv-chart svg{width:100%;min-width:560px;max-height:300px;height:auto;display:block}
@@ -110,3 +115,6 @@
 @media(max-width:1000px){.nsv-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.nsv-chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.nsv-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.nsv-sec{padding:14px 12px}.nsv-filterbar input{min-width:0;width:100%}}
 .nsv-tag{white-space:nowrap}
+.nsv-bar.prev.unv{fill:var(--nsv-prev);opacity:.45;stroke:var(--nsv-prev);stroke-width:1}
+.nsv-traffic-period{display:block;color:var(--nsv-soft);font-size:10.5px}
+.nsv-pgap{font-size:14px;font-weight:700;fill:var(--nsv-prev)}
