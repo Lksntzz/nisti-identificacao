@@ -12,6 +12,8 @@ import { startServer, stopServer, newDb, stage, commit } from './harness.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATION = path.join(here, '../../supabase/migrations/20261124150000_commerce_shopee_current_sku_source_v1.sql');
 const MIGRATION_SQL = fs.readFileSync(MIGRATION, 'utf8');
+const GA011 = fs.readFileSync(path.join(here, '../../supabase/migrations/20261123200000_commerce_shopee_reconciliation_v1.sql'), 'utf8');
+const ROLLBACK = fs.readFileSync(path.join(here, '../../docs/reversao/GA-021-reversao.sql'), 'utf8');
 const NEW_SRC = 'commerce_shopee_current_sku_daily_v1';
 const OLD_SRC = 'commerce_shopee_sales_sku_daily_v1';
 
@@ -33,6 +35,8 @@ create table public.commerce_listings (id bigserial primary key, marketplace_id 
 create table public.commerce_listing_products (id bigserial primary key, listing_id bigint, platform_sku text, relation_status text, variation_name text);
 create table public.commerce_products (id bigserial primary key, name text, reference_image_url text, category_id bigint);
 create table public.commerce_product_skus (id bigserial primary key, product_id bigint, sku text);
+alter table public.commerce_shopee_sku_owner_reviewed_v1 add column if not exists mapping_type text;
+create table public.commerce_shopee_sales_history_reviews_v1 (source_sku_norm text, review_reason text, active boolean default true);
 create table public.commerce_shopee_full_monthly_v1 (sale_month date, units integer, product_revenue numeric);
 create or replace function public.commerce_sku_canon_v1(p_sku text) returns text language sql stable set search_path to 'public' as $$
   select coalesce((select a.new_sku from public.commerce_sku_alias_v1 a where a.old_sku=upper(regexp_replace(p_sku,'[\\s_]+','','g'))), upper(regexp_replace(p_sku,'[\\s_]+','','g')));
@@ -97,6 +101,7 @@ async function seed(db) {
 async function install(db, sql = MIGRATION_SQL) {
   await db.main.query(ALIAS_FIX);
   await db.main.query(DEPS);
+  await db.main.query(GA011); // conciliação GA-011 REAL: a divisão total x vinculada a reaproveita
   await db.main.query(sql);
 }
 
@@ -187,9 +192,85 @@ withDb('SKU sem vínculo é preservado nas categorias e na curva ABC; total, vin
   const s = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2026-11-01','2026-11-02') j`)).j;
   assert.equal(s.total_units, 16); assert.equal(s.linked_units, 14); assert.equal(s.unlinked_units, 2);
   assert.equal(s.total_units, s.linked_units + s.unlinked_units);
-  assert.equal(s.consistent, true);
+  assert.equal(s.unlinked_sku_count, 1);
   const all = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2025-01-01','2026-12-31') j`)).j;
   assert.equal(all.total_units, 58); assert.equal(all.linked_units, 56); assert.equal(all.unlinked_units, 2);
+});
+
+withDb('divergência NEGATIVA explicada: base menor que o total por causa de SKU sem vínculo, sem resíduo', async (db) => {
+  const s = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2026-11-01','2026-11-02') j`)).j;
+  assert.equal(s.status, 'COMPLETO');
+  assert.equal(s.base_units, 14);
+  assert.deepEqual(s.difference, { units: -2, direction: 'NEGATIVA', unlinked_effect_units: -2, other_explained_units: 0, residual_units: 0, explained: true });
+  assert.equal(s.reconciliation.status, 'EXPLICADA');
+  assert.equal(s.reconciliation.identity_ok, true);
+  assert.equal(s.reconciliation.source_units_match, true);
+});
+
+withDb('divergência POSITIVA explicada por outra causa (dia com linhas nativas por anúncio): não vira "sem vínculo"', async (db) => {
+  // 01/11 passa a ter linhas nativas por anúncio na Shopee (20 un.), maiores que a fonte por SKU do dia (8 un.).
+  const b = await mkBatch(db, { snap: 99 });
+  await db.q(`insert into commerce_sales_import_stage_summary(batch_id, period_key, period_start, period_end, net_orders, units, product_revenue)
+    values ($1,'2026-11-01','2026-11-01','2026-11-01',1,20,200)`, [b]);
+  await db.q(`insert into commerce_sales_listing_daily_v1(batch_id, sale_date, external_listing_id, sku_norm, units, orders_with_item, product_revenue)
+    values ($1,'2026-11-01','L-A','AAA-1',20,1,200)`, [b]);
+  const s = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2026-11-01','2026-11-02') j`)).j;
+  assert.equal(s.total_units, 16);
+  assert.equal(s.base_units, 26);
+  assert.equal(s.difference.units, 10);
+  assert.equal(s.difference.direction, 'POSITIVA');
+  assert.equal(s.difference.unlinked_effect_units, -2, 'só o SKU realmente sem vínculo (02/11)');
+  assert.equal(s.difference.other_explained_units, 12, 'o excesso de 01/11 é outra causa, não sem vínculo');
+  assert.equal(s.difference.residual_units, 0);
+  assert.equal(s.difference.explained, true);
+  assert.equal(s.reconciliation.status, 'EXPLICADA');
+  assert.equal(s.unlinked_units, 2, 'sem vínculo não absorve a diferença positiva');
+});
+
+withDb('resíduo não explicado aparece separado (conciliação GA-011 com divergência) e nunca é jogado em "sem vínculo"', async (db) => {
+  // Contrato: se a GA-011 devolver resíduo, a divisão preserva o resíduo e marca RESIDUO_NAO_EXPLICADO.
+  await db.main.query('drop function public.commerce_shopee_reconciliation_v1(date, date, integer)');
+  await db.main.query(`create function public.commerce_shopee_reconciliation_v1(p_start date, p_end date, p_limit integer)
+    returns jsonb language sql stable as $$ select jsonb_build_object('status','COMPLETO',
+      'totals', jsonb_build_object('source', jsonb_build_object('units',16), 'base', jsonb_build_object('units',19)),
+      'difference', jsonb_build_object('units',3,'unmatched_effect_units',-2,'native_days_effect_units',0,'residual_units',5,'explained',false),
+      'reconciled_pct', jsonb_build_object('matched_units',14,'unmatched_units',2),
+      'unmatched_skus', jsonb_build_array(jsonb_build_object('sku_norm','ZZZ-9')),
+      'coverage', jsonb_build_object('source_missing_days',0,'missing_ranges','[]'::jsonb,'source_days_with_data',2)) $$`);
+  const s = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2026-11-01','2026-11-02') j`)).j;
+  assert.equal(s.difference.residual_units, 5);
+  assert.equal(s.difference.unlinked_effect_units, -2);
+  assert.equal(s.difference.explained, false);
+  assert.equal(s.reconciliation.status, 'RESIDUO_NAO_EXPLICADO');
+  assert.equal(s.unlinked_units, 2);
+});
+
+withDb('conciliação inconsistente (fonte da GA-011 diferente da fonte única) é sinalizada, não escondida', async (db) => {
+  await db.main.query('drop function public.commerce_shopee_reconciliation_v1(date, date, integer)');
+  await db.main.query(`create function public.commerce_shopee_reconciliation_v1(p_start date, p_end date, p_limit integer)
+    returns jsonb language sql stable as $$ select jsonb_build_object('status','COMPLETO',
+      'totals', jsonb_build_object('source', jsonb_build_object('units',17), 'base', jsonb_build_object('units',14)),
+      'difference', jsonb_build_object('units',-3,'unmatched_effect_units',-2,'native_days_effect_units',0,'residual_units',-1,'explained',false),
+      'reconciled_pct', jsonb_build_object('matched_units',14,'unmatched_units',3),
+      'unmatched_skus', '[]'::jsonb,
+      'coverage', jsonb_build_object('source_missing_days',0,'missing_ranges','[]'::jsonb,'source_days_with_data',2)) $$`);
+  const s = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2026-11-01','2026-11-02') j`)).j;
+  assert.equal(s.reconciliation.status, 'INCONSISTENTE');
+  assert.equal(s.reconciliation.source_units_match, false);
+});
+
+withDb('período com dia ausente é PARCIAL e lista o dia sem informação; período sem nenhuma venda é SEM_INFORMACAO com números nulos', async (db) => {
+  const parcial = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2026-10-31','2026-11-02') j`)).j;
+  assert.equal(parcial.status, 'PARCIAL');
+  assert.equal(parcial.coverage.missing_days, 1);
+  assert.deepEqual(parcial.coverage.missing_ranges.map((x) => [x.start, x.end, x.days]), [['2026-10-31', '2026-10-31', 1]]);
+  assert.equal(parcial.total_units, 16, 'o dia ausente não vira zero nem muda o total');
+  const vazio = (await db.one(`select public.commerce_shopee_sales_link_split_v1('2026-12-01','2026-12-10') j`)).j;
+  assert.equal(vazio.status, 'SEM_INFORMACAO');
+  for (const k of ['total_units', 'linked_units', 'unlinked_units', 'base_units', 'difference']) assert.equal(vazio[k], null, `${k} não pode ser zero`);
+  assert.equal(vazio.reconciliation.status, 'SEM_INFORMACAO');
+  assert.equal(vazio.coverage.days_with_data, 0);
+  assert.match(vazio.note, /ausência de informação, não zero/);
 });
 
 withDb('a divisão total x vinculada recusa período inválido', async (db) => {
@@ -243,6 +324,20 @@ test('o cache afetado é invalidado e o restante é preservado', async () => {
     const left = (await db.q('select cache_key k from commerce_read_cache_v1 order by 1')).map((r) => r.k);
     assert.deepEqual(left, ['commerce_dashboard_overview_v1|{}', 'commerce_dashboard_v1|{}']);
   } finally { await db.close(); }
+});
+
+withDb('reversão: devolve as dez funções à leitura crua sem tocar em dados, e reaplicar a migração conserta de novo', async (db) => {
+  const dados = () => db.one(`select (select count(*) from commerce_shopee_sales_sku_daily_v1)::int l, (select count(*) from commerce_sales_import_batches)::int b,
+    (select sum(units) from commerce_shopee_sales_sku_daily_v1)::int u`);
+  const antes = await dados();
+  await db.main.query(ROLLBACK);
+  assert.deepEqual(await dados(), antes, 'a reversão não mexe em nenhuma venda nem lote');
+  const defs = await db.q(`select proname, pg_get_functiondef(oid) d from pg_proc where pronamespace='public'::regnamespace and proname = any($1)`, [PROBES.map((p) => p.fn)]);
+  assert.equal(defs.length, 10);
+  for (const x of defs) { assert.ok(x.d.includes(OLD_SRC), x.proname); assert.ok(!x.d.includes(NEW_SRC), x.proname); }
+  for (const p of PROBES) assert.notEqual((await db.one(p.sql)).v, p.expect, `${p.fn}: revertida volta ao valor da tabela crua`);
+  await db.main.query(MIGRATION_SQL);
+  for (const p of PROBES) assert.equal((await db.one(p.sql)).v, p.expect, `${p.fn}: reaplicada volta ao valor correto`);
 });
 
 // Guarda de sensibilidade: se qualquer uma das dez funções voltasse a ler a tabela legada crua, o teste correspondente tem que falhar.

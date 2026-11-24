@@ -8,7 +8,8 @@
 --   * por dia, só o snapshot mais novo; as partes (lotes) do mesmo snapshot naquele dia se SOMAM (importação em várias partes);
 --   * um dia que só existe em snapshot antigo continua valendo (a escolha é por dia, não global).
 -- A fonte é a venda TOTAL por SKU: inclui SKUs sem vínculo com anúncio (GA-011). A venda vinculada continua sendo a da
--- view commerce_current_sales_listing_daily_v1; commerce_shopee_sales_link_split_v1 mostra total, vinculada e sem vínculo.
+-- view commerce_current_sales_listing_daily_v1; commerce_shopee_sales_link_split_v1 (reaproveita a conciliação GA-011) separa
+-- total, vinculada, sem vínculo, outras causas explicadas, resíduo não explicado e ausência de informação.
 -- As dez funções mantêm o texto de produção; muda SOMENTE o nome da fonte. Regras de categoria, coleção e ABC não mudam.
 -- Mercado Livre não muda (já lê a view da GA-019). Dados históricos e lotes (inclusive os abertos) não são tocados.
 -- NÃO exclui, aplica nem descarta nenhum lote. Esta migração só cria/substitui objetos de leitura e limpa cache.
@@ -36,21 +37,54 @@ grant select on public.commerce_shopee_current_sku_daily_v1 to service_role;
 comment on view public.commerce_shopee_current_sku_daily_v1 is
   'GA-021: vendas da Shopee por SKU/dia, regra de seleção da GA-019 (COMMITTED, snapshot mais novo por dia). Total, inclui SKU sem vínculo.';
 
--- Total x vinculada x sem vínculo (somente leitura). Sem vínculo = total - vinculada; nunca é arredondado nem escondido.
+-- Total x vinculada x sem vínculo (somente leitura). Reaproveita a conciliação GA-011 (commerce_shopee_reconciliation_v1):
+-- NÃO presume que toda diferença entre a venda total por SKU e a base por anúncio seja "sem vínculo". A decomposição é exata:
+--   diferença (base - total) = efeito dos SKUs sem vínculo + efeito de dias nativos (outras causas explicadas) + resíduo não explicado.
+-- Ausência de informação nunca vira zero: período sem vendas importadas devolve status SEM_INFORMACAO e números nulos;
+-- dia sem linhas importadas aparece em coverage (status PARCIAL). Só unidades (sem receita).
 create or replace function public.commerce_shopee_sales_link_split_v1(p_start date, p_end date)
 returns jsonb language plpgsql stable security invoker set search_path = public as $fn$
-declare v_total bigint; v_days int; v_linked bigint;
+declare
+  r jsonb; d jsonb; v_total bigint; v_src bigint; v_diff bigint; v_unl bigint; v_oth bigint; v_res bigint;
+  v_expl boolean; v_status text; v_rec text; v_dir text;
 begin
   if p_start is null or p_end is null or p_start > p_end then raise exception 'periodo invalido'; end if;
   if p_end - p_start > 1100 then raise exception 'periodo maior que 1100 dias'; end if;
-  select coalesce(sum(units), 0)::bigint, count(distinct sale_date)::int into v_total, v_days
+  r := public.commerce_shopee_reconciliation_v1(p_start, p_end, 1);
+  if r->>'status' = 'SEM_DADOS' then
+    return jsonb_build_object('start', p_start, 'end', p_end, 'status', 'SEM_INFORMACAO',
+      'total_units', null, 'linked_units', null, 'unlinked_units', null, 'base_units', null, 'difference', null,
+      'reconciliation', jsonb_build_object('status', 'SEM_INFORMACAO'),
+      'coverage', jsonb_build_object('missing_days', (r->'coverage'->>'source_missing_days')::int,
+                                     'missing_ranges', r->'coverage'->'missing_ranges', 'days_with_data', 0),
+      'note', 'Nenhuma venda importada no período: ausência de informação, não zero.');
+  end if;
+  select coalesce(sum(units), 0)::bigint into v_total
     from public.commerce_shopee_current_sku_daily_v1 where sale_date between p_start and p_end;
-  select coalesce(sum(units), 0)::bigint into v_linked
-    from public.commerce_current_sales_listing_daily_v1 where platform_code = 'SHOPEE' and sale_date between p_start and p_end;
-  return jsonb_build_object('start', p_start, 'end', p_end, 'days_with_sales', v_days,
-    'total_units', v_total, 'linked_units', v_linked, 'unlinked_units', v_total - v_linked,
-    'consistent', v_total >= v_linked,
-    'note', 'Total = fonte por SKU (inclui SKU sem vínculo). Vinculada = view por anúncio da GA-019. Sem vínculo = diferença; não duplica unidades.');
+  d := r->'difference';
+  v_src := (r#>>'{totals,source,units}')::bigint;
+  v_diff := (d->>'units')::bigint;
+  v_unl := (d->>'unmatched_effect_units')::bigint;
+  v_oth := (d->>'native_days_effect_units')::bigint;
+  v_res := (d->>'residual_units')::bigint;
+  v_expl := (d->>'explained')::boolean;
+  v_status := case when r->>'status' = 'PARCIAL' then 'PARCIAL' else 'COMPLETO' end;
+  v_rec := case when v_total <> v_src or v_diff <> v_unl + v_oth + v_res then 'INCONSISTENTE'
+                when v_expl then 'EXPLICADA' else 'RESIDUO_NAO_EXPLICADO' end;
+  v_dir := case when v_diff > 0 then 'POSITIVA' when v_diff < 0 then 'NEGATIVA' else 'NENHUMA' end;
+  return jsonb_build_object('start', p_start, 'end', p_end, 'status', v_status,
+    'total_units', v_total,
+    'linked_units', (r#>>'{reconciled_pct,matched_units}')::bigint,
+    'unlinked_units', (r#>>'{reconciled_pct,unmatched_units}')::bigint,
+    'unlinked_sku_count', jsonb_array_length(r->'unmatched_skus'),
+    'base_units', (r#>>'{totals,base,units}')::bigint,
+    'difference', jsonb_build_object('units', v_diff, 'direction', v_dir,
+      'unlinked_effect_units', v_unl, 'other_explained_units', v_oth, 'residual_units', v_res, 'explained', v_expl),
+    'reconciliation', jsonb_build_object('status', v_rec,
+      'source_units_match', v_total = v_src, 'identity_ok', v_diff = v_unl + v_oth + v_res),
+    'coverage', jsonb_build_object('missing_days', (r->'coverage'->>'source_missing_days')::int,
+      'missing_ranges', r->'coverage'->'missing_ranges', 'days_with_data', (r->'coverage'->>'source_days_with_data')::int),
+    'note', 'Total = fonte por SKU. Vinculada/sem vínculo = SKUs com/sem dono revisado (GA-011). Diferença = base por anúncio - total, separada em sem vínculo, outras causas explicadas e resíduo. status COMPLETO/PARCIAL = há ou não linhas importadas em cada dia; não prova cobertura completa do dia (ver Qualidade dos dados, GA-018/GA-019).');
 end $fn$;
 revoke all on function public.commerce_shopee_sales_link_split_v1(date, date) from public, anon, authenticated;
 grant execute on function public.commerce_shopee_sales_link_split_v1(date, date) to service_role;
