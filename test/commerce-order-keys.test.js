@@ -76,6 +76,8 @@ test('rota /orders: o banco só recebe chaves HMAC; o número real não é envia
   assert.equal(r.status, 200);
   assert.equal(r.calls.length, 1);
   assert.match(r.calls[0].url, /commerce_append_sales_import_orders_v2/);
+  assert.equal(r.calls[0].body.p_batch_id, 12);
+  assert.equal(r.calls[0].body.p_platform, 'SHOPEE', 'a mesma plataforma usada no HMAC vai ao banco para conferência com o lote');
   const sent = r.calls[0].body.p_rows;
   assert.equal(sent.length, 2);
   assert.ok(sent.every((x) => /^[0-9a-f]{32}$/.test(x.k) && x.d === '2026-10-01'));
@@ -123,4 +125,27 @@ test('o segredo não está no repositório nem no código do navegador', () => {
     assert.equal(code.includes('COMMERCE_ORDER_KEY_SECRET'), false, f);
     assert.equal(/createHmac|nisti-order-v/.test(code), false, `${f} não calcula chave de pedido`);
   }
+});
+
+test('a plataforma do HMAC e a do lote vêm da MESMA variável no navegador (criação do lote e envio dos pedidos)', () => {
+  const client = fs.readFileSync(new URL('../src/ga/commerce-import-client.js', import.meta.url), 'utf8');
+  const from = client.indexOf("requestJson(`${API_BASE}/sales/imports`");
+  const create = client.slice(from, client.indexOf('const batchId', from));
+  const orders = client.slice(client.indexOf('/orders`'), client.indexOf('/orders`') + 300);
+  assert.match(create, /platform: parsedWorkbook\.platform_code/);
+  assert.match(orders, /platform: parsedWorkbook\.platform_code/);
+});
+
+test('servidor devolve erro claro quando a plataforma do HMAC não é a do lote', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ message: 'sales_import_platform_mismatch', code: '22023' }), { status: 400, headers: { 'content-type': 'application/json' } });
+  const realErr = console.error; console.error = () => {};
+  try {
+    const res = await handleCommerceAdminRequest(new Request('https://x.test/api/admin/commerce/sales/imports/12/orders', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ platform: 'ML_NOVO', rows: [{ d: '2026-10-01', o: 'PEDIDO-SECRETO-1' }] }) }), env);
+    const json = await res.json();
+    assert.equal(res.status, 409);
+    assert.equal(json.technical_error, 'sales_import_platform_mismatch');
+    assert.equal(JSON.stringify(json).includes('PEDIDO-SECRETO'), false);
+  } finally { globalThis.fetch = realFetch; console.error = realErr; }
 });

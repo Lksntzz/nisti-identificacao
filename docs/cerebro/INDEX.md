@@ -11,6 +11,7 @@ Abra **só a nota do assunto** em que for trabalhar.
 | Publicar mudanças | [[deploy]] | Antes de abrir PR, mesclar ou aplicar migração |
 | Mural NISTI | [[mural]] | Feed, publicações, coleções, imagens do Mural e push |
 | Importação de planilhas (Shopee/ML) | [[importacao]] | Mexer em importação de vendas, catálogo, Full, reimportação |
+| Publicar e reverter a GA-019 (vendas por dia) | [[ga-019-publicacao]] | Aplicar a migração `20261123210000`, configurar o segredo `COMMERCE_ORDER_KEY_SECRET`, mesclar a PR #910, reverter, trocar o segredo |
 | ID / scanner e catálogo | [[id-catalogo]] | Scanner de EAN, cadastro de produto, SKU, vínculo de EAN, gerador de código de barras |
 | Login e segurança | [[login-seguranca]] | Senha do admin, sessões, link da expedição, CSRF, cabeçalhos, rotas protegidas |
 | Expedição e monitor | [[expedicao-monitor]] | Painel de envio, monitor do notebook, fila de chamadas, som, link privado |

@@ -171,6 +171,7 @@ const SALES_IMPORT_ERRORS = {
   sales_import_day_level_required: { status: 409, message: 'O arquivo foi preparado no formato antigo (mensal). Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
   sales_import_orders_mismatch: { status: 409, message: 'Os dias dos pedidos não batem com os dias das vendas do arquivo. Importe o arquivo de novo. Nenhuma venda foi alterada.' },
   sales_import_daily_mismatch: { status: 409, message: 'Os totais por dia do arquivo não batem com as linhas importadas. Importe o arquivo de novo. Nenhuma venda foi alterada.' },
+  sales_import_platform_mismatch: { status: 409, message: 'A plataforma dos pedidos não é a plataforma desse lote de importação. Nada foi gravado. Atualize a página (Ctrl+F5) e importe o arquivo de novo.' },
   sales_import_generated_at_required: { status: 409, message: 'Faltou a data de geração do arquivo. Atualize a página (Ctrl+F5) e importe de novo. Nenhuma venda foi alterada.' },
   sales_import_reconciliation_failed: { status: 409, message: 'A conferência entre as vendas por dia e o resumo do mês não bateu, então nada foi salvo. Importe o arquivo de novo; se repetir, avise o suporte. Nenhuma venda foi alterada.' },
   sales_import_delete_blocked_v2: { status: 409, message: 'Essa importação já alimentou os resumos de vendas e não pode ser excluída por aqui, porque os resumos ficariam inconsistentes. Para desfazer, use a reversão documentada. Nenhum dado foi alterado.' }
@@ -961,7 +962,7 @@ async function handleCommerceAdminRequestUncached(request, env) {
       } catch {
         return json({ error: 'Referência de pedido inválida (data ou número).' }, 400);
       }
-      const saved = await commerceAppendSalesImportOrders(env, batchId, keys);
+      const saved = await commerceAppendSalesImportOrders(env, batchId, platform, keys);
       return json({ batch_id: batchId, accepted_orders: saved });
     }
 

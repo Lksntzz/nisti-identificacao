@@ -104,15 +104,17 @@ test('servidor: rota de pedidos, v2 no commit e na ativação financeira, erros 
   assert.match(router, /\\\/orders\$\//);
   assert.match(router, /orderKeySecret\(env\)/);
   assert.match(router, /hashOrderRefs\(secret, platform, refs\)/);
+  assert.match(router, /commerceAppendSalesImportOrders\(env, batchId, platform, keys\)/);
   assert.match(router, /commerceSetSalesImportMeta\(env, batchId,/);
   for (const code of ['sales_import_toship_blocked', 'sales_import_orders_unresolved', 'sales_import_month_not_rebuildable',
     'sales_import_orders_required', 'sales_import_day_level_required', 'sales_import_orders_mismatch', 'sales_import_daily_mismatch',
-    'sales_import_generated_at_required', 'sales_import_reconciliation_failed', 'sales_import_delete_blocked_v2'])
+    'sales_import_platform_mismatch', 'sales_import_generated_at_required', 'sales_import_reconciliation_failed', 'sales_import_delete_blocked_v2'])
     assert.ok(router.includes(code), code);
   assert.match(store, /'commerce_commit_sales_import_v2'/);
   assert.match(store, /'commerce_activate_shopee_finance_v2'/);
   assert.doesNotMatch(store, /'commerce_commit_sales_import_v1'/, 'a v1 fica só no banco, para reversão');
   assert.match(store, /commerce_append_sales_import_orders_v2/);
+  assert.match(store, /p_platform: platform/);
   assert.match(store, /commerce_set_sales_import_meta_v2/);
 });
 
@@ -131,7 +133,7 @@ test('migração v2: v1 só recebe a trava global (nunca é redefinida por nome)
   assert.match(code, /v1_lock_patch_pattern_not_found/, 'falha alto se a v1 mudar de formato');
   assert.doesNotMatch(code, /drop (function|table)/i);
   assert.match(code, /pg_advisory_xact_lock\(hashtextextended\('commerce_sales_commit', 2026\)\)/);
-  for (const fn of ['commerce_append_sales_import_orders_v2(bigint, jsonb)', 'commerce_sales_day_winners_v2(text, date, date)',
+  for (const fn of ['commerce_append_sales_import_orders_v2(bigint, text, jsonb)', 'commerce_sales_day_winners_v2(text, date, date)',
     'commerce_sales_day_rows_v2(text, date, date)', 'commerce_sales_month_orders_v2(text, date)',
     'commerce_commit_sales_import_v2(bigint)', 'commerce_activate_shopee_finance_v2(bigint)',
     'commerce_set_sales_import_meta_v2(bigint, timestamptz)', 'commerce_rollback_sales_import_v2(bigint)',

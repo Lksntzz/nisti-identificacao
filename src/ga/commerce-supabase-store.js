@@ -1154,13 +1154,15 @@ export async function commerceAppendSalesImportRows(env, batchId, rows = []) {
 
 // Chaves (hash) dos pedidos por dia. O número real do pedido nunca chega ao servidor.
 // rows: [{ d: 'YYYY-MM-DD', k: chave HMAC de 32 hex }] — já embaralhadas pelo servidor (commerce-order-keys.js).
-export async function commerceAppendSalesImportOrders(env, batchId, rows = []) {
+// platform: a MESMA plataforma usada no HMAC; o banco confere com a plataforma cadastrada no lote (sales_import_platform_mismatch).
+export async function commerceAppendSalesImportOrders(env, batchId, platform, rows = []) {
   const id = cleanId(batchId);
-  if (!id || !Array.isArray(rows) || !rows.length || rows.length > 1000) {
+  if (!id || !platform || !Array.isArray(rows) || !rows.length || rows.length > 1000) {
     throw new Error('Lote de pedidos de vendas inválido.');
   }
   return Number(await supabaseRpc(env, 'commerce_append_sales_import_orders_v2', {
     p_batch_id: id,
+    p_platform: platform,
     p_rows: rows
   }, { timeoutMs: 8000 }) || 0);
 }

@@ -2,7 +2,7 @@
 // Rodar: npm run test:db
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { startServer, stopServer, newDb, stage, commit, commitError, summary, rowsOf, fingerprint, seedLegacyShopee, orderKey } from './harness.mjs';
+import { startServer, stopServer, newDb, stage, commit, commitError, summary, rowsOf, fingerprint, seedLegacyShopee, orderKey, stageParsedWithSecret } from './harness.mjs';
 
 before(async () => { await startServer(); });
 after(async () => { await stopServer(); });
@@ -412,7 +412,7 @@ withDb('a versão de dados do cache só muda depois de um commit bem-sucedido', 
 // ---------- permissões ----------
 
 withDb('somente service_role executa as funções e lê as tabelas novas', async (db) => {
-  const fns = ['commerce_commit_sales_import_v2(bigint)', 'commerce_append_sales_import_orders_v2(bigint,jsonb)',
+  const fns = ['commerce_commit_sales_import_v2(bigint)', 'commerce_append_sales_import_orders_v2(bigint,text,jsonb)',
     'commerce_activate_shopee_finance_v2(bigint)', 'commerce_sales_day_winners_v2(text,date,date)',
     'commerce_sales_day_rows_v2(text,date,date)', 'commerce_sales_month_orders_v2(text,date)'];
   for (const f of fns) {
@@ -437,13 +437,27 @@ withDb('somente service_role executa as funções e lê as tabelas novas', async
 
 withDb('commerce_append_sales_import_orders_v2 valida o formato e só aceita lote aberto', async (db) => {
   const b = (await db.one(`insert into commerce_sales_import_batches(platform_code, source_filename, status) values ('SHOPEE','a.xlsx','STAGED') returning id`)).id;
-  const ok = await db.one(`select public.commerce_append_sales_import_orders_v2($1, $2::jsonb) n`, [b, JSON.stringify([
+  const ok = await db.one(`select public.commerce_append_sales_import_orders_v2($1, 'SHOPEE', $2::jsonb) n`, [b, JSON.stringify([
     { d: '2026-10-01', k: orderKey(S, 'o1') }, { d: '2026-10-01', k: orderKey(S, 'o1') }, { d: '2026-10-02', k: orderKey(S, 'o2') }])]);
   assert.equal(ok.n, 2, 'duplicado no mesmo dia entra uma vez');
-  await assert.rejects(db.q(`select public.commerce_append_sales_import_orders_v2($1, '[{"d":"2026-10-01","k":"123456"}]'::jsonb)`, [b]), /sales_import_orders_invalid/);
-  await assert.rejects(db.q(`select public.commerce_append_sales_import_orders_v2($1, '[]'::jsonb)`, [b]), /sales_import_orders_array_required/);
+  await assert.rejects(db.q(`select public.commerce_append_sales_import_orders_v2($1, 'SHOPEE', '[{"d":"2026-10-01","k":"123456"}]'::jsonb)`, [b]), /sales_import_orders_invalid/);
+  await assert.rejects(db.q(`select public.commerce_append_sales_import_orders_v2($1, 'SHOPEE', '[]'::jsonb)`, [b]), /sales_import_orders_array_required/);
   await db.q(`update commerce_sales_import_batches set status = 'COMMITTED' where id = $1`, [b]);
-  await assert.rejects(db.q(`select public.commerce_append_sales_import_orders_v2($1, $2::jsonb)`, [b, JSON.stringify([{ d: '2026-10-03', k: orderKey(S, 'o3') }])]), /sales_import_batch_closed/);
+  await assert.rejects(db.q(`select public.commerce_append_sales_import_orders_v2($1, 'SHOPEE', $2::jsonb)`, [b, JSON.stringify([{ d: '2026-10-03', k: orderKey(S, 'o3') }])]), /sales_import_batch_closed/);
+});
+
+withDb('a plataforma usada para gerar a chave TEM que ser a do lote: qualquer outra é recusada e nada é gravado', async (db) => {
+  const mk = async (p) => (await db.one(`insert into commerce_sales_import_batches(platform_code, source_filename, status) values ($1,'a.xlsx','STAGED') returning id`, [p])).id;
+  const row = JSON.stringify([{ d: '2026-10-01', k: orderKey('SHOPEE', 'o1') }]);
+  const shopee = await mk('SHOPEE'), novo = await mk('ML_NOVO'), antigo = await mk('ML_ANTIGO');
+  const call = (id, plat) => db.q(`select public.commerce_append_sales_import_orders_v2($1, $2, $3::jsonb)`, [id, plat, row]);
+  for (const [id, wrong] of [[shopee, 'ML_NOVO'], [shopee, 'ML_ANTIGO'], [novo, 'SHOPEE'], [novo, 'ML_ANTIGO'], [antigo, 'ML_NOVO'], [antigo, 'SHOPEE']]) {
+    await assert.rejects(call(id, wrong), /sales_import_platform_mismatch/, `${id} com ${wrong}`);
+  }
+  for (const bad of [null, '', 'shopee', 'OUTRA']) await assert.rejects(call(shopee, bad), /sales_import_platform_mismatch/, String(bad));
+  assert.equal((await db.one('select count(*)::int n from commerce_sales_import_stage_orders_v2')).n, 0, 'nada foi gravado pelas chamadas recusadas');
+  for (const [id, plat] of [[shopee, 'SHOPEE'], [novo, 'ML_NOVO'], [antigo, 'ML_ANTIGO']]) assert.equal((await db.one(`select public.commerce_append_sales_import_orders_v2($1, $2, $3::jsonb) n`, [id, plat, row])).n, 1);
+  await assert.rejects(call(999999, 'SHOPEE'), /sales_import_batch_closed/, 'lote inexistente continua recusado');
 });
 
 // ---------- financeiro Shopee ----------
@@ -480,33 +494,8 @@ withDb('financeiro: total do arquivo diferente das vendas do arquivo derruba a a
 // ---------- ponta a ponta: planilha fictícia -> leitor real -> banco ----------
 import { makeXlsx } from '../helpers/make-xlsx.js';
 import { readCommerceSalesXlsx } from '../../src/ga/commerce-sales-import-reader.js';
-import { hashOrderRefs } from '../../src/ga/commerce-order-keys.js'; // o MESMO módulo que a rota do servidor usa
 
-async function stageParsed(db, parsed, file, created) {
-  const b = await db.one(`insert into commerce_sales_import_batches(platform_code, source_filename, status, created_at) values ($1,$2,'STAGED',$3) returning id`,
-    [parsed.platform_code, file, created]);
-  for (const r of parsed.rows) {
-    await db.q(`insert into commerce_sales_import_stage_rows(batch_id, source_row_number, period_key, period_start, period_end, sku_primary, sku, sku_norm, product_name, variation, units, orders_with_item, product_revenue)
-      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-      [b.id, r.source_row_number, r.period_key, r.period_start, r.period_end, r.sku_primary, r.sku, r.sku_norm, r.product_name, r.variation, r.units, r.orders_with_item, r.product_revenue]);
-  }
-  for (const r of parsed.summaries) {
-    await db.q(`insert into commerce_sales_import_stage_summary(batch_id, period_key, period_start, period_end, net_orders, units, product_revenue, listings_with_sales, skus_with_sales)
-      values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [b.id, r.period_key, r.period_start, r.period_end, r.net_orders, r.units, r.product_revenue, r.listings_with_sales, r.skus_with_sales]);
-  }
-  for (const r of parsed.sku_daily_rows || []) {
-    await db.q(`insert into commerce_shopee_sales_sku_daily_v1(batch_id, sale_date, sku_norm, units, orders_with_item, product_revenue) values ($1,$2,$3,$4,$5,$6)`,
-      [b.id, r.sale_date, r.sku_norm, r.units, r.orders_with_item, r.product_revenue]);
-  }
-  for (const r of parsed.listing_rows || []) {
-    await db.q(`insert into commerce_sales_listing_daily_v1(batch_id, sale_date, external_listing_id, sku_norm, units, orders_with_item, product_revenue) values ($1,$2,$3,$4,$5,$6,$7)`,
-      [b.id, r.sale_date, r.external_listing_id, r.sku_norm, r.units, r.orders_with_item, r.product_revenue]);
-  }
-  const keys = hashOrderRefs('segredo-de-teste-'.repeat(3), parsed.platform_code, parsed.order_refs); // o que o Worker faria
-  await db.q('select public.commerce_append_sales_import_orders_v2($1, $2::jsonb)', [b.id, JSON.stringify(keys)]);
-  await db.q('select public.commerce_set_sales_import_meta_v2($1, $2::timestamptz)', [b.id, created]); // data de geração do arquivo
-  return b.id;
-}
+const stageParsed = (db, parsed, file, created) => stageParsedWithSecret(db, parsed, file, created, 'segredo-de-teste-'.repeat(3));
 
 const SH_HEAD = ['ID do pedido', 'Status do pedido', 'Hora do pagamento do pedido', 'Data de criação do pedido', 'Número de referência SKU', 'SKU', 'Quantidade', 'Subtotal do produto'];
 const shLine = (id, date, sku, qty, rev) => [id, 'Concluído', `${date} 10:00`, `${date} 09:00`, sku, sku, qty, rev];

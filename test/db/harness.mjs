@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { hashOrderRefs } from '../../src/ga/commerce-order-keys.js'; // o MESMO módulo que a rota do servidor usa
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -36,15 +37,24 @@ export async function startServer() {
   await server.start();
   adminClient = new PgClient({ host: 'localhost', port: PORT, user: 'postgres', password: 'test', database: 'postgres' });
   await adminClient.connect();
-  await adminClient.query('create database tpl');
+  // tpl_pre = produção ANTES da v2 (esquema mínimo fictício + view antiga + v1 real); tpl = tpl_pre + migração v2.
+  await adminClient.query('create database tpl_pre');
+  const pre = new PgClient({ host: 'localhost', port: PORT, user: 'postgres', password: 'test', database: 'tpl_pre' });
+  await pre.connect();
+  await pre.query(fs.readFileSync(SCHEMA, 'utf8'));
+  await pre.query(OLD_ML_VIEW);
+  await pre.query(fs.readFileSync(V1_MIGRATION, 'utf8'));
+  await pre.end();
+  await adminClient.query('create database tpl template tpl_pre');
   const tpl = new PgClient({ host: 'localhost', port: PORT, user: 'postgres', password: 'test', database: 'tpl' });
   await tpl.connect();
-  await tpl.query(fs.readFileSync(SCHEMA, 'utf8'));
-  await tpl.query(OLD_ML_VIEW);
-  await tpl.query(fs.readFileSync(V1_MIGRATION, 'utf8'));
   await tpl.query(fs.readFileSync(MIGRATION, 'utf8'));
   await tpl.end();
   templateReady = true;
+}
+
+export async function applyV2Migration(db, path = MIGRATION) {
+  await db.main.query(fs.readFileSync(path, 'utf8'));
 }
 
 export async function stopServer() {
@@ -53,10 +63,11 @@ export async function stopServer() {
   server = null; adminClient = null; templateReady = false;
 }
 
-export async function newDb() {
+// beforeV2 = true: banco como está em produção HOJE (sem a migração v2); use applyV2Migration(db) para aplicá-la.
+export async function newDb({ beforeV2 = false } = {}) {
   if (!templateReady) throw new Error('servidor de teste não iniciado');
   const name = `t_${process.pid}_${++counter}`;
-  await adminClient.query(`create database ${name} template tpl`);
+  await adminClient.query(`create database ${name} template ${beforeV2 ? 'tpl_pre' : 'tpl'}`);
   const connect = async () => {
     const c = new PgClient({ host: 'localhost', port: PORT, user: 'postgres', password: 'test', database: name });
     await c.connect();
@@ -250,3 +261,31 @@ export async function stageV1Monthly(db, { platform = 'SHOPEE', file, created, m
     values ($1,$2,$3,$4,$5,$6,$7,$8,$8)`, [b.id, key, `${month}-01`, through, netOrders, u, rev, rows.length]);
   return b.id;
 }
+
+// Grava no banco o que o navegador + a rota do Worker gravariam para um arquivo lido de verdade (HMAC com o segredo dado).
+export async function stageParsedWithSecret(db, parsed, file, created, secret) {
+  const b = await db.one(`insert into commerce_sales_import_batches(platform_code, source_filename, status, created_at) values ($1,$2,'STAGED',$3) returning id`,
+    [parsed.platform_code, file, created]);
+  for (const r of parsed.rows) {
+    await db.q(`insert into commerce_sales_import_stage_rows(batch_id, source_row_number, period_key, period_start, period_end, sku_primary, sku, sku_norm, product_name, variation, units, orders_with_item, product_revenue)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [b.id, r.source_row_number, r.period_key, r.period_start, r.period_end, r.sku_primary, r.sku, r.sku_norm, r.product_name, r.variation, r.units, r.orders_with_item, r.product_revenue]);
+  }
+  for (const r of parsed.summaries) {
+    await db.q(`insert into commerce_sales_import_stage_summary(batch_id, period_key, period_start, period_end, net_orders, units, product_revenue, listings_with_sales, skus_with_sales)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [b.id, r.period_key, r.period_start, r.period_end, r.net_orders, r.units, r.product_revenue, r.listings_with_sales, r.skus_with_sales]);
+  }
+  for (const r of parsed.sku_daily_rows || []) {
+    await db.q(`insert into commerce_shopee_sales_sku_daily_v1(batch_id, sale_date, sku_norm, units, orders_with_item, product_revenue) values ($1,$2,$3,$4,$5,$6)`,
+      [b.id, r.sale_date, r.sku_norm, r.units, r.orders_with_item, r.product_revenue]);
+  }
+  for (const r of parsed.listing_rows || []) {
+    await db.q(`insert into commerce_sales_listing_daily_v1(batch_id, sale_date, external_listing_id, sku_norm, units, orders_with_item, product_revenue) values ($1,$2,$3,$4,$5,$6,$7)`,
+      [b.id, r.sale_date, r.external_listing_id, r.sku_norm, r.units, r.orders_with_item, r.product_revenue]);
+  }
+  const keys = hashOrderRefs(secret, parsed.platform_code, parsed.order_refs); // o que o Worker faria
+  await db.q('select public.commerce_append_sales_import_orders_v2($1, $2, $3::jsonb)', [b.id, parsed.platform_code, JSON.stringify(keys)]);
+  await db.q('select public.commerce_set_sales_import_meta_v2($1, $2::timestamptz)', [b.id, created]); // data de geração do arquivo
+  return b.id;
+}
+

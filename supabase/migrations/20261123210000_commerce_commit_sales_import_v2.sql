@@ -28,6 +28,11 @@
 --    financeiro, cache). O deploy antigo (v1) segue funcionando depois dela.
 --  * Só service_role executa.
 
+-- 0) Aplicação segura com o GA atual em uso: se não conseguir os bloqueios das tabelas em 10 s (importação longa em
+--    andamento), a migração inteira desiste SEM alterar nada, em vez de deixar as importações novas esperando na fila.
+--    (SET LOCAL só vale dentro da transação da migração; é a mesma transação que desfaz tudo em caso de erro.)
+set local lock_timeout = '10s';
+
 -- 1) Identificadores de pedido (hash, nunca o número real) por dia e lote.
 create table if not exists public.commerce_sales_import_stage_orders_v2 (
   batch_id bigint not null references public.commerce_sales_import_batches(id) on delete cascade,
@@ -85,16 +90,24 @@ revoke all on function public.commerce_set_sales_import_meta_v2(bigint, timestam
 grant execute on function public.commerce_set_sales_import_meta_v2(bigint, timestamptz) to service_role;
 
 -- 3) Envio dos identificadores (até 5000 por chamada).
-create or replace function public.commerce_append_sales_import_orders_v2(p_batch_id bigint, p_rows jsonb)
+--    p_platform = plataforma usada pelo Worker para gerar o HMAC (a chave inclui a plataforma). O banco CONFERE com a
+--    plataforma cadastrada no lote: se for diferente, recusa (uma chave gerada com outra plataforma nunca bateria com
+--    a do mesmo pedido em outro arquivo e contaria o pedido duas vezes).
+create or replace function public.commerce_append_sales_import_orders_v2(p_batch_id bigint, p_platform text, p_rows jsonb)
 returns integer language plpgsql security invoker set search_path=public as $fn$
-declare v_count integer;
+declare v_count integer; v_platform text;
 begin
   if jsonb_typeof(p_rows) is distinct from 'array' or jsonb_array_length(p_rows) < 1 or jsonb_array_length(p_rows) > 5000 then
     raise exception 'sales_import_orders_array_required' using errcode='22023';
   end if;
-  if not exists(select 1 from public.commerce_sales_import_batches b
-    where b.id=p_batch_id and b.status in ('UPLOADED','STAGED')) then
+  select b.platform_code into v_platform from public.commerce_sales_import_batches b
+    where b.id=p_batch_id and b.status in ('UPLOADED','STAGED');
+  if not found then
     raise exception 'sales_import_batch_closed' using errcode='22023';
+  end if;
+  if p_platform is distinct from v_platform then
+    raise exception 'sales_import_platform_mismatch' using errcode='22023',
+      detail='A plataforma usada para gerar as chaves dos pedidos não é a plataforma do lote.';
   end if;
   if exists(select 1 from jsonb_array_elements(p_rows) x
     where (x->>'d') is null or (x->>'d') !~ '^20[0-9]{2}-[0-9]{2}-[0-9]{2}$'
@@ -107,8 +120,8 @@ begin
   get diagnostics v_count = row_count;
   return v_count;
 end $fn$;
-revoke all on function public.commerce_append_sales_import_orders_v2(bigint, jsonb) from public, anon, authenticated;
-grant execute on function public.commerce_append_sales_import_orders_v2(bigint, jsonb) to service_role;
+revoke all on function public.commerce_append_sales_import_orders_v2(bigint, text, jsonb) from public, anon, authenticated;
+grant execute on function public.commerce_append_sales_import_orders_v2(bigint, text, jsonb) to service_role;
 
 -- 4) Vencedor por dia: lote COMMITTED de maior snapshot (partes do mesmo snapshot somam).
 --    kind: V2 (cobertura gravada), LEGACY_SKU (Shopee antigo, vendas por SKU/dia) ou LEGACY_STAGE (ML antigo, linhas diárias).
@@ -222,7 +235,13 @@ begin
   select
     (select n from v2) + coalesce((select sum(n) from ml where n is not null), 0)
       + coalesce((select sum(block) from sh where won = orig and grp = 1 and block is not null), 0),
-    (select coalesce(jsonb_agg(jsonb_build_object('kind','ML_DAY_WITHOUT_SUMMARY','date',sale_date)), '[]'::jsonb) from ml where n is null)
+    -- dia da v2 sem nenhuma chave de pedido (ex.: chaves apagadas à mão): nunca subcontar em silêncio, recusar.
+    (select coalesce(jsonb_agg(jsonb_build_object('kind','V2_DAY_WITHOUT_KEYS','date',d.sale_date) order by d.sale_date), '[]'::jsonb)
+       from (select distinct w.sale_date from w where w.kind = 'V2'
+              and not exists(select 1 from w w2 join public.commerce_sales_import_stage_orders_v2 o
+                               on o.batch_id = w2.batch_id and o.sale_date = w2.sale_date
+                             where w2.kind = 'V2' and w2.sale_date = w.sale_date)) d)
+    || (select coalesce(jsonb_agg(jsonb_build_object('kind','ML_DAY_WITHOUT_SUMMARY','date',sale_date)), '[]'::jsonb) from ml where n is null)
     || (select coalesce(jsonb_agg(jsonb_build_object('kind','SHOPEE_LEGACY_BLOCK','batch_id',batch_id,
           'days_kept',won,'days_original',orig,'parts',grp)), '[]'::jsonb)
         from sh where not (won = orig and grp = 1 and block is not null))
