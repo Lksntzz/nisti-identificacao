@@ -1,0 +1,48 @@
+/* GA-015 — Evolução ABC por produto. Mesma identidade do GA: azul #2a78d6 e cinza #64748b; nenhuma cor carrega sozinha o significado. */
+.nae{display:flex;flex-direction:column;gap:12px;color:#0f172a}
+.nae-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start}
+.nae-head h1{margin:0;font-size:22px}.nae-head p{margin:4px 0 0;color:#475569;font-size:14px}
+.nae-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.nae-seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#fff}
+.nae-seg button{border:0;background:transparent;padding:8px 14px;font:inherit;cursor:pointer;color:#334155}
+.nae-seg button.is-active{background:#2a78d6;color:#fff;font-weight:600}
+.nae-month{font-size:13px;color:#475569;display:flex;gap:6px;align-items:center}.nae-month select{font:inherit;padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
+.nae-periods p,.nae-muted,.nae-loading,.nae-empty{margin:0;font-size:13px;color:#475569}
+.nae-plist{list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.nae-badge{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:600;background:#e2e8f0;color:#334155}
+.nae-badge.is-confirmado{background:#dcfce7;color:#14532d}.nae-badge.is-nao_comprovado{background:#fef3c7;color:#78350f}
+.nae-badge.is-bloqueado_divergente,.nae-badge.is-bloqueado_indisponivel{background:#fee2e2;color:#7f1d1d}
+.nae-why{color:#b45309}
+.nae-notice{margin:0;padding:10px 12px;border-left:4px solid #d97706;background:#fffbeb;font-size:14px}
+.nae-error{margin:0;padding:10px 12px;border-left:4px solid #b91c1c;background:#fef2f2;font-size:14px}
+.nae-link{border:0;background:none;padding:0;color:#2a78d6;cursor:pointer;font:inherit}
+.nae-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.nae-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:10px 14px;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;gap:4px}
+.nae-card h3{margin:0;font-size:13px;color:#475569;font-weight:600}.nae-card small{color:#64748b;font-size:12px}
+.nae-card.is-btn{cursor:pointer}.nae-card.is-btn:hover{background:#f8fafc}.nae-card.is-active{border-color:#2a78d6;box-shadow:inset 0 -3px 0 #2a78d6}
+.nae-big{margin:0;display:flex;gap:14px;align-items:baseline;font-size:28px;line-height:1.1;font-weight:700;font-variant-numeric:tabular-nums}
+.nae-cls{display:flex;flex-direction:column}.nae-cls small{font-size:11px;font-weight:600}
+.nae-conc{margin:0;display:flex;gap:12px;flex-wrap:wrap}.nae-conc span{display:flex;flex-direction:column}.nae-conc b{font-size:18px;font-variant-numeric:tabular-nums}
+.nae-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.nae-tabs button{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;color:#334155}
+.nae-tabs button.is-active{border-color:#2a78d6;box-shadow:inset 0 -3px 0 #2a78d6;font-weight:600}.nae-tabs button:disabled{opacity:.5;cursor:not-allowed}
+.nae-scroll{overflow-x:auto}
+.nae-table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border:1px solid #e2e8f0}
+.nae-table th{text-align:left;font-size:12px;color:#64748b;padding:8px 10px;border-bottom:1px solid #e2e8f0}
+.nae-table td{padding:8px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.nae-table .num{text-align:right;white-space:nowrap}.nae-table small{display:block;color:#64748b;font-size:11px}
+.nae-table small.is-neg{color:#b91c1c;font-weight:600}.nae-table small.is-pos{color:#15803d;font-weight:600}
+.nae-kind{font-style:normal;font-weight:600;font-size:12px;background:#eef2ff;border-radius:6px;padding:1px 6px}
+.nae-rel{font-style:normal;font-weight:600;font-size:12px;background:#dcfce7;color:#14532d;border-radius:6px;padding:1px 6px}
+.nae-low{font-style:normal;font-size:12px;background:#f1f5f9;color:#475569;border-radius:6px;padding:1px 6px}
+.nae-growth{display:block;color:#475569;font-size:13px;margin-top:2px}
+.nae-h2{margin:6px 0 0;font-size:16px}
+.nae-hist{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.nae-hist figure{margin:0;border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:10px}
+.nae-hist figcaption{font-size:13px;font-weight:600;margin-bottom:4px}.nae-hist figcaption small{font-weight:400;color:#64748b}
+.nae-hist svg{width:100%;height:auto}
+.nae-legend{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 0;font-size:12px;color:#475569}.nae-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px}
+.nae-recon{grid-column:1/-1;font-size:13px}.nae-recon summary{cursor:pointer;font-weight:600}
+.nae-name{font-weight:400;color:#334155}
+.nae-skuh{border:1px solid #2a78d6;border-radius:12px;background:#fff;padding:10px 14px;display:flex;flex-direction:column;gap:6px}.nae-skuh h3{margin:0;font-size:15px}
+@media (max-width:640px){.nae-big{font-size:24px}}

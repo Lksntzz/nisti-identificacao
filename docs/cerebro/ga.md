@@ -75,3 +75,12 @@ Revisão 25/11: perda exige cobertura dos dois períodos; divergência de concil
 
 ## GA-015 — Evolução da Curva ABC por produto (etapa 1 em rascunho)
 Função `commerce_abc_units_monthly_v1` (arquivo, não aplicada) + regras puras `commerce-abc-logic.js`. Só unidades, por conta + SKU canônico; cortes 80/95 pelo acumulado anterior ao grupo, empates na mesma classe e posição competitiva; sem SKU fora do ranking; só 01/10 a 23/11/2026 tem cobertura comprovada; migração comprovada x relevante (100 un. na conta, 5/10 un. e 3 posições); conciliação GA-019/GA-021 com resíduo exatamente 0. Dashboard, Visão estratégica e Central intactos. Detalhes na seção GA-015 de `MAPA-GA.md`.
+
+## GA-015 — etapa 2 (interface, rascunho)
+Rota `/abc-evolution` + `commerce-abc-store.js` + tela "Evolução ABC" (7d/30d/mensal/anual, três contas). Função SQL ainda não aplicada: a tela mostra fonte de unidades indisponível. Só unidades; bloqueios distintos (divergente x indisponível x cobertura não comprovada); nunca confundir ausência de dado com zero vendas. GA-015A, GA-016 e GA-017 não iniciadas.
+
+## GA-015 — revisão técnica (resumo)
+Ausência em período não comprovado = SEM_INFORMACAO (nunca zero); mês incompleto = "mês até aqui" (provisório, sem migração confirmada); código parecido entrando/saindo = identidade não comprovada; migração com empate na fronteira nunca é relevante confirmada; top 10 inclui todos os empatados na 10ª posição; histórico por SKU; nomes só com vínculo; linha do gráfico interrompida em meses sem dado; função SQL com validação estrita e lista completa; orçamento de 40 requisições (histórico que não couber fica não verificado). Migração ainda NÃO aplicada.
+
+## GA-015 — ajustes finais
+Nomes: função recebe a conta e, havendo ambiguidade (catálogo ou título de venda), mostra só o código — nunca LIMIT 1. Identidade: semelhança é só alerta; "entrou/saiu da curva", nunca produto novo/perdido. Meses fechados com durações diferentes: classe/participação comparam; relevância e crescimento usam ritmo por 30 dias, não a diferença absoluta. Migração ainda NÃO aplicada.
