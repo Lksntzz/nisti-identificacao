@@ -2,26 +2,10 @@
 // (função commerce_decision_units_v1, Dashboard e GA-018). Só unidades; nenhuma tela ou rota aqui.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {strategicPeriods,FORBIDDEN_KEY_RE} from '../src/ga/commerce-strategic-logic.js';
+import {FORBIDDEN_KEY_RE} from '../src/ga/commerce-strategic-logic.js';
 import {buildDecisionCenter,DECISION_DAYS,DECISION_THRESHOLDS,isDecisionDays,TIER_LIMIT} from '../src/ga/commerce-decision-logic.js';
 
-const dash=(o={})=>({platform:'SHOPEE',days:7,first_day:'2025-01-01',last_day:'2026-11-23',current_start:'2026-11-17',previous_start:'2026-11-10',
-  totals:{cur_units:0,prev_units:0},...o});
-const dq=(platform,start,end,ok=true)=>{const span=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
-  return {platform,period:{start,end},sales:{status:ok?'COMPLETA':'PARCIAL',requested_days:span,complete_days:ok?span:span-2,partial_days:0,
-    days_without_information:ok?0:2,days_with_records_unverified:0,missing_ranges:ok?[]:[{start:end,end,days:2}]}};};
-// Linha no formato real devolvido por commerce_decision_units_v1.
-const row=(ext,uc,up,o={})=>({ext,listing_id:Number(String(ext).replace(/\D/g,''))||1,title:'Anúncio '+ext,registered:true,ambiguous_status:false,status:'ACTIVE',
-  status_checked_at:'2026-11-17T11:17:46.521006+00:00',units_current:uc,units_previous:up,last_sale:'2026-11-22',first_sale:'2026-01-05',
-  perf:{latest:null,previous:null},...o});
-const units=(rows,o={})=>({platform:'SHOPEE',current:{start:'2026-11-17',end:'2026-11-23'},previous:{start:'2026-11-10',end:'2026-11-16'},
-  totals:{listings:rows.length,listings_with_sales:rows.length,units_current:rows.reduce((a,r)=>a+r.units_current,0),
-    units_previous:rows.reduce((a,r)=>a+r.units_previous,0),listings_unregistered:0,units_current_unregistered:0,units_previous_unregistered:0,listings_ambiguous_status:0},
-  row_count:rows.length,truncated:false,reports:{latest:null,previous:null},rows,...o});
-const mk=(rows,o={})=>{const u=units(rows,o.units||{});return {platform:'SHOPEE',days:7,dash:dash({totals:{cur_units:u.totals.units_current,prev_units:u.totals.units_previous}}),
-  periods:strategicPeriods(dash()),units:u,dqCurrent:dq('SHOPEE','2026-11-17','2026-11-23'),dqPrevious:dq('SHOPEE','2026-11-10','2026-11-16'),split:null,failed:[],...o,units:u};};
-const tierOf=(v,ext)=>Object.entries(v.tiers).find(([,t])=>t.rows.some(r=>r.external_id===ext))?.[0]??null;
-const get=(v,ext)=>Object.values(v.tiers).flatMap(t=>t.rows).find(r=>r.external_id===ext);
+import {dash,dq,row,units,reports,perfOf,splitOf,mk,tierOf,get} from './fixtures-decision.js';
 
 test('janelas: só 7 e 30 dias, com limiares próprios',()=>{
   assert.deepEqual([...DECISION_DAYS],[7,30]); assert.equal(isDecisionDays(7),true); assert.equal(isDecisionDays(60),false);
@@ -61,21 +45,24 @@ test('cobertura determina as classificações dinamicamente (nada fixo)',()=>{
   const all=buildDecisionCenter(mk(rows)); assert.equal(tierOf(all,'A'),'alta'); assert.equal(tierOf(all,'B'),'alta'); assert.equal(tierOf(all,'C'),'oportunidade');
   const noPrev=buildDecisionCenter(mk(rows,{dqPrevious:dq('SHOPEE','2026-11-10','2026-11-16',false)}));
   assert.equal(tierOf(noPrev,'A'),'insuficiente'); assert.equal(get(noPrev,'A').kind,'POSSIVEL_QUEDA'); assert.deepEqual(get(noPrev,'A').missing,['PERIODO_ANTERIOR']);
-  assert.equal(tierOf(noPrev,'B'),'alta','parou: basta o período atual comprovado'); assert.equal(get(noPrev,'B').kind,'PAROU');
+  assert.equal(tierOf(noPrev,'B'),'insuficiente','parada também exige o período anterior (a ausência atual aparece como fato separado)'); assert.equal(get(noPrev,'B').kind,'POSSIVEL_PARADA');
+  assert.deepEqual(get(noPrev,'B').proven_facts,['SEM_VENDAS_PERIODO_ATUAL']);
   assert.equal(tierOf(noPrev,'C'),'insuficiente'); assert.equal(get(noPrev,'C').kind,'POSSIVEL_OPORTUNIDADE');
   const noCur=buildDecisionCenter(mk(rows,{dqCurrent:dq('SHOPEE','2026-11-17','2026-11-23',false)}));
   assert.equal(tierOf(noCur,'B'),'insuficiente'); assert.deepEqual(get(noCur,'B').missing,['PERIODO_ATUAL']); assert.equal(get(noCur,'B').kind,'POSSIVEL_PARADA');
   assert.deepEqual(get(noCur,'A').missing,['PERIODO_ATUAL','PERIODO_ANTERIOR'].filter(x=>x==='PERIODO_ATUAL'));
   const none=buildDecisionCenter(mk(rows,{dqCurrent:null,dqPrevious:null}));
   assert.equal(none.tiers.alta.total,0); assert.equal(none.tiers.oportunidade.total,0);
-  assert.equal(tierOf(none,'S'),'sem_prioridade','estabilidade ou baixo volume nunca vira "dados insuficientes"');
+  assert.equal(tierOf(none,'S'),'insuficiente','sem cobertura, a ausência de prioridade não é comprovada'); assert.equal(get(none,'S').kind,'SEM_SINAL_NAO_COMPROVADO');
   assert.ok(!['alta','revisao','oportunidade'].some(t=>none.tiers[t].rows.length),'nada é confirmado sem cobertura');
 });
 
 test('sem prioridade comercial ≠ dados insuficientes',()=>{
-  const v=buildDecisionCenter(mk([row('S',10,10),row('L',1,2)],{dqPrevious:dq('SHOPEE','2026-11-10','2026-11-16',false)}));
+  const v=buildDecisionCenter(mk([row('S',10,10),row('L',1,2)]));
   assert.equal(tierOf(v,'S'),'sem_prioridade'); assert.equal(tierOf(v,'L'),'sem_prioridade');
   assert.match(get(v,'S').reason,/sem sinal/i); assert.equal(v.tiers.insuficiente.total,0);
+  const u=buildDecisionCenter(mk([row('S',10,10),row('L',1,2)],{dqPrevious:dq('SHOPEE','2026-11-10','2026-11-16',false)}));
+  assert.equal(u.tiers.sem_prioridade.total,0); assert.equal(u.tiers.insuficiente.total,2,'sem cobertura é dado insuficiente, não ausência de prioridade');
 });
 
 test('situação é o último estado cadastrado, com data; só ativo entra em alta; sem situação conhecida = dados insuficientes',()=>{
@@ -113,13 +100,13 @@ test('hipótese de conversão baixa é separada das oportunidades comprovadas; r
 });
 
 test('hipótese de queda: só com dois relatórios comparáveis, da mesma conta, recentes e com volume mínimo',()=>{
-  const rep={latest:{start:'2026-11-16',end:'2026-11-22',imported_at:'x',store_visits:2000,store_orders:100},previous:{start:'2026-11-09',end:'2026-11-15',imported_at:'y'}};
-  const p=(imp,vis)=>({ambiguous_rows:false,impressions:imp,clicks:50,visits:vis,orders:5});
+  const rep=reports(['2026-11-16','2026-11-22'],['2026-11-09','2026-11-15']);
+  const p=(imp,vis)=>perfOf(7,{imp,clk:50,vis,ord:5});
   const v=buildDecisionCenter(mk([row('A',10,30,{perf:{latest:p(1300,200),previous:p(2000,210)}}),row('B',10,30,{perf:{latest:p(900,200),previous:p(1400,210)}})],{units:{reports:rep}}));
   const a=get(v,'A'); assert.ok(a.hypotheses.some(h=>h.kind==='VISIBILIDADE_MENOR'&&/pode indicar/.test(h.text)&&h.change_pct===-35),JSON.stringify(a.hypotheses));
   assert.ok(!get(v,'B').hypotheses.some(h=>h.kind==='VISIBILIDADE_MENOR'),'volume de impressões abaixo do mínimo (1.000) no relatório mais recente');
-  const mism=buildDecisionCenter(mk([row('A',10,30,{perf:{latest:p(1300,200),previous:p(2000,210)}})],{units:{reports:{latest:rep.latest,previous:{start:'2026-11-01',end:'2026-11-15',imported_at:'y'}}}}));
-  assert.ok(!get(mism,'A').hypotheses.some(h=>h.kind==='VISIBILIDADE_MENOR'),'relatórios com durações diferentes não são comparáveis');
+  const overlap=buildDecisionCenter(mk([row('A',10,30,{perf:{latest:p(1300,200),previous:p(2000,210)}})],{units:{reports:reports(['2026-11-16','2026-11-22'],['2026-11-01','2026-11-17'])}}));
+  assert.ok(!get(overlap,'A').hypotheses.some(h=>h.kind==='VISIBILIDADE_MENOR'),'relatórios que se sobrepõem não são comparáveis');
 });
 
 test('indisponível e investigação: estoque e preço nunca afirmados; sem valores',()=>{
@@ -149,15 +136,14 @@ test('ordenação por unidades, nunca por valor; empate estável',()=>{
 
 test('conciliação: soma por anúncio contra o Dashboard e a divisão por SKU da Shopee; sem vínculo não é distribuído',()=>{
   const rows=[row('A',10,20),row('B',5,5)];
-  const split={start:'2026-11-17',end:'2026-11-23',status:'COMPLETO',total_units:20,linked_units:15,unlinked_units:5,unlinked_sku_count:2,base_units:15,
-    difference:{units:-5,other_explained_units:0,residual_units:0},reconciliation:{status:'EXPLICADA'},coverage:{missing_days:0}};
+  const split={current:splitOf('2026-11-17','2026-11-23',{total:20,linked:15}),previous:splitOf('2026-11-10','2026-11-16',{total:30,linked:25})};
   const ok=buildDecisionCenter(mk(rows,{split}));
   assert.equal(ok.reconciliation.dashboard.status,'CONCILIADO'); assert.equal(ok.reconciliation.shopee.unlinked,5); assert.equal(ok.reconciliation.shopee.status,'EXPLICADA');
   assert.equal(ok.reconciliation.shopee.listing_sum,15); assert.match(ok.reconciliation.shopee.note,/sem vínculo/i); assert.match(ok.reconciliation.shopee.note,/não .*distribu/i);
   assert.equal(ok.summary.units.current,15,'a soma dos anúncios não inclui a venda sem vínculo');
-  const bad=buildDecisionCenter(mk(rows,{split,dash:dash({totals:{cur_units:99,prev_units:25}})}));
+  const bad=buildDecisionCenter(mk(rows,{split,dash:{...mk(rows).dash,totals:{cur_units:99,prev_units:25}}}));
   assert.equal(bad.reconciliation.dashboard.status,'DIVERGENTE'); assert.ok(bad.notices.some(n=>n.kind==='UNIDADES_DIVERGENTES'&&n.essential));
-  const badSplit=buildDecisionCenter(mk(rows,{split:{...split,base_units:40}}));
+  const badSplit=buildDecisionCenter(mk(rows,{split:{...split,current:splitOf('2026-11-17','2026-11-23',{total:20,linked:15,base:40})}}));
   assert.equal(badSplit.reconciliation.shopee.status,'DIVERGENTE');
 });
 

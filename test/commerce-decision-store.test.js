@@ -3,19 +3,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {commerceDecisionCenterV1} from '../src/ga/commerce-supabase-store.js';
 
-const dash=p=>({platform:p,days:7,first_day:'2025-01-01',last_day:'2026-11-24',current_start:'2026-11-18',previous_start:'2026-11-11',totals:{cur_units:30,prev_units:20}});
-const dq=(platform,start,end)=>({platform,period:{start,end},sales:{status:'COMPLETA',requested_days:7,complete_days:7,partial_days:0,days_without_information:0,days_with_records_unverified:0,missing_ranges:[]}});
-const row=(ext,uc,up,o={})=>({ext,listing_id:'id-'+ext,title:'Anúncio '+ext,registered:true,ambiguous_status:false,status:'ACTIVE',status_checked_at:'2026-11-17T10:00:00+00:00',units_current:uc,units_previous:up,last_sale:'2026-11-24',first_sale:'2026-01-02',perf:{latest:null,previous:null},...o});
-const units=(platform,rows)=>({platform,current:{start:'2026-11-18',end:'2026-11-24'},previous:{start:'2026-11-11',end:'2026-11-17'},
-  totals:{listings:rows.length,listings_with_sales:rows.length,units_current:rows.reduce((a,r)=>a+r.units_current,0),units_previous:rows.reduce((a,r)=>a+r.units_previous,0),listings_unregistered:0,units_current_unregistered:0,units_previous_unregistered:0,listings_ambiguous_status:0},
-  row_count:rows.length,truncated:false,reports:{latest:null,previous:null},rows});
+import {dash as dashFx,dq,row,units,splitOf} from './fixtures-decision.js';
+const dash=p=>dashFx({platform:p,days:7,last_day:'2026-11-24',current_start:'2026-11-18',previous_start:'2026-11-11',totals:{cur_units:30,prev_units:20}});
+const mkUnits=(platform,rows)=>({...units(rows),platform,current:{start:'2026-11-18',end:'2026-11-24'},previous:{start:'2026-11-11',end:'2026-11-17'}});
 const mk=(over={})=>{
   const calls=[];
   const deps={
     dashboard:async(_e,a)=>{calls.push(['dashboard',a]);return dash(a.platform);},
-    units:async(_e,a)=>{calls.push(['units',a]);return units(a.platform,[row('A',10,20),row('B',20,0)]);},
+    units:async(_e,a)=>{calls.push(['units',a]);return mkUnits(a.platform,[row('A',10,20),row('B',20,0)]);},
     quality:async(_e,a)=>{calls.push(['quality',a]);return dq(a.platform,a.start,a.end);},
-    split:async(_e,a)=>{calls.push(['split',a]);return {status:'COMPLETO',total_units:30,linked_units:30,unlinked_units:0,base_units:30,difference:{units:0,unlinked_effect_units:0,other_explained_units:0,residual_units:0,explained:true},reconciliation:{status:'EXPLICADA',source_units_match:true,identity_ok:true},coverage:{missing_days:0,days_with_data:7,missing_ranges:[]}};},
+    split:async(_e,a)=>{calls.push(['split',a]);const t=a.start==='2026-11-18'?30:20;return splitOf(a.start,a.end,{total:t,linked:t});},
     ...over};
   return {deps,calls};
 };
@@ -46,20 +43,44 @@ test('store: função de unidades indisponível vira INDISPONIVEL, sem vazar o e
   assert.doesNotMatch(JSON.stringify(r),/segredo-interno/);
 });
 test('store: resposta truncada ou de outra conta falha fechado',async()=>{
-  for(const bad of [p=>({...units(p,[row('A',1,1)]),truncated:true}),()=>units('ML_ANTIGO',[row('A',1,1)])]){
+  for(const bad of [p=>({...mkUnits(p,[row('A',1,1)]),truncated:true}),()=>mkUnits('ML_ANTIGO',[row('A',1,1)])]){
     const {deps}=mk({units:async(_e,a)=>bad(a.platform)});
     const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
     assert.equal(r.status,'INDISPONIVEL');
   }
 });
 test('store: soma por anúncio divergente do Dashboard aparece como divergência, sem esconder',async()=>{
-  const {deps}=mk({units:async(_e,a)=>units(a.platform,[row('A',10,5)])});
+  const {deps}=mk({units:async(_e,a)=>mkUnits(a.platform,[row('A',10,5)])});
   const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
   assert.equal(r.reconciliation.dashboard.status,'DIVERGENTE');
   assert.ok(r.notices.some(n=>n.kind==='UNIDADES_DIVERGENTES'));
 });
 test('store: sem campo financeiro na resposta',async()=>{
-  const {deps}=mk({units:async(_e,a)=>units(a.platform,[{...row('A',10,20),revenue:999,gmv:1}])});
+  const {deps}=mk({units:async(_e,a)=>mkUnits(a.platform,[{...row('A',10,20),revenue:999,gmv:1}])});
   const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
   assert.doesNotMatch(JSON.stringify(r),/revenue|gmv|faturamento|lucro/i);
+});
+
+test('store (item 7): Dashboard com períodos inválidos não dispara nenhuma outra consulta',async()=>{
+  for(const bad of [{days:30},{platform:'ML_NOVO'},{current_start:'2026-11-17'},{previous_start:'2026-11-12'},{last_day:'x'}]){
+    const {deps,calls}=mk({dashboard:async(_e,a)=>({...dash(a.platform),...bad})});
+    const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
+    assert.equal(r.status,'INDISPONIVEL'); assert.equal(r.parts.dashboard,'RESPOSTA_INVALIDA'); assert.deepEqual(calls,[],'nada além do Dashboard foi consultado: '+JSON.stringify(bad));
+  }
+});
+test('store (item 5): a divisão por SKU da Shopee é pedida para os DOIS períodos',async()=>{
+  const {deps,calls}=mk();
+  const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
+  assert.deepEqual(calls.filter(c=>c[0]==='split').map(c=>[c[1].start,c[1].end]).sort(),[['2026-11-11','2026-11-17'],['2026-11-18','2026-11-24']]);
+  assert.equal(r.reconciliation.shopee.current.status,'EXPLICADA'); assert.equal(r.reconciliation.shopee.previous.status,'EXPLICADA'); assert.equal(r.blocked_confirmations,false);
+});
+test('store (item 5): divergência do período anterior na divisão da Shopee bloqueia as classificações confirmadas',async()=>{
+  const {deps}=mk({split:async(_e,a)=>{const cur=a.start==='2026-11-18';return splitOf(a.start,a.end,{total:cur?30:20,linked:cur?30:20,base:cur?30:99});}});
+  const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
+  assert.equal(r.blocked_confirmations,true); assert.equal(r.tiers.alta.total+r.tiers.revisao.total+r.tiers.oportunidade.total+r.tiers.sem_prioridade.total,0);
+});
+test('store: divisão por SKU que falha não é divergência (conciliação indisponível, sem bloquear)',async()=>{
+  const {deps}=mk({split:async()=>{throw new Error('x');}});
+  const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
+  assert.equal(r.parts.split,'INDISPONIVEL'); assert.equal(r.blocked_confirmations,false);
 });

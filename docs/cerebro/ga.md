@@ -60,3 +60,4 @@ Mensal real: `month` vem como `aaaa-mm-01` (normalizado para `aaaa-mm`). Dia sem
 
 ## GA-014 — Central de decisões (EM RASCUNHO, não publicada)
 Aplicação em PR rascunho, depende da migração `commerce_decision_units_v1` (PR separado, não aplicada). Rota `/api/admin/commerce/decision-center`, regras em `commerce-decision-logic.js`, tela `commerce-decision-center.jsx`. Só unidades, 7 e 30 dias, conta + ID, perda percentual e absoluta (20/60), hipóteses separadas dos fatos, situação como último estado cadastrado. Só publicar após a função ser aprovada, aplicada e validada. GA-015 a GA-017 não iniciadas.
+Revisão 25/11: perda exige cobertura dos dois períodos; divergência de conciliação bloqueia classificações confirmadas; Dashboard e relatórios validados antes de usar; impressões/visitas comparadas por dia. Último dia parcial = período atual não comprovado (nada confirmado até o dia fechar).

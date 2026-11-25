@@ -6,6 +6,7 @@ import {mkdirSync} from 'node:fs';
 import {chromium} from 'playwright';
 import {buildDecisionCenter} from '../src/ga/commerce-decision-logic.js';
 import {strategicPeriods} from '../src/ga/commerce-strategic-logic.js';
+import {units as fxUnits,reports as fxReports,splitOf} from '../test/fixtures-decision.js';
 
 const BASE=process.env.NISTI_HARNESS_BASE||'http://127.0.0.1:4173';
 const URL_VIEW=BASE+'/test-browser/harness/decision-center.html';
@@ -28,20 +29,17 @@ function unitsOf(platform,days,{many=false,cur,prev}={}){
     row(platform,'6',4,20,{status:'PAUSED'}),row(platform,'7',3,25,{registered:false,status:null,status_checked_at:null,title:null,listing_id:null}),
     row(platform,'8',9,9,{perf:{latest:{ambiguous_rows:false,impressions:5000,clicks:200,visits:400,orders:2},previous:null}})];
   if(many)for(let i=0;i<60;i++)rows.push(row(platform,String(100+i),5,30+i));
-  const sum=k=>rows.reduce((a,r)=>a+r[k],0);
-  return {platform:cur||platform,current:prev?{start:'2026-11-18',end:'2026-11-23'}:periods.current,previous:periods.previous,
-    totals:{listings:rows.length,listings_with_sales:rows.length,units_current:sum('units_current'),units_previous:sum('units_previous'),listings_unregistered:1,
-      units_current_unregistered:3,units_previous_unregistered:25,listings_ambiguous_status:0},row_count:rows.length,truncated:false,
-    reports:{latest:{start:'2026-11-16',end:'2026-11-22',imported_at:'2026-11-23T10:00:00+00:00',store_visits:4000,store_orders:200},previous:null},rows};
+  return fxUnits(rows,{platform:cur||platform,current:prev?{start:'2026-11-18',end:'2026-11-23'}:periods.current,previous:periods.previous,
+    reports:fxReports(['2026-11-16','2026-11-22',{store_visits:4000,store_orders:200}],null)});
 }
-export function payload(platform,days,{proven=true,failUnits=false,many=false,split=true}={}){
+export function payload(platform,days,{proven=true,prevUnproven=false,diverge=false,failUnits=false,many=false,split=true}={}){
   const u=unitsOf(platform,days,{many});
-  const dash={...mkDash(platform,days),totals:{cur_units:u.totals.units_current,prev_units:u.totals.units_previous}};
+  const dash={...mkDash(platform,days),totals:{cur_units:u.totals.units_current+(diverge?7:0),prev_units:u.totals.units_previous}};
   const periods=strategicPeriods(dash);
   return buildDecisionCenter({platform,days,dash,periods,units:failUnits?null:u,failed:failUnits?['units']:[],
-    dqCurrent:dq(platform,periods.current.start,periods.current.end,proven),dqPrevious:dq(platform,periods.previous.start,periods.previous.end,proven),
-    split:platform==='SHOPEE'&&split?{start:periods.current.start,end:periods.current.end,status:'COMPLETO',total_units:u.totals.units_current+4,linked_units:u.totals.units_current,
-      unlinked_units:4,unlinked_sku_count:1,base_units:u.totals.units_current,difference:{units:-4,other_explained_units:0,residual_units:0},reconciliation:{status:'EXPLICADA'},coverage:{missing_days:0}}:null});
+    dqCurrent:dq(platform,periods.current.start,periods.current.end,proven),dqPrevious:dq(platform,periods.previous.start,periods.previous.end,proven&&!prevUnproven),
+    split:platform==='SHOPEE'&&split?{current:splitOf(periods.current.start,periods.current.end,{total:u.totals.units_current+4,linked:u.totals.units_current}),
+      previous:splitOf(periods.previous.start,periods.previous.end,{total:u.totals.units_previous+4,linked:u.totals.units_previous})}:null});
 }
 
 function createSimulator(){
@@ -150,6 +148,30 @@ test('períodos não comprovados: nada confirmado, aviso essencial visível e tu
   await page.locator('[data-tier="insuficiente"]').click();
   assert.match(await body(page),/Possível queda, não confirmada/);
   assert.doesNotMatch(await body(page),/Parou de vender: /);
+  await context.close();
+});
+
+test('item 4: período anterior não comprovado: perda não é confirmada e a ausência atual comprovada aparece como fato separado',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={prevUnproven:true};
+  const {page,context}=await open(b,{sim});await page.waitForSelector('[data-testid="count-alta"]');
+  assert.equal(await page.locator('[data-testid="count-alta"]').innerText(),'0'); assert.equal(await page.locator('[data-testid="count-sem_prioridade"]').innerText(),'0');
+  assert.match(await page.locator('[data-testid="notice-PERIODO_ANTERIOR_NAO_COMPROVADO"]').innerText(),/nenhuma perda ou ganho/);
+  assert.match(await page.locator('[data-testid="proven-absence"]').innerText(),/sem vendas no período atual.*não é confirmado/);
+  await page.locator('[data-tier="insuficiente"]').click();
+  assert.match(await body(page),/Ausência de vendas no período atual comprovada/);
+  assert.doesNotMatch(await body(page),/Parou de vender: /);
+  await context.close();
+});
+
+test('item 5: divergência com o Dashboard bloqueia classificações confirmadas e mostra o motivo',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={diverge:true};
+  const {page,context}=await open(b,{sim});await page.waitForSelector('[data-testid="count-alta"]');
+  for(const t of ['alta','revisao','oportunidade','sem_prioridade'])assert.equal(await page.locator('[data-testid="count-'+t+'"]').innerText(),'0',t);
+  assert.match(await page.locator('[data-testid="notice-UNIDADES_DIVERGENTES"]').innerText(),/bloqueadas/);
+  assert.ok(Number(await page.locator('[data-testid="count-insuficiente"]').innerText())>=5);
+  await page.locator('details.ndc-recon summary').click();
+  assert.match(await page.locator('[data-testid="recon-dashboard"]').innerText(),/divergente/);
+  assert.match(await page.locator('[data-testid="recon-breakdown"]').innerText(),/sem ID de anúncio.*sem cadastro.*resíduo/);
   await context.close();
 });
 

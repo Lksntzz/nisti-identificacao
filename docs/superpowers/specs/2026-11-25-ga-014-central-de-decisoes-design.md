@@ -18,3 +18,26 @@ Arquitetura B aprovada pelo Atlas: função SQL somente leitura `commerce_decisi
 - 7 dias é ruidoso: queda pequena em base pequena não deve ser lida como tendência.
 - Relatórios do ML estão defasados (Novo até 27/10; Antigo sem relatório): hipóteses de conversão ficam indisponíveis nessas contas.
 - Anúncios do ML com variações têm linhas duplicadas no relatório: marcados como ambíguos, nunca somados.
+
+## Revisão técnica de 25/11/2026 (PRs #925 e #926)
+Limiares absolutos (20 un em 7 dias, 60 em 30) **aprovados pelo Atlas**; demais critérios mantidos.
+
+### Simulação com as janelas EXATAS do Dashboard (7 dias: 18–24/11 contra 11–17/11; 30 dias: 26/10–24/11 contra 26/09–25/10)
+Contagens só pelas regras de unidades (sem aplicar situação cadastrada nem cobertura). "Só absoluta" = entra em alta apenas pelo limiar de 20 / 60 un.
+
+| Janela | Conta | Alta (total) | só percentual | só absoluta | ambas | Revisão | Crescimento | Base pequena |
+|---|---|---|---|---|---|---|---|---|
+| 7 dias | Shopee | 23 | 13 | **2 (91 un)** | 8 | 26 | 5 | 0 |
+| 7 dias | ML Antigo | 8 | 7 | 0 | 1 | 14 | 1 | 0 |
+| 7 dias | ML Novo | 2 | 2 | 0 | 0 | 2 | 1 | 0 |
+| 30 dias | Shopee | 7 | 5 | 0 | 2 | 9 | 18 | 7 |
+| 30 dias | ML Antigo | 5 | 5 | 0 | 0 | 10 | 10 | 3 |
+| 30 dias | ML Novo | 5 | 5 | 0 | 0 | 4 | 2 | 0 |
+
+O limiar absoluto muda pouco: só a Shopee em 7 dias (2 anúncios). Nos 30 dias não acrescenta nenhum.
+
+### Cobertura real nessas janelas (GA-018, leitura)
+O dia 24/11 é **parcial** nas três contas: o período atual (7 e 30 dias) fica PARCIAL e **não é comprovado**; o anterior de 7 dias é COMPLETO e o de 30 dias é PARCIAL (5 dias com registros não verificados). Resultado hoje: nenhuma classificação confirmada; tudo em "Dados insuficientes" até o último dia fechar. Como o último dia importado costuma estar parcial, isso se repete: **decisão do Atlas** se o fim do período deve ser o último dia completo.
+
+### Desempenho medido (view real, leitura)
+Shopee 30 dias: 310 anúncios, 56 KB, 0,25 s, conciliada com o Dashboard (6236 e 4897 un). Relatórios reais da Shopee: recente 7 dias, anterior 30 dias, intervalo de 11 dias.

@@ -17,7 +17,7 @@ const TIERS=[
   {id:'sem_prioridade',label:'Sem prioridade comercial',hint:'Sem sinal relevante nos dados importados: variação pequena ou volume baixo. Não é falta de informação.'}
 ];
 const KIND={QUEDA:'Queda',PAROU:'Parou de vender',CRESCIMENTO:'Crescimento',NOVA_OU_RETOMADA:'Saiu de zero ou de base pequena',POSSIVEL_QUEDA:'Possível queda',
-  POSSIVEL_PARADA:'Possível parada',POSSIVEL_OPORTUNIDADE:'Possível oportunidade',CONVERSAO_BAIXA:'Conversão baixa (hipótese)',SEM_SINAL:'Sem sinal',ATRIBUICAO_AMBIGUA:'Atribuição ambígua'};
+  POSSIVEL_PARADA:'Possível parada',POSSIVEL_OPORTUNIDADE:'Possível oportunidade',CONVERSAO_BAIXA:'Conversão baixa (hipótese)',SEM_SINAL:'Sem sinal',SEM_SINAL_NAO_COMPROVADO:'Sem sinal (não comprovado)',SEM_VENDAS_COMPROVADO:'Sem vendas nos dois períodos',ATRIBUICAO_AMBIGUA:'Atribuição ambígua'};
 const RULE={PERCENTUAL:'queda percentual',ABSOLUTA:'perda absoluta',BASE_PEQUENA:'base pequena'};
 const SRC_STATE={OK:'ok',INDISPONIVEL:'indisponível',DESATUALIZADO:'desatualizado',RESPOSTA_INVALIDA:'resposta inválida',SEM_DADOS:'sem dados',ULTIMO_ESTADO_CADASTRADO:'último estado cadastrado'};
 const PART_PT={units:'unidades por anúncio',dashboard:'Dashboard',quality:'cobertura de vendas',split:'divisão por SKU'};
@@ -100,14 +100,15 @@ export default function CommerceDecisionCenter(){
       {essential.map(n=><p key={n.kind} className="ndc-notice" role="status" data-testid={'notice-'+n.kind}>{n.text}</p>)}
       {down.length>0&&<p className="ndc-error" role="status" data-testid="parts-down">Consulta indisponível: {down.map(([k])=>PART_PT[k]||k).join(', ')}. Isto não significa que não existam anúncios.</p>}
       {v.status==='OK'&&<>
-        <p className="ndc-summary" data-testid="summary">{nf(v.summary.listings_with_sales)} anúncios com venda · {nf(v.summary.units.current)} un no período atual · {nf(v.summary.units.previous)} no anterior</p>
+        <p className="ndc-summary" data-testid="summary">{nf(v.summary.listings_with_sales)} anúncios com venda · {nf(v.summary.units.current)} un no período atual · {nf(v.summary.units.previous)} no anterior{v.summary.proven_no_sales_current>0&&<> · <span data-testid="proven-absence">{nf(v.summary.proven_no_sales_current)} anúncio(s) sem vendas no período atual (ausência comprovada; o impacto contra o anterior não é confirmado)</span></>}</p>
         <div className="ndc-tabs" role="tablist" aria-label="Faixas de prioridade">{TIERS.map(t=><button key={t.id} type="button" role="tab" aria-selected={tier===t.id} data-tier={t.id}
           className={(tier===t.id?'is-active ':'')+'is-'+t.id} onClick={()=>setTierPick(t.id)}>{t.label} <b data-testid={'count-'+t.id}>{v.summary.counts[t.id]}</b></button>)}</div>
         <p className="ndc-hint">{active.hint}</p>
         <TierTable key={tier+'|'+key} t={v.tiers[tier]}/>
-        <details className="ndc-recon"><summary>Conciliação das unidades</summary>
+        <details className="ndc-recon"><summary>Conciliação das unidades{v.blocked_confirmations?' — divergência: classificações bloqueadas':''}</summary>
           <p data-testid="recon-dashboard">Soma por anúncio: {nf(v.reconciliation.dashboard.decision?.current)} un (atual) e {nf(v.reconciliation.dashboard.decision?.previous)} (anterior) · Dashboard: {nf(v.reconciliation.dashboard.dashboard?.current)} e {nf(v.reconciliation.dashboard.dashboard?.previous)} · <b>{v.reconciliation.dashboard.status.toLowerCase()}</b></p>
-          {v.reconciliation.shopee&&<p data-testid="recon-shopee">Shopee por SKU: total {nf(v.reconciliation.shopee.total)}, vinculado a anúncios {nf(v.reconciliation.shopee.linked)}, sem vínculo {nf(v.reconciliation.shopee.unlinked)} ({v.reconciliation.shopee.status}). {v.reconciliation.shopee.note}</p>}
+          {v.reconciliation.breakdown&&<p data-testid="recon-breakdown">Fonte do banco (atual / anterior): vendas sem ID de anúncio {nf(v.reconciliation.breakdown.current.units_without_id)} / {nf(v.reconciliation.breakdown.previous.units_without_id)} · de anúncios sem cadastro {nf(v.reconciliation.breakdown.current.units_unregistered)} / {nf(v.reconciliation.breakdown.previous.units_unregistered)} · resíduo não explicado {nf(v.reconciliation.breakdown.current.unexplained_units)} / {nf(v.reconciliation.breakdown.previous.unexplained_units)}</p>}
+          {v.reconciliation.shopee&&<p data-testid="recon-shopee">Shopee por SKU (atual / anterior): total {nf(v.reconciliation.shopee.current?.total)} / {nf(v.reconciliation.shopee.previous?.total)}, vinculado a anúncios {nf(v.reconciliation.shopee.current?.linked)} / {nf(v.reconciliation.shopee.previous?.linked)}, sem vínculo {nf(v.reconciliation.shopee.current?.unlinked)} / {nf(v.reconciliation.shopee.previous?.unlinked)} ({String(v.reconciliation.shopee.status).toLowerCase()}). {v.reconciliation.shopee.note}</p>}
           <p className="ndc-muted">{v.evidence?.latest?.text}</p>
         </details>
       </>}

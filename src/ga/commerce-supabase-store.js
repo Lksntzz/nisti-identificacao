@@ -1,7 +1,7 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
 import { supabaseRpc as directSupabaseRpc } from '../core/supabase-read-store.js';
 import { isStrategicPlatform, STRATEGIC_DAYS, strategicPeriods, buildStrategicView } from './commerce-strategic-logic.js';
-import { isDecisionDays, buildDecisionCenter } from './commerce-decision-logic.js';
+import { isDecisionDays, buildDecisionCenter, validateDashboardPeriods } from './commerce-decision-logic.js';
 
 function cleanText(value) {
   const text = String(value ?? '').trim();
@@ -1499,14 +1499,19 @@ export async function commerceDecisionCenterV1(env,{platform,days}={},deps=null)
   const n=Number(days),failed=[];
   const settle=async(name,fn)=>{try{return await fn();}catch{if(!failed.includes(name))failed.push(name);return null;}};
   const dash=await settle('dashboard',()=>d.dashboard(env,{platform,days:n}));
-  const periods=dash&&dash.platform===platform?strategicPeriods(dash):null;
+  // Os períodos do Dashboard só são usados depois de validados (conta, dias, datas, tamanho e continuidade); se não forem, nada mais é consultado.
+  const dv=dash?validateDashboardPeriods(dash,{platform,days:n}):null;
+  const periods=dv&&dv.ok?dv.periods:null;
   let units=null,dqCurrent=null,dqPrevious=null,split=null;
   if(periods){
     const q=period=>settle('quality',()=>d.quality(env,{platform,start:period.start,end:period.end}));
     [units,dqCurrent,dqPrevious,split]=await Promise.all([
       settle('units',()=>d.units(env,{platform,current:periods.current,previous:periods.previous})),
       q(periods.current),q(periods.previous),
-      platform==='SHOPEE'?settle('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null)
+      platform==='SHOPEE'?Promise.all([
+        settle('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})),
+        settle('split',()=>d.split(env,{start:periods.previous.start,end:periods.previous.end}))
+      ]).then(([current,previous])=>({current,previous})):Promise.resolve(null)
     ]);
   }
   return buildDecisionCenter({platform,days:n,dash,periods,units,dqCurrent,dqPrevious,split,failed,elapsed_ms:Date.now()-t0});
