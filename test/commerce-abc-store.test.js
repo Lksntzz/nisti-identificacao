@@ -56,7 +56,7 @@ test('a função avalia exatamente as datas da Central: períodos pedidos = per�
 test('mês corrente é incompleto: compara até o último dia completo contra os mesmos dias do mês anterior',async()=>{
   const {deps}=mk(); const r=await commerceAbcEvolutionV1({},{platform:'ML_ANTIGO',mode:'mensal'},deps);
   assert.deepEqual([r.current.start,r.current.end,r.current.incomplete],['2026-11-01','2026-11-23',true]); assert.deepEqual([r.previous.start,r.previous.end],['2026-10-01','2026-10-23']);
-  assert.equal(r.comparison.state,'CONFIRMADA');
+  assert.equal(r.comparison.state,'MES_ATE_AQUI','mês incompleto: comparação equivalente à parte, sem migração confirmada');
 });
 test('anual: ML não tem o ano anterior; Shopee tem (dados fictícios começam em 2026, então nenhum compara)',async()=>{
   const {deps}=mk(); const r=await commerceAbcEvolutionV1({},{platform:'SHOPEE',mode:'anual'},deps);
@@ -106,4 +106,61 @@ test('filtros inválidos',async()=>{
 test('a resposta não traz nenhum campo financeiro',async()=>{
   const {deps}=mk(); const r=await commerceAbcEvolutionV1({},{platform:'SHOPEE',mode:'30d'},deps);
   assert.ok(!/revenue|receita|ticket|faturamento|margin|price/i.test(JSON.stringify(r)));
+});
+
+// ---- GA-015 revisão: orçamento de consultas contado nas requisições HTTP REAIS (fetch simulado), pior cenário ----
+import { commerceAbcUnits, commerceAbcNames, SUBREQUEST_BUDGET } from '../src/ga/commerce-abc-store.js';
+import { commerceDataQuality, commerceShopeeSalesLinkSplit, commerceSalesDailySource } from '../src/ga/commerce-supabase-store.js';
+const ENV={SUPABASE_URL:'https://fake.invalid',SUPABASE_SERVICE_ROLE_KEY:'k'};
+async function withFetch(handler,fn){
+  const real=globalThis.fetch,calls=[];
+  globalThis.fetch=async(url,init)=>{const name=decodeURIComponent(String(url).split('/rpc/')[1]);const body=JSON.parse(init.body);calls.push(name);
+    const out=handler(name,body);return new Response(JSON.stringify(out),{status:200,headers:{'content-type':'application/json'}});};
+  try{return await fn(calls);}finally{globalThis.fetch=real;}
+}
+const realDeps=()=>({today:()=>TODAY,units:commerceAbcUnits,names:commerceAbcNames,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit,source:commerceSalesDailySource});
+// 13 dias parciais seguidos e o 14º completo = máximo de sondas (PROBE_MAX_DAYS).
+const worstHandler=(provenAll)=>(name,b)=>{
+  if(name==='commerce_data_quality_v1'){
+    if(b.p_start===b.p_end){const i=Math.round((Date.parse(TODAY)-Date.parse(b.p_start))/86400000);return dayQ(b.p_platform,b.p_start,i<14?'PARCIAL':'COMPLETO');}
+    return rangeQ(b.p_platform,b.p_start,b.p_end,provenAll&&b.p_start>='2026-01-01');
+  }
+  if(name==='commerce_sales_daily_source_v2')return days(b.p_from,b.p_to).map(d=>({sale_date:d,units:10}));
+  if(name==='commerce_abc_units_monthly_v1')return {platform:b.p_platform,periods:b.p_periods.map(p=>{const n=days(p.start,p.end).length;return {key:p.key,start:p.start,end:p.end,days:span(p.start,p.end),days_with_data:n,total_units:n*10,sku_units:n*10,no_sku_units:0,ranked_units:n*10,nonpositive_units:0,products:n?3:0};}),
+    product_count:3,products:Object.entries(SKUS).map(([sku,u])=>({sku,units:Object.fromEntries(b.p_periods.map(p=>[p.key,days(p.start,p.end).length*u]))}))};
+  if(name==='commerce_shopee_sales_link_split_v1'){const n=days(b.p_start,b.p_end).length*10;return {start:b.p_start,end:b.p_end,total_units:n,unlinked_units:0,reconciliation:{status:'EXPLICADA',identity_ok:true,source_units_match:true},difference:{residual_units:0}};}
+  if(name==='commerce_abc_names_v1')return b.p_skus.map(sku=>({sku,name:'Produto '+sku,source:'CADASTRO'}));
+  throw new Error('rpc inesperada '+name);
+};
+for(const [platform,mode] of [['SHOPEE','7d'],['SHOPEE','mensal'],['ML_NOVO','30d'],['ML_ANTIGO','anual']]){
+  test(`pior cenário ${platform}/${mode}: 14 sondas + fonte + unidades + nomes + cobertura + conciliação cabem em ${SUBREQUEST_BUDGET} requisições reais`,async()=>{
+    await withFetch(worstHandler(true),async calls=>{
+      const r=await commerceAbcEvolutionV1(ENV,{platform,mode},realDeps());
+      assert.ok(calls.length<=SUBREQUEST_BUDGET,`${platform}/${mode}: ${calls.length} requisições`); assert.equal(r.budget.used,calls.length,'o medidor conta exatamente as requisições reais');
+      assert.equal(r.window.probes,14); assert.ok(r.status==='OK'||r.status==='INDISPONIVEL');
+      if(r.status==='OK'){assert.equal(calls.filter(c=>c==='commerce_abc_units_monthly_v1').length,1); assert.equal(calls.filter(c=>c==='commerce_sales_daily_source_v2').length,1); assert.ok(calls.filter(c=>c==='commerce_abc_names_v1').length<=1);}
+    });
+  });
+}
+test('Shopee no pior caso: o histórico que não cabe fica "não verificado nesta consulta", nunca confirmado',async()=>{
+  await withFetch(worstHandler(true),async calls=>{
+    const r=await commerceAbcEvolutionV1(ENV,{platform:'SHOPEE',mode:'7d'},realDeps());
+    assert.ok(r.budget.history_skipped>0,'14 sondas deixam menos de 12 meses de orçamento'); const sk=r.history.filter(h=>h.reconciliation.reason==='NAO_VERIFICADO');
+    assert.equal(sk.length,r.budget.history_skipped); for(const h of sk){assert.equal(h.coverage,'NAO_VERIFICADA'); assert.equal(h.status,'BLOQUEADO_INDISPONIVEL'); assert.equal(h.class_counts,null);}
+    assert.equal(r.history.filter(h=>h.status==='CONFIRMADO').length,r.budget.history_checked,'só os meses consultados podem ser confirmados');
+    assert.ok(calls.length<=SUBREQUEST_BUDGET);
+  });
+});
+test('ML com 1 sonda: histórico inteiro cabe (12 meses) e nomes são pedidos uma vez só para os SKUs exibidos',async()=>{
+  const h=worstHandler(true);
+  await withFetch((n,b)=>n==='commerce_data_quality_v1'&&b.p_start===b.p_end?dayQ(b.p_platform,b.p_start,b.p_start==='2026-11-24'?'PARCIAL':'COMPLETO'):h(n,b),async calls=>{
+    const r=await commerceAbcEvolutionV1(ENV,{platform:'ML_NOVO',mode:'7d'},realDeps());
+    assert.equal(r.budget.history_skipped,0); assert.equal(calls.filter(c=>c==='commerce_abc_names_v1').length,1); assert.equal(r.names_state,'DISPONIVEL');
+    assert.equal(r.comparison.entries.find(e=>e.sku==='AAA').name,'Produto AAA'); assert.ok(calls.length<=SUBREQUEST_BUDGET);
+  });
+});
+test('nomes indisponíveis não bloqueiam nada: ficam os códigos e a falha é informada',async()=>{
+  const {deps}=mk({names:async()=>{throw new Error('404');}});
+  const r=await commerceAbcEvolutionV1({},{platform:'ML_NOVO',mode:'7d'},deps);
+  assert.equal(r.status,'OK'); assert.equal(r.comparison.state,'CONFIRMADA'); assert.equal(r.names_state,'INDISPONIVEL'); assert.ok(r.failed.includes('names')); assert.equal(r.comparison.entries[0].name,undefined);
 });

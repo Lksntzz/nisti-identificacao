@@ -75,11 +75,14 @@ export function sumDailyRange(rows,start,end){
 // ---------- 2. Conciliação de UM período (GA-019 e GA-021) ----------
 // fp = período devolvido pela função SQL; products = lista da função; ga019 = soma da fonte diária GA-019 nas MESMAS datas;
 // split = GA-021 (só Shopee) nas mesmas datas. Resíduo precisa ser o NÚMERO 0 (nulo, ausente, texto ou NaN nunca valem).
-export function reconcilePeriod({platform,period:fp,products,ga019,split,range=null}){
+export function reconcilePeriod({platform,period:fp,products,ga019,split,range=null,listOk=true,skipped=false}){
   const out=(status,reason,extra={})=>({status,reason,...extra});
+  if(skipped)return out('INDISPONIVEL','NAO_VERIFICADO');
   if(!fp||!isInt(fp.total_units)||!isInt(fp.sku_units)||!isInt(fp.no_sku_units)||!isInt(fp.ranked_units))return out('INDISPONIVEL','FUNCAO_SEM_TOTAIS');
   const sum=(Array.isArray(products)?products:[]).reduce((s,p)=>s+(isInt(p.units)&&p.units>0?p.units:0),0);
-  if(fp.sku_units+fp.no_sku_units!==fp.total_units||sum!==fp.ranked_units)return out('DIVERGENTE','TOTAIS_INTERNOS',{total_units:fp.total_units});
+  if(listOk===false)return out('DIVERGENTE','LISTA_INCOMPLETA',{total_units:fp.total_units});
+  const count=(Array.isArray(products)?products:[]).filter(p=>isInt(p.units)&&p.units>0).length;
+  if(fp.sku_units+fp.no_sku_units!==fp.total_units||sum!==fp.ranked_units||count!==fp.products)return out('DIVERGENTE','TOTAIS_INTERNOS',{total_units:fp.total_units});
   if(!isInt(ga019))return out('INDISPONIVEL','GA019_INDISPONIVEL',{total_units:fp.total_units});
   if(ga019!==fp.total_units)return out('DIVERGENTE','GA019_DIFERENTE',{total_units:fp.total_units,ga019_units:ga019,difference:fp.total_units-ga019});
   if(platform==='SHOPEE'){
@@ -147,16 +150,32 @@ const GROWTH={'1,1':'UNIDADES_E_PARTICIPACAO_SOBEM','1,-1':'UNIDADES_SOBEM_PARTI
   '-1,1':'UNIDADES_CAEM_PARTICIPACAO_SOBE','-1,-1':'UNIDADES_E_PARTICIPACAO_CAEM','-1,0':'UNIDADES_CAEM_PARTICIPACAO_ESTAVEL',
   '0,1':'UNIDADES_ESTAVEIS_PARTICIPACAO_SOBE','0,-1':'UNIDADES_ESTAVEIS_PARTICIPACAO_CAI','0,0':'ESTAVEL'};
 const ORDER={A:0,B:1,C:2};
-// prev/cur = resultados de classifyPeriod. confirmed=false: só unidades (sem posição, participação, classe nem migração).
-export function comparePeriods(prev,cur,{mode='7d',confirmed=true}={}){
+// Candidatos a troca de código SEM vínculo comprovado: um SKU que só existe num período e outro que só existe no outro, com prefixo comum longo.
+// É só um alerta para revisão humana: nunca é afirmado como mesmo produto nem como produto novo/perdido.
+const commonPrefix=(a,b)=>{let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return i;};
+export const similarCode=(a,b)=>{if(a===b)return false;const n=commonPrefix(a,b),m=Math.max(a.length,b.length);return n>=5&&n/m>=0.7;};
+// prev/cur = resultados de classifyPeriod.
+// known = {prev,cur}: o período tem cobertura E conciliação comprovadas; só nesse caso um produto ausente vale ZERO vendas. Ausente em período
+//   não comprovado é SEM_INFORMACAO (unidades nulas): não gera entrada, saída nem variação.
+// confirmed=false: só unidades (sem posição, participação, classe nem migração).
+// partial=true: algum dos períodos é mês incompleto/parcial: as mudanças de classe ficam em partial_changes, nunca como migração confirmada.
+// linked = {sku:[códigos antigos]}: vínculo de identidade comprovado (apelido revisado) devolvido pela função SQL.
+export function comparePeriods(prev,cur,{mode='7d',confirmed=true,known=null,partial=false,linked=null}={}){
   const th=ABC_THRESHOLDS[mode]||ABC_THRESHOLDS['7d'];
+  const kn=known||{prev:confirmed,cur:confirmed};
+  const lk=linked||{};
   const pm=new Map(prev.rows.map(r=>[r.sku,r])),cm=new Map(cur.rows.map(r=>[r.sku,r]));
   const accountRelevant=prev.ranked_units>=RELEVANCE_MIN_UNITS&&cur.ranked_units>=RELEVANCE_MIN_UNITS;
   const skus=[...new Set([...pm.keys(),...cm.keys()])];
   const entries=skus.map(sku=>{
-    const p=pm.get(sku)||null,c=cm.get(sku)||null,pu=p?p.units:0,cu=c?c.units:0;
-    const e={sku,previous_units:pu,current_units:cu,delta_units:cu-pu,delta_units_pct:pu>=th.unitBand?Math.round((cu-pu)/pu*1000)/10:null,
-      kind:p&&c?'PERMANECE':c?'ENTRADA':'SAIDA'};
+    const p=pm.get(sku)||null,c=cm.get(sku)||null;
+    const both=kn.prev&&kn.cur,pu=p?p.units:both?0:null,cu=c?c.units:both?0:null;
+    const e={sku,previous_units:pu,current_units:cu,delta_units:pu!=null&&cu!=null?cu-pu:null,
+      delta_units_pct:pu!=null&&cu!=null&&pu>=th.unitBand?Math.round((cu-pu)/pu*1000)/10:null,
+      kind:p&&c?'PERMANECE':!both?'SEM_INFORMACAO':c?'ENTRADA':'SAIDA'};
+    // Entrada e saída só existem quando AS DUAS pontas têm cobertura e conciliação: senão, ausência é falta de informação (nunca zero).
+    if(e.kind==='SEM_INFORMACAO')e.unknown_side=c?'ANTERIOR':'ATUAL';
+    if(lk[sku]&&lk[sku].length)e.linked_from=lk[sku];
     if(!confirmed)return e;
     e.previous=p&&{rank:p.rank,share_pct:p.share_pct,class:p.class,boundary_tie:p.boundary_tie};
     e.current=c&&{rank:c.rank,share_pct:c.share_pct,class:c.class,boundary_tie:c.boundary_tie};
@@ -165,42 +184,69 @@ export function comparePeriods(prev,cur,{mode='7d',confirmed=true}={}){
       e.delta_share_pp=dpp;e.delta_rank=p.rank-c.rank; // positivo = subiu na lista
       e.growth=GROWTH[dir(du,th.unitBand)+','+dir(dpp,th.ppBand)];
       if(p.class!==c.class){
-        e.kind='MIGRACAO';e.class_change=p.class+'>'+c.class;e.direction=ORDER[c.class]<ORDER[p.class]?'SUBIU':'DESCEU';
-        // comprovada (mesmo SKU canônico nos dois períodos, ambos confirmados) é diferente de relevante comercialmente
-        e.proven=true;e.relevant=accountRelevant&&Math.abs(du)>=th.minUnitDelta&&Math.abs(e.delta_rank)>=th.minRankMove;
+        const tie=Boolean(p.boundary_tie||c.boundary_tie);
+        e.kind=partial?'MUDANCA_PARCIAL':'MIGRACAO';e.class_change=p.class+'>'+c.class;e.direction=ORDER[c.class]<ORDER[p.class]?'SUBIU':'DESCEU';
+        // comprovada = mesmo SKU canônico nos dois períodos, ambos conciliados e com cobertura; NUNCA em mês incompleto.
+        // afetada por empate na fronteira: a classe depende de como o grupo empatado é cortado; nunca conta como relevante confirmada.
+        e.proven=!partial;e.tie_affected=tie;
+        e.relevant=!partial&&!tie&&accountRelevant&&Math.abs(du)>=th.minUnitDelta&&Math.abs(e.delta_rank)>=th.minRankMove;
       }
-    }else{
-      // entrada/saída NÃO são migração: o SKU não tem venda em um dos períodos (ou mudou de identidade sem vínculo comprovado)
-      e.identity_note=p?'SEM_VENDA_NO_ATUAL':'SEM_VENDA_NO_ANTERIOR';
     }
     return e;
   });
-  const sorter=(a,b)=>Math.abs(b.delta_units)-Math.abs(a.delta_units)||(a.sku<b.sku?-1:1);
-  const migrations=entries.filter(e=>e.kind==='MIGRACAO').sort(sorter);
+  // Identidade: entrada/saída só valem como comerciais quando não há SKU parecido do outro lado (possível troca de código sem vínculo).
+  if(confirmed||(kn.prev&&kn.cur)){
+    const ins=entries.filter(e=>e.kind==='ENTRADA'),outs=entries.filter(e=>e.kind==='SAIDA');
+    for(const e of ins){const c=outs.filter(o=>similarCode(o.sku,e.sku)).map(o=>o.sku);if(c.length){e.kind='IDENTIDADE_INCERTA';e.was='ENTRADA';e.identity_candidates=c.slice(0,3);}}
+    for(const e of outs){const c=ins.filter(o=>similarCode(o.sku,e.sku)).map(o=>o.sku);if(c.length){e.kind='IDENTIDADE_INCERTA';e.was='SAIDA';e.identity_candidates=c.slice(0,3);}}
+  }
+  const sorter=(a,b)=>Math.abs(b.delta_units??-1)-Math.abs(a.delta_units??-1)||Math.max(b.previous_units??0,b.current_units??0)-Math.max(a.previous_units??0,a.current_units??0)||(a.sku<b.sku?-1:1);
+  const mig=entries.filter(e=>e.kind==='MIGRACAO').sort(sorter);
+  const part=entries.filter(e=>e.kind==='MUDANCA_PARCIAL').sort(sorter);
+  const uncertain=new Set(entries.filter(e=>e.kind==='IDENTIDADE_INCERTA').map(e=>e.sku));
   const top10=r=>r&&r.rank<=10;
-  const newTop10=confirmed?entries.filter(e=>top10(e.current)&&!top10(e.previous)).map(e=>({sku:e.sku,previous_rank:e.previous?e.previous.rank:null,rank:e.current.rank,units:e.current_units,from_outside_curve:!e.previous,relevant:accountRelevant&&e.current_units>=th.minUnitDelta})).sort((a,b)=>a.rank-b.rank||(a.sku<b.sku?-1:1)):[];
-  const newClassA=confirmed?entries.filter(e=>e.current?.class==='A'&&e.previous?.class!=='A').map(e=>({sku:e.sku,previous_class:e.previous?e.previous.class:null,rank:e.current.rank,units:e.current_units,from_outside_curve:!e.previous,relevant:accountRelevant&&e.current_units>=th.minUnitDelta})).sort((a,b)=>a.rank-b.rank||(a.sku<b.sku?-1:1)):[];
-  const mig={total:migrations.length,relevant:migrations.filter(m=>m.relevant).length,up:migrations.filter(m=>m.direction==='SUBIU').length,down:migrations.filter(m=>m.direction==='DESCEU').length};
-  return {confirmed,thresholds:th,
+  // Top 10 = posição competitiva <= 10: empatados na 10ª posição entram todos (pode haver mais de 10 produtos); tie_at_cut avisa disso.
+  const tieAtTop10=r=>r.rank+r.tie_size-1>10;
+  const flag=(e,tieFlag)=>({sku:e.sku,from_outside_curve:!e.previous,identity_uncertain:uncertain.has(e.sku),tie_at_cut:tieFlag,partial,
+    relevant:!partial&&!tieFlag&&!uncertain.has(e.sku)&&accountRelevant&&e.current_units>=th.minUnitDelta});
+  const rowOf=(sku)=>cm.get(sku);
+  const newTop10=confirmed?entries.filter(e=>top10(e.current)&&!top10(e.previous)).map(e=>({...flag(e,tieAtTop10(rowOf(e.sku))),previous_rank:e.previous?e.previous.rank:null,rank:e.current.rank,units:e.current_units})).sort((a,b)=>a.rank-b.rank||(a.sku<b.sku?-1:1)):[];
+  const newClassA=confirmed?entries.filter(e=>e.current?.class==='A'&&e.previous?.class!=='A').map(e=>({...flag(e,Boolean(e.current.boundary_tie)),previous_class:e.previous?e.previous.class:null,rank:e.current.rank,units:e.current_units})).sort((a,b)=>a.rank-b.rank||(a.sku<b.sku?-1:1)):[];
+  const counts=list=>({total:list.length,relevant:list.filter(m=>m.relevant).length,up:list.filter(m=>m.direction==='SUBIU').length,down:list.filter(m=>m.direction==='DESCEU').length,tie_affected:list.filter(m=>m.tie_affected).length});
+  const exact=k=>entries.filter(e=>e.kind===k).length;
+  return {confirmed,partial,thresholds:th,known:kn,
     relevance:{min_units:RELEVANCE_MIN_UNITS,previous_units:prev.ranked_units,current_units:cur.ranked_units,relevant:accountRelevant},
-    entries:entries.sort(sorter),migrations:confirmed?migrations:[],migration_counts:confirmed?mig:null,new_top10:newTop10,new_class_a:newClassA,
-    entered:entries.filter(e=>e.kind==='ENTRADA').length,left:entries.filter(e=>e.kind==='SAIDA').length};
+    entries:entries.sort(sorter),migrations:confirmed&&!partial?mig:[],migration_counts:confirmed&&!partial?counts(mig):null,
+    partial_changes:confirmed&&partial?part:[],partial_counts:confirmed&&partial?counts(part):null,
+    new_top10:newTop10,new_class_a:newClassA,
+    entered:kn.prev&&kn.cur?exact('ENTRADA'):null,left:kn.prev&&kn.cur?exact('SAIDA'):null,
+    identity_uncertain:kn.prev&&kn.cur?uncertain.size:null,no_information:entries.filter(e=>e.kind==='SEM_INFORMACAO').length};
 }
 
+// Um período é parcial quando é mês incompleto ou uma janela de mês até o momento (menor que o mês inteiro).
+export const isPartialPeriod=pd=>Boolean(pd&&(pd.incomplete||(pd.month_end&&pd.end<pd.month_end)));
+
 // ---------- 5. Evolução completa de uma conta ----------
-// data = resposta da função SQL (periods/products); ga019 = {chave:unidades}; coverage = {chave:'COMPLETA'|...}; splits = {chave:split GA-021}.
+// data = resposta da função SQL (periods/products); ga019 = {chave:unidades}; coverage = {chave:'COMPLETA'|...}; splits = {chave:split GA-021};
+// skipped = chaves de períodos que NÃO foram verificados nesta consulta (limite de consultas): ficam bloqueados como "não verificado".
 // plan = planPeriods(...). Períodos sem prova de cobertura ficam "não comprovados": mostram unidades, nunca classe confirmada nem migração.
-export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,coverage,splits,limit=LIST_LIMIT}){
+const STATE_CODES=Object.freeze(['CLASSIFICADO','SEM_VENDA','NAO_CONFIRMADO','SEM_INFORMACAO','BLOQUEADO']);
+export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,coverage,splits,skipped=[],limit=LIST_LIMIT}){
   if(!isAbcPlatform(platform))return {status:'INVALIDO',reason:'PLATAFORMA'};
   if(!plan||plan.error)return {status:'INDISPONIVEL',reason:plan?plan.error:'SEM_PLANO',platform,mode,today:today||null,last_complete_day:last||null};
+  const skipSet=new Set(skipped);
+  const plist=data&&Array.isArray(data.products)?data.products:[];
+  // A lista tem de ser completa e sem SKU repetido: contagem declarada = tamanho da lista = SKUs distintos.
+  const listOk=Boolean(data)&&isInt(data.product_count)&&data.product_count===plist.length&&plist.every(p=>p&&typeof p.sku==='string'&&p.sku&&p.units&&typeof p.units==='object')&&new Set(plist.map(p=>p.sku)).size===plist.length;
+  const linked={};for(const p of plist)if(p&&Array.isArray(p.linked_from)&&p.linked_from.length)linked[p.sku]=p.linked_from.filter(x=>typeof x==='string').slice(0,5);
   const fper=new Map((data&&Array.isArray(data.periods)?data.periods:[]).map(p=>[p.key,p]));
-  const skuUnits=key=>(data&&Array.isArray(data.products)?data.products:[]).filter(p=>p&&p.units&&isInt(p.units[key])&&p.units[key]>0).map(p=>({sku:p.sku,units:p.units[key]}));
+  const skuUnits=key=>plist.filter(p=>p&&p.units&&isInt(p.units[key])&&p.units[key]>0).map(p=>({sku:p.sku,units:p.units[key]}));
   const all=[...plan.history,plan.current,...(plan.previous?[plan.previous]:[])];
   const info=new Map();
   for(const pd of all){
     // a resposta da função só vale se for desta conta e das MESMAS datas pedidas
     const raw=fper.get(pd.key),fp=raw&&data.platform===platform&&raw.start===pd.start&&raw.end===pd.end?raw:null,products=fp?skuUnits(pd.key):[];
-    const rec=reconcilePeriod({platform,period:fp,products,ga019:ga019?ga019[pd.key]:null,split:splits?splits[pd.key]:null,range:{start:pd.start,end:pd.end}});
+    const rec=reconcilePeriod({platform,period:fp,products,ga019:ga019?ga019[pd.key]:null,split:splits?splits[pd.key]:null,range:{start:pd.start,end:pd.end},listOk,skipped:skipSet.has(pd.key)});
     const cov=coverage&&coverage[pd.key]?coverage[pd.key]:'INDISPONIVEL';
     const blocked=rec.status!=='CONCILIADO';
     const status=blocked?(rec.status==='DIVERGENTE'?'BLOQUEADO_DIVERGENTE':'BLOQUEADO_INDISPONIVEL'):cov==='COMPLETA'?'CONFIRMADO':'NAO_COMPROVADO';
@@ -210,7 +256,7 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
   const view=i=>{
     const {pd,fp,rec,cov,status,cls}=i;
     const base=fp?{kind:'UNIDADES_COM_SKU',ranked_units:fp.ranked_units,total_units:fp.total_units,no_sku_units:fp.no_sku_units,no_sku_pct:pc(fp.no_sku_units,fp.total_units),nonpositive_units:fp.nonpositive_units}:null;
-    return {key:pd.key,kind:pd.kind,start:pd.start,end:pd.end,month_end:pd.month_end||null,days:daysBetween(pd.start,pd.end),incomplete:pd.incomplete,
+    return {key:pd.key,kind:pd.kind,start:pd.start,end:pd.end,month_end:pd.month_end||null,days:daysBetween(pd.start,pd.end),incomplete:pd.incomplete,partial:isPartialPeriod(pd),
       status,coverage:cov,reconciliation:rec,base,
       products:cls?cls.products:null,class_counts:cls?cls.class_counts:null,class_units:cls?cls.class_units:null,
       concentration:cls&&status==='CONFIRMADO'?cls.concentration:null,concentration_provisional:cls&&status!=='CONFIRMADO'?cls.concentration:null,
@@ -221,15 +267,15 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
   if(!prv)comparison={state:'SEM_PERIODO_ANTERIOR',reason:plan.note||'SEM_HISTORICO'};
   else if(cur.status.startsWith('BLOQUEADO')||prv.status.startsWith('BLOQUEADO')){
     const div=[cur,prv].some(x=>x.status==='BLOQUEADO_DIVERGENTE');
-    comparison={state:div?'BLOQUEADA_DIVERGENTE':'BLOQUEADA_INDISPONIVEL',reason:'CONCILIACAO'};
-    const cu=new Map(cur.products.map(p=>[p.sku,p.units])),pu=new Map(prv.products.map(p=>[p.sku,p.units]));
-    comparison.entries=[];comparison.note='As unidades não passaram na conciliação: classes e migrações ficam bloqueadas.';
-    comparison.migrations=[];comparison.new_top10=[];comparison.new_class_a=[];void cu;void pu;
+    comparison={state:div?'BLOQUEADA_DIVERGENTE':'BLOQUEADA_INDISPONIVEL',reason:'CONCILIACAO',entries:[],
+      note:'As unidades não passaram na conciliação: classes e migrações ficam bloqueadas.',migrations:[],partial_changes:[],new_top10:[],new_class_a:[]};
   }else if(!plan.equivalent)comparison={state:'PERIODOS_DIFERENTES',reason:plan.note};
   else{
     const ok=cur.status==='CONFIRMADO'&&prv.status==='CONFIRMADO';
-    const cmp=comparePeriods(prv.cls,cur.cls,{mode,confirmed:ok});
-    comparison={state:ok?'CONFIRMADA':'NAO_COMPROVADA',reason:ok?null:'COBERTURA_NAO_COMPROVADA',...cmp};
+    const partial=isPartialPeriod(plan.current)||isPartialPeriod(plan.previous);
+    const cmp=comparePeriods(prv.cls,cur.cls,{mode,confirmed:ok,known:{prev:prv.status==='CONFIRMADO',cur:cur.status==='CONFIRMADO'},partial,linked});
+    // Mês incompleto: comparação equivalente "até o momento" mostrada à parte, sem migração confirmada.
+    comparison={state:ok?(partial?'MES_ATE_AQUI':'CONFIRMADA'):'NAO_COMPROVADA',reason:ok?(partial?'MES_INCOMPLETO':null):'COBERTURA_NAO_COMPROVADA',...cmp};
   }
   if(comparison.entries){
     comparison.entries_total=comparison.entries.length;
@@ -237,7 +283,36 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
     comparison.entries=comparison.entries.slice(0,limit);comparison.entries_truncated=comparison.entries_total>comparison.entries.length;
     delete comparison.thresholds;comparison.thresholds=ABC_THRESHOLDS[mode];
   }
+  // Histórico individual por SKU (só dos produtos exibidos): um item por mês do histórico, na ordem de history.
+  // [estado, unidades, participação %, posição, classe]. Ausente em mês comprovado = SEM_VENDA (0); em mês não comprovado = SEM_INFORMACAO (nulo).
+  const skuHistory={};
+  if(comparison.entries&&comparison.entries.length){
+    const rowMaps=plan.history.map(h=>{const i=info.get(h.key);return {i,m:i.cls?new Map(i.cls.rows.map(r=>[r.sku,r])):null,u:new Map(i.products.map(x=>[x.sku,x.units]))};});
+    for(const e of comparison.entries)skuHistory[e.sku]=rowMaps.map(({i,m,u})=>{
+      if(i.status.startsWith('BLOQUEADO'))return ['BLOQUEADO',null,null,null,null];
+      const r=m.get(e.sku);
+      if(i.status==='CONFIRMADO')return r?['CLASSIFICADO',r.units,r.share_pct,r.rank,r.class]:['SEM_VENDA',0,null,null,null];
+      return u.has(e.sku)?['NAO_CONFIRMADO',u.get(e.sku),null,null,null]:['SEM_INFORMACAO',null,null,null,null];
+    });
+  }
   return {status:'OK',platform,mode,basis:'UNIDADES',today:today||null,last_complete_day:last,
     equivalent:plan.equivalent,note:plan.note||null,
-    current:view(cur),previous:prv?view(prv):null,history:plan.history.map(h=>view(info.get(h.key))),comparison};
+    current:view(cur),previous:prv?view(prv):null,history:plan.history.map(h=>view(info.get(h.key))),comparison,
+    sku_history:{columns:['state','units','share_pct','rank','class'],states:STATE_CODES,months:plan.history.map(h=>h.key),rows:skuHistory}};
+}
+
+// SKUs exibidos (para pedir nomes): entradas da lista e as listas de novos, até o máximo da função de nomes.
+export function displayedSkus(out,max=300){
+  const c=out&&out.comparison;if(!c)return [];
+  const seen=new Set();
+  for(const l of [c.entries,c.new_top10,c.new_class_a,c.migrations,c.partial_changes])for(const e of l||[]){if(seen.size>=max)break;if(e&&typeof e.sku==='string')seen.add(e.sku);}
+  return [...seen];
+}
+// Nomes só com vínculo confiável (função commerce_abc_names_v1): sem vínculo, o código fica sozinho. Nada é inventado.
+export function attachNames(out,names){
+  if(!out||!out.comparison||!Array.isArray(names))return out;
+  const m=new Map();for(const n of names)if(n&&typeof n.sku==='string'&&typeof n.name==='string'&&n.name.trim()&&['CADASTRO','VENDA'].includes(n.source))m.set(n.sku,{name:n.name.trim().slice(0,160),name_source:n.source});
+  const c=out.comparison;
+  for(const l of [c.entries,c.new_top10,c.new_class_a,c.migrations,c.partial_changes])for(const e of l||[]){const v=m.get(e.sku);if(v){e.name=v.name;e.name_source=v.name_source;}}
+  return out;
 }

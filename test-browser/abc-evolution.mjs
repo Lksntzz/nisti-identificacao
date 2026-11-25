@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 import {chromium} from 'playwright';
-import {planPeriods,buildAbcEvolution,daysBetween} from '../src/ga/commerce-abc-logic.js';
+import {planPeriods,buildAbcEvolution,daysBetween,attachNames} from '../src/ga/commerce-abc-logic.js';
 
 const BASE=process.env.NISTI_HARNESS_BASE||'http://127.0.0.1:4173';
 const URL_VIEW=BASE+'/test-browser/harness/abc-evolution.html';
@@ -14,20 +14,25 @@ const tests=[];const test=(name,fn)=>tests.push({name,fn});
 const LAST='2026-11-23',TODAY='2026-11-25';
 
 // Produtos FICTÍCIOS: "PROD-01".."PROD-14". O 1º cai de classe e o último sobe no período atual.
-function payload(platform,mode,{month=null,cover='COMPLETA',diverge=false,noUnits=false,provenFrom='2026-10-01',lastNull=false}={}){
+function payload(platform,mode,{month=null,cover='COMPLETA',diverge=false,noUnits=false,provenFrom='2026-10-01',lastNull=false,gapMonths=[],unprovenKeys=[],extra=[],last=LAST,skippedHistory=0}={}){
   if(lastNull)return buildAbcEvolution({platform,mode,today:TODAY,last:null,plan:{error:'SEM_ULTIMO_DIA_COMPLETO'}});
-  const plan=planPeriods({mode,last:LAST,firstDay:platform==='SHOPEE'?'2025-01-01':'2026-01-01',month});
+  const plan=planPeriods({mode,last,firstDay:platform==='SHOPEE'?'2025-01-01':'2026-01-01',month});
   const all=[...plan.history,plan.current,...(plan.previous?[plan.previous]:[])];
   const sku=i=>'PROD-'+String(i+1).padStart(2,'0');
   const amount=(i,p)=>{let u=Math.round(daysBetween(p.start,p.end)*(14-i)/2);if(p.key.endsWith('atual')){if(i===0)u=Math.round(u*0.15);if(i===13)u=u*9;}return u;};
-  const periods=all.map(p=>{const sk=Array.from({length:14},(_,i)=>amount(i,p)).reduce((a,b)=>a+b,0),nos=Math.round(sk*0.04);
-    return {key:p.key,start:p.start,end:p.end,days:daysBetween(p.start,p.end),days_with_data:daysBetween(p.start,p.end),total_units:sk+nos,sku_units:sk,no_sku_units:nos,ranked_units:sk,nonpositive_units:0,products:14};});
-  const data=noUnits?null:{platform,periods,product_count:14,products:Array.from({length:14},(_,i)=>({sku:sku(i),units:Object.fromEntries(all.map(p=>[p.key,amount(i,p)]))}))};
+  // produtos extras fictícios: {sku, ant:n, atual:n} só nas janelas da comparação (entrada/saída/identidade)
+  const extraU=(e,p)=>p.key.endsWith('_ant')||p.key==='m_ant'||p.key==='a_ant'?(e.ant||0):p.key.endsWith('atual')?(e.atual||0):0;
+  const periods=all.map(p=>{const base=Array.from({length:14},(_,i)=>amount(i,p)).reduce((a,b)=>a+b,0),ex=extra.reduce((a,e)=>a+extraU(e,p),0),sk=base+ex,nos=Math.round(sk*0.04);
+    return {key:p.key,start:p.start,end:p.end,days:daysBetween(p.start,p.end),days_with_data:daysBetween(p.start,p.end),total_units:sk+nos,sku_units:sk,no_sku_units:nos,ranked_units:sk,nonpositive_units:0,products:14+extra.filter(e=>extraU(e,p)>0).length};});
+  const prods=Array.from({length:14},(_,i)=>({sku:sku(i),units:Object.fromEntries(all.map(p=>[p.key,amount(i,p)]))})).concat(extra.map(e=>({sku:e.sku,units:Object.fromEntries(all.filter(p=>extraU(e,p)>0).map(p=>[p.key,extraU(e,p)]))})));
+  const data=noUnits?null:{platform,periods,product_count:prods.length,products:prods};
   const ga019=Object.fromEntries(periods.map(p=>[p.key,p.total_units+(diverge&&p.key.endsWith('atual')?5:0)]));
-  const coverage=Object.fromEntries(all.map(p=>[p.key,cover==='COMPLETA'&&p.start>=provenFrom?'COMPLETA':'NAO_COMPROVADA']));
+  const skipped=plan.history.slice(0,skippedHistory).map(h=>h.key);
+  const coverage=Object.fromEntries(all.map(p=>[p.key,skipped.includes(p.key)?'NAO_VERIFICADA':cover!=='COMPLETA'||unprovenKeys.includes(p.key)||gapMonths.includes(p.key)||p.start<provenFrom?'NAO_COMPROVADA':'COMPLETA']));
   const splits=platform==='SHOPEE'?Object.fromEntries(periods.map(p=>[p.key,{start:p.start,end:p.end,total_units:p.total_units,unlinked_units:0,reconciliation:{status:'EXPLICADA',identity_ok:true,source_units_match:true},difference:{residual_units:0}}])):{};
-  const out=buildAbcEvolution({platform,mode,today:TODAY,last:LAST,plan,data,ga019,coverage,splits});
-  return {...out,window:{last_import_day:'2026-11-24',last_import_at:'2026-11-24T13:00:00+00:00',skipped:[{day:'2026-11-24',state:'PARCIAL'}],probes:2},failed:noUnits?['units']:[],elapsed_ms:120};
+  const out=buildAbcEvolution({platform,mode,today:TODAY,last,plan,data,ga019,coverage,splits,skipped});
+  attachNames(out,[{sku:'PROD-01',name:'Caderno fictício Alfa',source:'CADASTRO'},{sku:'PROD-14',name:'Agenda fictícia Ômega',source:'VENDA'}]);
+  return {...out,names_state:'DISPONIVEL',budget:{limit:40,used:30,history_checked:12-skippedHistory,history_skipped:skippedHistory},window:{last_import_day:'2026-11-24',last_import_at:'2026-11-24T13:00:00+00:00',skipped:[{day:'2026-11-24',state:'PARCIAL'}],probes:2},failed:noUnits?['units']:[],elapsed_ms:120};
 }
 
 function createSimulator(){
@@ -95,6 +100,89 @@ test('migrações: comprovada x relevante, direção, unidades e participação 
   assert.ok(await page.locator('[data-testid="row-PROD-14"]').count()>=0);
   await page.locator('[aria-label="Listas"] button',{hasText:'Todos os produtos'}).click();
   assert.equal(await page.locator('table.nae-table').first().locator('tbody tr').count(),14);
+  await context.close();
+});
+
+test('histórico individual por SKU: um mês por linha com unidades, participação, posição, classe e cobertura; nome só com vínculo',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={provenFrom:'2026-01-01'};
+  const {page,context}=await open(b,{sim});await ready(page);
+  assert.match(await page.locator('[data-testid="row-PROD-01"]').innerText(),/Caderno fictício Alfa/);
+  assert.equal(await page.locator('[data-testid="name-PROD-02"]').count(),0,'sem vínculo confiável: só o código');
+  assert.match(await page.locator('[data-testid="name-PROD-14"]').innerText(),/nome do anúncio vendido/);
+  await page.locator('[data-testid="hist-btn-PROD-01"]').click();
+  const panel=page.locator('[data-testid="sku-history-PROD-01"]');assert.match(await panel.innerText(),/Histórico de PROD-01 · Caderno fictício Alfa/);
+  const oct=await page.locator('[data-testid="skuh-2026-10"]').innerText();assert.match(oct,/classificado/);assert.match(oct,/%/);assert.match(oct,/\dº/);assert.match(oct,/comprovada/);
+  assert.match(await page.locator('[data-testid="skuh-2026-11"]').innerText(),/\(incompleto\)/);
+  assert.equal(await page.locator('[data-testid^="skuh-"]').count(),12);
+  if(SHOTS)await page.screenshot({path:SHOTS+'/abc-historico-sku.png',fullPage:true});
+  await page.locator('[data-testid="hist-btn-PROD-01"]').click();assert.equal(await panel.count(),0);
+  await context.close();
+});
+
+test('histórico por SKU em mês não comprovado: unidades sem classe; ausência é "sem informação", nunca zero',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={provenFrom:'2026-10-01',extra:[{sku:'PROD-NOVO',ant:0,atual:30}]};
+  const {page,context}=await open(b,{sim});await ready(page);
+  await page.locator('[aria-label="Listas"] button',{hasText:'Todos os produtos'}).click();
+  await page.locator('[data-testid="hist-btn-PROD-NOVO"]').click();
+  const sep=await page.locator('[data-testid="skuh-2026-09"]').innerText();assert.match(sep,/sem informação/);assert.doesNotMatch(sep,/\b0\b/);
+  const oct=await page.locator('[data-testid="skuh-2026-10"]').innerText();assert.match(oct,/sem venda \(cobertura comprovada\)/);
+  await context.close();
+});
+
+test('SEM_INFORMACAO: produto ausente em período não comprovado não vira entrada, saída nem variação',async b=>{
+  const sim=createSimulator();sim.opts.mode.ML_NOVO={unprovenKeys:['j7_ant'],extra:[{sku:'PROD-SO-ATUAL',ant:0,atual:40},{sku:'PROD-SO-ANT',ant:40,atual:0}]};
+  const {page,context}=await open(b,{sim});await pick(page,'ML_NOVO').click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="state-NAO_COMPROVADA"]'));
+  const t=await page.locator('[data-testid="row-PROD-SO-ATUAL"]').innerText();assert.match(t,/Sem informação no período anterior/);assert.doesNotMatch(t,/Sem venda antes|Entrou/);
+  assert.match(await page.locator('[data-testid="row-PROD-SO-ANT"]').innerText(),/Sem informação no período atual/);
+  assert.equal(await page.locator('[data-testid="count-migrations"]').innerText(),'—');
+  await context.close();
+});
+
+test('mês incompleto: "mês até aqui" mostra mudanças provisórias à parte, sem migração confirmada',async b=>{
+  const {page,context}=await open(b);await mode(page,'Mensal').click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="state-MES_ATE_AQUI"]'));
+  assert.match(await page.locator('[data-testid="state-MES_ATE_AQUI"]').innerText(),/PROVISÓRIAS e não são migrações confirmadas/);
+  assert.equal(await page.locator('[data-testid="count-migrations"]').count(),0);assert.ok(Number(await page.locator('[data-testid="count-partial"]').innerText())>=1);
+  assert.match(await page.locator('[data-testid="card-migrations"]').innerText(),/Mudanças provisórias \(mês até aqui\)/);
+  assert.match(await page.locator('[data-testid="row-PROD-01"]').innerText(),/Mudou de classe \(provisório\)/);
+  assert.doesNotMatch(await page.locator('[data-testid="row-PROD-01"]').innerText(),/Relevante/);
+  if(SHOTS)await page.screenshot({path:SHOTS+'/abc-mes-ate-aqui.png',fullPage:true});
+  // mês fechado volta a ser migração confirmada
+  await page.locator('select[aria-label="Mês"]').selectOption('2026-10');
+  await page.waitForFunction(()=>document.querySelector('[data-testid="state-MES_ATE_AQUI"]')===null&&document.querySelector('[data-testid="count-migrations"]'));
+  await context.close();
+});
+
+test('identidade: código parecido entrando e saindo não vira produto novo nem perdido',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={extra:[{sku:'CADERNO-77BB',ant:50,atual:0},{sku:'CADERNO-77BXB',ant:0,atual:50}]};
+  const {page,context}=await open(b,{sim});await ready(page);
+  await page.locator('[aria-label="Listas"] button',{hasText:'Todos os produtos'}).click();
+  assert.match(await page.locator('[data-testid="ident-CADERNO-77BB"]').innerText(),/Identidade não comprovada.*CADERNO-77BXB.*Não afirma produto perdido/);
+  assert.match(await page.locator('[data-testid="ident-CADERNO-77BXB"]').innerText(),/Não afirma produto novo/);
+  assert.equal(await page.locator('[data-testid="count-identity"]').innerText(),'2');await context.close();
+});
+
+test('empate na fronteira: migração marcada e sem relevância confirmada',async b=>{
+  const {page,context}=await open(b);await ready(page);
+  const tied=page.locator('[data-testid^="tie-"]');const n=await tied.count();
+  if(n>0)assert.match(await tied.first().innerText(),/Afetada por empate na fronteira/);
+  assert.match(await page.locator('[data-testid="card-top10"]').innerText(),/empatados na 10ª posição entram todos/);await context.close();
+});
+
+test('gráfico de concentração: mês sem dado confirmado interrompe a linha (duas linhas, nenhuma ponte)',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={provenFrom:'2026-01-01',gapMonths:['2026-08']};
+  const {page,context}=await open(b,{sim});await ready(page);
+  assert.equal(await page.locator('[data-testid="seg-top1"]').count(),2,'Jan-Jul e Set-Nov: duas linhas separadas');
+  const pts=await page.locator('[data-testid="seg-top1"]').evaluateAll(l=>l.map(e=>e.getAttribute('points').split(' ').length));
+  assert.deepEqual(pts,[7,3]);
+  if(SHOTS)await page.screenshot({path:SHOTS+'/abc-grafico-lacuna.png',fullPage:true});await context.close();
+});
+
+test('histórico não verificado nesta consulta (limite): aviso e meses sem classe',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={provenFrom:'2026-01-01',skippedHistory:3};
+  const {page,context}=await open(b,{sim});await ready(page);
+  assert.match(await page.locator('[data-testid="budget-note"]').innerText(),/3 mês\(es\) mais antigo\(s\).*não foram verificados nesta consulta/);
   await context.close();
 });
 

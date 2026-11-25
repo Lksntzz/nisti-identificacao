@@ -78,3 +78,6 @@ Função `commerce_abc_units_monthly_v1` (arquivo, não aplicada) + regras puras
 
 ## GA-015 — etapa 2 (interface, rascunho)
 Rota `/abc-evolution` + `commerce-abc-store.js` + tela "Evolução ABC" (7d/30d/mensal/anual, três contas). Função SQL ainda não aplicada: a tela mostra fonte de unidades indisponível. Só unidades; bloqueios distintos (divergente x indisponível x cobertura não comprovada); nunca confundir ausência de dado com zero vendas. GA-015A, GA-016 e GA-017 não iniciadas.
+
+## GA-015 — revisão técnica (resumo)
+Ausência em período não comprovado = SEM_INFORMACAO (nunca zero); mês incompleto = "mês até aqui" (provisório, sem migração confirmada); código parecido entrando/saindo = identidade não comprovada; migração com empate na fronteira nunca é relevante confirmada; top 10 inclui todos os empatados na 10ª posição; histórico por SKU; nomes só com vínculo; linha do gráfico interrompida em meses sem dado; função SQL com validação estrita e lista completa; orçamento de 40 requisições (histórico que não couber fica não verificado). Migração ainda NÃO aplicada.

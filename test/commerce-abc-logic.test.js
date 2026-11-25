@@ -38,7 +38,7 @@ test('concentração top 1, 3, 5 e 10 sobre a base de unidades com SKU',()=>{
 });
 
 // ---- conciliação ----
-const fp=(o={})=>({key:'k',total_units:20,sku_units:15,no_sku_units:5,ranked_units:15,...o});
+const fp=(o={})=>({key:'k',total_units:20,sku_units:15,no_sku_units:5,ranked_units:15,products:2,...o});
 const prods15=P(['A',10],['B',5]);
 test('conciliação ML: GA-019 igual concilia; diferente diverge; ausente fica indisponível; SEM SKU conta no total',()=>{
   assert.equal(reconcilePeriod({platform:'ML_NOVO',period:fp(),products:prods15,ga019:20}).status,'CONCILIADO');
@@ -117,7 +117,7 @@ test('relevância exige variação mínima de unidades e de posições (limiares
 test('entrada e saída da curva NÃO são migração (sem vínculo de identidade) e ficam separadas',()=>{
   const prev=cls(['A',50],['OLD',50]),cur=cls(['A',50],['NEW',50]);
   const c=comparePeriods(prev,cur,{mode:'7d'}); const o=c.entries.find(e=>e.sku==='OLD'),n=c.entries.find(e=>e.sku==='NEW');
-  assert.equal(o.kind,'SAIDA'); assert.equal(n.kind,'ENTRADA'); assert.equal(o.identity_note,'SEM_VENDA_NO_ATUAL'); assert.equal(n.identity_note,'SEM_VENDA_NO_ANTERIOR');
+  assert.equal(o.kind,'SAIDA'); assert.equal(n.kind,'ENTRADA'); assert.equal(o.current_units,0); assert.equal(n.previous_units,0,'ausência num período comprovado é zero vendas');
   assert.equal(c.migrations.length,0); assert.equal(c.entered,1); assert.equal(c.left,1); assert.equal(n.class_change,undefined);
 });
 test('crescimento de unidades x crescimento de participação são diferentes',()=>{
@@ -151,7 +151,7 @@ function fixture({totals,units,cover='COMPLETA',ga019,splitOk=true,platform='ML_
   const keys=[...plan7.history.map(h=>h.key),plan7.current.key,plan7.previous.key];
   const periods=keys.map(k=>{const sku=Object.values(units).reduce((s,u)=>s+(u[k]||0),0),nos=totals?.[k]??3;return {key:k,total_units:sku+nos,sku_units:sku,no_sku_units:nos,ranked_units:sku,nonpositive_units:0,products:Object.values(units).filter(u=>u[k]>0).length};});
   const allP=[...plan7.history,plan7.current,plan7.previous];periods.forEach(p=>{const pd=allP.find(q=>q.key===p.key);p.start=pd.start;p.end=pd.end;});
-  const data={platform,periods,products:Object.entries(units).map(([sku,u])=>({sku,units:u}))};
+  const data={platform,periods,product_count:Object.keys(units).length,products:Object.entries(units).map(([sku,u])=>({sku,units:u}))};
   const ga=ga019||Object.fromEntries(periods.map(p=>[p.key,p.total_units]));
   const splits=platform==='SHOPEE'?Object.fromEntries(periods.map(p=>[p.key,splitOk?split({total_units:p.total_units,start:p.start,end:p.end}):split({total_units:p.total_units,start:p.start,end:p.end,difference:{residual_units:null}})])):{};
   const coverage=Object.fromEntries(keys.map(k=>[k,typeof cover==='function'?cover(k):cover]));
@@ -199,7 +199,7 @@ test('lista limitada só na exibição: contagens e classes usam a população c
 });
 test('períodos diferentes, sem anterior e plano inválido não comparam',()=>{
   const q=planPeriods({mode:'mensal',last:'2026-03-30',firstDay:'2026-01-01'}); const keys=[...q.history.map(h=>h.key),q.current.key,q.previous.key];
-  const data={platform:'ML_NOVO',periods:keys.map(k=>({key:k,start:[...q.history,q.current,q.previous].find(h=>h.key===k).start,end:[...q.history,q.current,q.previous].find(h=>h.key===k).end,total_units:10,sku_units:10,no_sku_units:0,ranked_units:10,nonpositive_units:0,products:1})),products:[{sku:'A',units:Object.fromEntries(keys.map(k=>[k,10]))}]};
+  const data={platform:'ML_NOVO',periods:keys.map(k=>({key:k,start:[...q.history,q.current,q.previous].find(h=>h.key===k).start,end:[...q.history,q.current,q.previous].find(h=>h.key===k).end,total_units:10,sku_units:10,no_sku_units:0,ranked_units:10,nonpositive_units:0,products:1})),product_count:1,products:[{sku:'A',units:Object.fromEntries(keys.map(k=>[k,10]))}]};
   const r=buildAbcEvolution({platform:'ML_NOVO',mode:'mensal',last:'2026-03-30',plan:q,data,ga019:Object.fromEntries(keys.map(k=>[k,10])),coverage:Object.fromEntries(keys.map(k=>[k,'COMPLETA'])),splits:{}});
   assert.equal(r.comparison.state,'PERIODOS_DIFERENTES');
   assert.equal(buildAbcEvolution({platform:'ML_NOVO',mode:'7d',plan:{error:'SEM_ULTIMO_DIA_COMPLETO'}}).status,'INDISPONIVEL'); assert.equal(buildAbcEvolution({platform:'TODAS',plan:plan7}).status,'INVALIDO');
