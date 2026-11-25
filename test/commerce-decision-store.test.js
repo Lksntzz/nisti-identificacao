@@ -118,3 +118,19 @@ test('store: o resultado é só leitura, e a fonte diária devolve só unidades 
   const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
   assert.equal(r.read_only,true); assert.doesNotMatch(JSON.stringify(r),/revenue|999/);
 });
+
+test('store: as datas devolvidas pela GA-018 na busca do último dia completo são conferidas (início, fim e hoje)',async()=>{
+  const bad={'início diferente':a=>({...dayDq(a.platform,a.start,'COMPLETO'),period:{start:'2026-11-01',end:a.end,today:TODAY}}),
+    'fim diferente':a=>({...dayDq(a.platform,a.start,'COMPLETO'),period:{start:a.start,end:'2026-11-30',today:TODAY}}),
+    'período de vários dias':a=>({...dayDq(a.platform,a.start,'COMPLETO'),period:{start:'2026-11-17',end:a.end,today:TODAY}}),
+    'hoje diferente':a=>({...dayDq(a.platform,a.start,'COMPLETO'),period:{start:a.start,end:a.end,today:'2026-11-26'}}),
+    'hoje ausente':a=>({...dayDq(a.platform,a.start,'COMPLETO'),period:{start:a.start,end:a.end}}),
+    'período ausente':a=>{const q=dayDq(a.platform,a.start,'COMPLETO');delete q.period;return q;},
+    'data inválida':a=>({...dayDq(a.platform,a.start,'COMPLETO'),period:{start:'2026-13-45',end:'2026-13-45',today:TODAY}})};
+  for(const [why,make] of Object.entries(bad)){
+    const {deps,calls}=mk({quality:async(_e,a)=>make(a)});
+    const r=await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps);
+    assert.equal(r.status,'INDISPONIVEL',why); assert.equal(r.window,null,why); assert.equal(confirmedTotal(r),0,why); assert.equal(calls.some(c=>c[0]==='units'),false,why);
+  }
+  const {deps}=mk(); assert.equal((await commerceDecisionCenterV1({},{platform:'SHOPEE',days:7},deps)).window.last_complete_day,'2026-11-23','resposta correta continua valendo');
+});

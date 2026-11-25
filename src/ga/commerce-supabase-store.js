@@ -1512,6 +1512,8 @@ async function findLastCompleteDay(env,{platform,today,quality}) {
     probes++;
     const sales=q&&q.platform===platform?q.sales:null;
     if(!sales||Number(sales.requested_days)!==1)throw new Error('resposta de cobertura inválida');
+    // As datas devolvidas têm de ser exatamente as pedidas (este dia, e o "hoje" que a GA-018 usou para decidir o que é completo).
+    if(q.period?.start!==day||q.period?.end!==day||q.period?.today!==today)throw new Error('a cobertura respondeu para outras datas');
     if(i===1){lastImportDay=typeof sales.last_sale_day==='string'?sales.last_sale_day.slice(0,10):null;lastImportAt=sales.last_import_at??null;}
     if(Number(sales.complete_days)===1)return {today,last_import_day:lastImportDay,last_import_at:lastImportAt,last_complete_day:day,skipped,probes};
     skipped.push({day,state:Number(sales.partial_days)===1?'PARCIAL':Number(sales.days_with_records_unverified)===1?'COM_REGISTROS':'SEM_INFORMACAO'});

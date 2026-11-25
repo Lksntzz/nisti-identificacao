@@ -342,7 +342,7 @@ function reconcile({platform,u,source,split,window}){
       breakdown[key].unlinked_sku_units=unl;
       const diverges=base!=null&&base0!=null&&base!==base0;
       return {status:diverges?'DIVERGENTE':(s.reconciliation?.status||'INDISPONIVEL'),total:num(s.total_units),linked:num(s.linked_units),unlinked:unl,
-        unlinked_skus:num(s.unlinked_sku_count),base,listing_sum:base0,residual:num(s.difference?.residual_units)};
+        unlinked_skus:num(s.unlinked_sku_count),base,listing_sum:base0,residual:typeof s.difference?.residual_units==='number'&&Number.isFinite(s.difference.residual_units)?s.difference.residual_units:null};
     };
     const cur=one(split?.current,window.current,breakdown.current.source_units??sc,'current');
     const prev=one(split?.previous,window.previous,breakdown.previous.source_units??sp,'previous');
@@ -361,7 +361,7 @@ function reconcile({platform,u,source,split,window}){
     const t=num(s.units);
     if(t==null||expect==null)return {status:'INDISPONIVEL'};
     if(t===expect)return {status:'CONCILIADO',source:t,decision:expect};
-    if(sp&&sp.status==='EXPLICADA'&&sp.total===t&&sp.base===expect&&(sp.residual??0)===0)return {status:'CONCILIADO',source:t,decision:expect,explained_by:'GA-021',unlinked:sp.unlinked};
+    if(sp&&sp.status==='EXPLICADA'&&sp.total===t&&sp.base===expect&&sp.residual===0)return {status:'CONCILIADO',source:t,decision:expect,explained_by:'GA-021',unlinked:sp.unlinked};
     return {status:'DIVERGENTE',source:t,decision:expect};
   };
   const gc=g(source?.current,window.current,breakdown.current.source_units,shopee?.current),gp=g(source?.previous,window.previous,breakdown.previous.source_units,shopee?.previous);

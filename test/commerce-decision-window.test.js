@@ -143,3 +143,17 @@ test('Shopee: a GA-019 pode ter unidades a mais que a view SÓ se a GA-021 expli
   const ml=buildDecisionCenter({...mk(rows(),{platform:'ML_NOVO',split:null,units:{platform:'ML_NOVO'}}),source:src(sc+4,sp)});
   assert.equal(ml.reconciliation.blocked_kind,'DIVERGENTE','só a Shopee tem GA-021 para explicar diferença');
 });
+
+test('GA-021 só explica a diferença da GA-019 com resíduo explicitamente IGUAL A ZERO: nulo, ausente ou inválido não vale',()=>{
+  const base=mk(rows()); const w=base.window; const sc=base.units.reconciliation.current.source_units,sp=base.units.reconciliation.previous.source_units;
+  const src=sourceOf(base.units,w,{current:{units:sc+4}});
+  const withResidual=r=>{const s=splitOf(w.current.start,w.current.end,{total:sc+4,linked:sc});return {...s,difference:r===undefined?{units:-4,explained:true}:{...s.difference,residual_units:r}};};
+  const prev=splitOf(w.previous.start,w.previous.end,{total:sp,linked:sp});
+  const ok=buildDecisionCenter({...base,source:src,split:{current:withResidual(0),previous:prev}});
+  assert.equal(ok.reconciliation.ga019.current.explained_by,'GA-021'); assert.equal(ok.blocked_confirmations,false);
+  for(const [why,r] of [['nulo',null],['ausente',undefined],['texto','0'],['negativo',-1],['positivo',1],['NaN',NaN]]){
+    const v=buildDecisionCenter({...base,source:src,split:{current:withResidual(r),previous:prev}});
+    assert.equal(v.reconciliation.ga019.current.status,'DIVERGENTE',why); assert.equal(v.reconciliation.ga019.current.explained_by,undefined,why);
+    assert.equal(v.blocked_confirmations,true,why); assert.equal(confirmedTotal(v),0,why);
+  }
+});
