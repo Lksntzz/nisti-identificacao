@@ -60,10 +60,22 @@ export function classifyPeriod(products,key){
     top10_members:rows.filter(r=>r.rank<=10).length};
 }
 
+// Soma, nas MESMAS datas do período, a fonte diária da GA-019. Linha fora do formato, data repetida ou unidade negativa: não vira total.
+export function sumDailyRange(rows,start,end){
+  if(!Array.isArray(rows)||!isoDay(start)||!isoDay(end)||end<start)return null;
+  const seen=new Set();let sum=0;
+  for(const r of rows){
+    const d=r&&isoDay(r.sale_date);
+    if(!d||!isInt(r.units)||r.units<0||seen.has(d))return null;
+    seen.add(d);if(d>=start&&d<=end)sum+=r.units;
+  }
+  return sum;
+}
+
 // ---------- 2. Conciliação de UM período (GA-019 e GA-021) ----------
 // fp = período devolvido pela função SQL; products = lista da função; ga019 = soma da fonte diária GA-019 nas MESMAS datas;
 // split = GA-021 (só Shopee) nas mesmas datas. Resíduo precisa ser o NÚMERO 0 (nulo, ausente, texto ou NaN nunca valem).
-export function reconcilePeriod({platform,period:fp,products,ga019,split}){
+export function reconcilePeriod({platform,period:fp,products,ga019,split,range=null}){
   const out=(status,reason,extra={})=>({status,reason,...extra});
   if(!fp||!isInt(fp.total_units)||!isInt(fp.sku_units)||!isInt(fp.no_sku_units)||!isInt(fp.ranked_units))return out('INDISPONIVEL','FUNCAO_SEM_TOTAIS');
   const sum=(Array.isArray(products)?products:[]).reduce((s,p)=>s+(isInt(p.units)&&p.units>0?p.units:0),0);
@@ -72,6 +84,7 @@ export function reconcilePeriod({platform,period:fp,products,ga019,split}){
   if(ga019!==fp.total_units)return out('DIVERGENTE','GA019_DIFERENTE',{total_units:fp.total_units,ga019_units:ga019,difference:fp.total_units-ga019});
   if(platform==='SHOPEE'){
     if(!split||typeof split!=='object')return out('INDISPONIVEL','GA021_INDISPONIVEL',{total_units:fp.total_units,ga019_units:ga019});
+    if(range&&(split.start!==range.start||split.end!==range.end))return out('INDISPONIVEL','GA021_OUTRAS_DATAS',{total_units:fp.total_units,ga019_units:ga019});
     const st=split.reconciliation?.status,resid=split.difference?.residual_units;
     if(st==='INDISPONIVEL'||st==='SEM_INFORMACAO'||st==null)return out('INDISPONIVEL','GA021_INDISPONIVEL',{total_units:fp.total_units,ga019_units:ga019});
     if(st!=='EXPLICADA'||split.total_units!==fp.total_units||resid!==0||split.reconciliation?.source_units_match!==true||split.reconciliation?.identity_ok!==true)
@@ -110,7 +123,11 @@ export function planPeriods({mode,last,firstDay,month}){
     cur={key:'m_atual',start:s,end,month_end:e,incomplete,kind:'MES_ATE_AQUI'};
     if(mode==='mensal'){
       const pm=monthAdd(m,-1),ps=monthStart(pm),pe=monthEnd(pm);
-      if(n<=daysBetween(ps,pe))prev={key:'m_ant',start:ps,end:dayAdd(ps,n-1),month_end:pe,incomplete:false,kind:'MES_ATE_AQUI'};
+      const pl=daysBetween(ps,pe);
+      if(!incomplete){ // mês fechado contra mês fechado: equivalentes; o número de dias pode diferir e isso é informado
+        prev={key:'m_ant',start:ps,end:pe,month_end:pe,incomplete:false,kind:'MES'};
+        if(pl!==n)note='Os meses têm número de dias diferente ('+n+' e '+pl+'): unidades não são diretamente comparáveis; classe e participação são por período.';
+      }else if(n<=pl)prev={key:'m_ant',start:ps,end:dayAdd(ps,n-1),month_end:pe,incomplete:false,kind:'MES_ATE_AQUI'};
       else{prev={key:'m_ant',start:ps,end:pe,month_end:pe,incomplete:false,kind:'MES_ATE_AQUI'};equivalent=false;note='O mês anterior tem menos dias que o período atual.';}
     }else{
       const sy=String(Number(s.slice(0,4))-1)+s.slice(4);
@@ -181,8 +198,9 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
   const all=[...plan.history,plan.current,...(plan.previous?[plan.previous]:[])];
   const info=new Map();
   for(const pd of all){
-    const fp=fper.get(pd.key),products=skuUnits(pd.key);
-    const rec=reconcilePeriod({platform,period:fp,products,ga019:ga019?ga019[pd.key]:null,split:splits?splits[pd.key]:null});
+    // a resposta da função só vale se for desta conta e das MESMAS datas pedidas
+    const raw=fper.get(pd.key),fp=raw&&data.platform===platform&&raw.start===pd.start&&raw.end===pd.end?raw:null,products=fp?skuUnits(pd.key):[];
+    const rec=reconcilePeriod({platform,period:fp,products,ga019:ga019?ga019[pd.key]:null,split:splits?splits[pd.key]:null,range:{start:pd.start,end:pd.end}});
     const cov=coverage&&coverage[pd.key]?coverage[pd.key]:'INDISPONIVEL';
     const blocked=rec.status!=='CONCILIADO';
     const status=blocked?(rec.status==='DIVERGENTE'?'BLOQUEADO_DIVERGENTE':'BLOQUEADO_INDISPONIVEL'):cov==='COMPLETA'?'CONFIRMADO':'NAO_COMPROVADO';

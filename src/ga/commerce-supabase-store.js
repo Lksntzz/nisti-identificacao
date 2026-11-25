@@ -1499,12 +1499,12 @@ export async function commerceSalesDailySource(env,{platform,start,end}={}) {
   return data.map(r=>({sale_date:r?.sale_date,units:r?.units}));
 }
 
-const saoPauloToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+export const saoPauloToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const dayAdd=(d,n)=>new Date(Date.parse(d)+n*86400000).toISOString().slice(0,10);
 
 // Último dia COMPLETO comprovado pela GA-018 desta conta. A GA-018 só devolve contagens, então cada dia é consultado sozinho, de ontem para
 // trás, até achar um completo (ou esgotar PROBE_MAX_DAYS). Dia parcial, só com registros ou sem informação não conta como completo.
-async function findLastCompleteDay(env,{platform,today,quality}) {
+export async function findLastCompleteDay(env,{platform,today,quality}) {
   const skipped=[];let lastImportDay=null,lastImportAt=null,probes=0;
   for(let i=1;i<=PROBE_MAX_DAYS;i++){
     const day=dayAdd(today,-i);

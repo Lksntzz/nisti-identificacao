@@ -110,6 +110,7 @@ import {
   commerceCatalogYearDecision,
   commerceResolveReconciliationListing
 } from './commerce-supabase-store.js';
+import { commerceAbcEvolutionV1 } from './commerce-abc-store.js';
 
 const BASE_PATH = '/api/admin/commerce';
 const MONTH_RE=/^20[0-9]{2}-(0[1-9]|1[0-2])$/;
@@ -765,6 +766,15 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30].includes(days))
         return json({error:'Filtro da Central de decisões inválido.'},400);
       return json(await commerceDecisionCenterV1(env,{platform,days}));
+    }
+    // GA-015 — Evolução da Curva ABC por produto (somente leitura, só unidades). Fora de /sales-dashboard/: nunca entra no cache de borda.
+    if(method==='GET'&&pathname===BASE_PATH+'/abc-evolution'){
+      const platform=String(query(url,'platform')||'').toUpperCase();
+      const mode=String(query(url,'mode')||'7d');
+      const month=query(url,'month')||null;
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||!['7d','30d','mensal','anual'].includes(mode)||(month!=null&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))
+        return json({error:'Filtro da Evolução ABC inválido.'},400);
+      return json(await commerceAbcEvolutionV1(env,{platform,mode,month}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/data-quality'){
       const platform=String(query(url,'platform')||'').toUpperCase();

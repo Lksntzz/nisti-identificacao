@@ -10,6 +10,7 @@ import CommerceImportHistory from './commerce-import-history.jsx';
 import CommerceDataQuality from './commerce-data-quality.jsx';
 import CommerceStrategicView from './commerce-strategic-view.jsx';
 import CommerceDecisionCenter from './commerce-decision-center.jsx';
+import CommerceAbcEvolution from './commerce-abc-evolution.jsx';
 import CommerceProblems from './commerce-problems.jsx';
 import { fetchCommercialManager } from './commerce-manager-fetch.js';
 import { usePrivacy, setPrivate } from './commerce-privacy.js';
@@ -26,6 +27,7 @@ const NAV_ITEMS = Object.freeze([
   { id: 'dashboard', label: 'Dashboard', icon: 'chart' },
   { id: 'strategic', label: 'Visão estratégica', icon: 'chart' },
   { id: 'decisions', label: 'Central de decisões', icon: 'list' },
+  { id: 'abcEvolution', label: 'Evolução ABC', icon: 'chart' },
   { id: 'catalog', label: 'Painel Comercial', icon: 'grid' },
   { id: 'planning', label: 'Planejamento de Produtos', icon: 'package' },
   { id: 'imports', label: 'Histórico de importações', icon: 'list' },
@@ -41,6 +43,7 @@ const VIEW_TITLES = Object.freeze({
   dashboard: 'Dashboard',
   strategic: 'Visão estratégica',
   decisions: 'Central de decisões',
+  abcEvolution: 'Evolução ABC',
   catalog: 'Painel Comercial',
   planning: 'Planejamento de Produtos NISTI',
   sales: 'Painel Comercial',
@@ -356,6 +359,7 @@ export default function CommerceAdminAppV2() {
             {activeView === 'imports' && <CommerceImportHistory />}
             {activeView === 'strategic' && <CommerceStrategicView />}
             {activeView === 'decisions' && <CommerceDecisionCenter />}
+            {activeView === 'abcEvolution' && <CommerceAbcEvolution />}
             {activeView === 'quality' && <CommerceDataQuality />}
             {activeView === 'why' && <CommerceProblems key={problemsFilter?.nonce || 'menu'} initialFilter={problemsFilter} />}
           </div>
