@@ -151,7 +151,8 @@ const GROWTH={'1,1':'UNIDADES_E_PARTICIPACAO_SOBEM','1,-1':'UNIDADES_SOBEM_PARTI
   '0,1':'UNIDADES_ESTAVEIS_PARTICIPACAO_SOBE','0,-1':'UNIDADES_ESTAVEIS_PARTICIPACAO_CAI','0,0':'ESTAVEL'};
 const ORDER={A:0,B:1,C:2};
 // Candidatos a troca de código SEM vínculo comprovado: um SKU que só existe num período e outro que só existe no outro, com prefixo comum longo.
-// É só um alerta para revisão humana: nunca é afirmado como mesmo produto nem como produto novo/perdido.
+// É só um alerta para revisão humana. A AUSÊNCIA de alerta NÃO prova que a identidade do SKU permaneceu estável.
+// Entrada/saída descrevem só a venda do código ("entrou/saiu da curva"), nunca produto novo ou perdido.
 const commonPrefix=(a,b)=>{let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return i;};
 export const similarCode=(a,b)=>{if(a===b)return false;const n=commonPrefix(a,b),m=Math.max(a.length,b.length);return n>=5&&n/m>=0.7;};
 // prev/cur = resultados de classifyPeriod.
@@ -160,10 +161,15 @@ export const similarCode=(a,b)=>{if(a===b)return false;const n=commonPrefix(a,b)
 // confirmed=false: só unidades (sem posição, participação, classe nem migração).
 // partial=true: algum dos períodos é mês incompleto/parcial: as mudanças de classe ficam em partial_changes, nunca como migração confirmada.
 // linked = {sku:[códigos antigos]}: vínculo de identidade comprovado (apelido revisado) devolvido pela função SQL.
-export function comparePeriods(prev,cur,{mode='7d',confirmed=true,known=null,partial=false,linked=null}={}){
+// days = {prev,cur}: duração dos períodos. Se forem diferentes (meses fechados de 28, 30 e 31 dias), classe e participação continuam comparáveis,
+//   mas relevância e crescimento em unidades usam o RITMO por dia (unidades por janela de referência: 7 dias no modo 7d, 30 nos demais),
+//   nunca a diferença absoluta de unidades.
+export function comparePeriods(prev,cur,{mode='7d',confirmed=true,known=null,partial=false,linked=null,days=null}={}){
   const th=ABC_THRESHOLDS[mode]||ABC_THRESHOLDS['7d'];
   const kn=known||{prev:confirmed,cur:confirmed};
   const lk=linked||{};
+  const ref=mode==='7d'?7:30,diff=Boolean(days&&days.prev>0&&days.cur>0&&days.prev!==days.cur);
+  const eq=(u,d)=>Math.round(u/d*ref*100)/100; // unidades por janela de referência
   const pm=new Map(prev.rows.map(r=>[r.sku,r])),cm=new Map(cur.rows.map(r=>[r.sku,r]));
   const accountRelevant=prev.ranked_units>=RELEVANCE_MIN_UNITS&&cur.ranked_units>=RELEVANCE_MIN_UNITS;
   const skus=[...new Set([...pm.keys(),...cm.keys()])];
@@ -171,16 +177,17 @@ export function comparePeriods(prev,cur,{mode='7d',confirmed=true,known=null,par
     const p=pm.get(sku)||null,c=cm.get(sku)||null;
     const both=kn.prev&&kn.cur,pu=p?p.units:both?0:null,cu=c?c.units:both?0:null;
     const e={sku,previous_units:pu,current_units:cu,delta_units:pu!=null&&cu!=null?cu-pu:null,
-      delta_units_pct:pu!=null&&cu!=null&&pu>=th.unitBand?Math.round((cu-pu)/pu*1000)/10:null,
+      delta_units_pct:pu!=null&&cu!=null&&(diff?eq(pu,days.prev):pu)>=th.unitBand?Math.round(((diff?eq(cu,days.cur)/eq(pu,days.prev):cu/pu)-1)*1000)/10:null,
       kind:p&&c?'PERMANECE':!both?'SEM_INFORMACAO':c?'ENTRADA':'SAIDA'};
     // Entrada e saída só existem quando AS DUAS pontas têm cobertura e conciliação: senão, ausência é falta de informação (nunca zero).
+    if(diff&&pu!=null&&cu!=null){e.duration_adjusted=true;e.delta_units_equiv=Math.round((cu/days.cur-pu/days.prev)*ref*100)/100;}
     if(e.kind==='SEM_INFORMACAO')e.unknown_side=c?'ANTERIOR':'ATUAL';
     if(lk[sku]&&lk[sku].length)e.linked_from=lk[sku];
     if(!confirmed)return e;
     e.previous=p&&{rank:p.rank,share_pct:p.share_pct,class:p.class,boundary_tie:p.boundary_tie};
     e.current=c&&{rank:c.rank,share_pct:c.share_pct,class:c.class,boundary_tie:c.boundary_tie};
     if(p&&c){
-      const dpp=pp(c.share_pct-p.share_pct),du=cu-pu;
+      const dpp=pp(c.share_pct-p.share_pct),du=diff?e.delta_units_equiv:cu-pu; // du = variação comparável (ritmo por janela quando as durações diferem)
       e.delta_share_pp=dpp;e.delta_rank=p.rank-c.rank; // positivo = subiu na lista
       e.growth=GROWTH[dir(du,th.unitBand)+','+dir(dpp,th.ppBand)];
       if(p.class!==c.class){
@@ -208,13 +215,13 @@ export function comparePeriods(prev,cur,{mode='7d',confirmed=true,known=null,par
   // Top 10 = posição competitiva <= 10: empatados na 10ª posição entram todos (pode haver mais de 10 produtos); tie_at_cut avisa disso.
   const tieAtTop10=r=>r.rank+r.tie_size-1>10;
   const flag=(e,tieFlag)=>({sku:e.sku,from_outside_curve:!e.previous,identity_uncertain:uncertain.has(e.sku),tie_at_cut:tieFlag,partial,
-    relevant:!partial&&!tieFlag&&!uncertain.has(e.sku)&&accountRelevant&&e.current_units>=th.minUnitDelta});
+    relevant:!partial&&!tieFlag&&!uncertain.has(e.sku)&&accountRelevant&&(diff?eq(e.current_units,days.cur):e.current_units)>=th.minUnitDelta});
   const rowOf=(sku)=>cm.get(sku);
   const newTop10=confirmed?entries.filter(e=>top10(e.current)&&!top10(e.previous)).map(e=>({...flag(e,tieAtTop10(rowOf(e.sku))),previous_rank:e.previous?e.previous.rank:null,rank:e.current.rank,units:e.current_units})).sort((a,b)=>a.rank-b.rank||(a.sku<b.sku?-1:1)):[];
   const newClassA=confirmed?entries.filter(e=>e.current?.class==='A'&&e.previous?.class!=='A').map(e=>({...flag(e,Boolean(e.current.boundary_tie)),previous_class:e.previous?e.previous.class:null,rank:e.current.rank,units:e.current_units})).sort((a,b)=>a.rank-b.rank||(a.sku<b.sku?-1:1)):[];
   const counts=list=>({total:list.length,relevant:list.filter(m=>m.relevant).length,up:list.filter(m=>m.direction==='SUBIU').length,down:list.filter(m=>m.direction==='DESCEU').length,tie_affected:list.filter(m=>m.tie_affected).length});
   const exact=k=>entries.filter(e=>e.kind===k).length;
-  return {confirmed,partial,thresholds:th,known:kn,
+  return {confirmed,partial,thresholds:th,known:kn,duration_adjusted:diff,reference_days:diff?ref:null,
     relevance:{min_units:RELEVANCE_MIN_UNITS,previous_units:prev.ranked_units,current_units:cur.ranked_units,relevant:accountRelevant},
     entries:entries.sort(sorter),migrations:confirmed&&!partial?mig:[],migration_counts:confirmed&&!partial?counts(mig):null,
     partial_changes:confirmed&&partial?part:[],partial_counts:confirmed&&partial?counts(part):null,
@@ -273,7 +280,7 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
   else{
     const ok=cur.status==='CONFIRMADO'&&prv.status==='CONFIRMADO';
     const partial=isPartialPeriod(plan.current)||isPartialPeriod(plan.previous);
-    const cmp=comparePeriods(prv.cls,cur.cls,{mode,confirmed:ok,known:{prev:prv.status==='CONFIRMADO',cur:cur.status==='CONFIRMADO'},partial,linked});
+    const cmp=comparePeriods(prv.cls,cur.cls,{mode,confirmed:ok,known:{prev:prv.status==='CONFIRMADO',cur:cur.status==='CONFIRMADO'},partial,linked,days:{prev:daysBetween(plan.previous.start,plan.previous.end),cur:daysBetween(plan.current.start,plan.current.end)}});
     // Mês incompleto: comparação equivalente "até o momento" mostrada à parte, sem migração confirmada.
     comparison={state:ok?(partial?'MES_ATE_AQUI':'CONFIRMADA'):'NAO_COMPROVADA',reason:ok?(partial?'MES_INCOMPLETO':null):'COBERTURA_NAO_COMPROVADA',...cmp};
   }

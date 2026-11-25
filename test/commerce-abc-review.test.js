@@ -147,3 +147,41 @@ test('nomes: só com vínculo confiável (cadastro ou venda); sem vínculo fica 
   assert.equal(e.CCC.name,undefined,'origem desconhecida não vira nome'); assert.equal(r.comparison.entries.length,3);
   assert.equal(attachNames({status:'OK'},[]).status,'OK'); assert.deepEqual(displayedSkus(null),[]);
 });
+
+// ---- revisão final: duração em meses fechados e vocabulário ----
+const mk8=a=>classifyPeriod(a.map((u,i)=>({sku:'S'+i,units:u})),'k');
+const PREV8=[215,306,218,158,249,233,81,108],CUR8=[218,61,19,157,261,32,92,100]; // S6 relevante só pela diferença absoluta; S7 só pelo ritmo (cenário encontrado por busca determinística)
+test('meses fechados de durações diferentes: classe e participação comparam; relevância usa o ritmo por dia, não a diferença absoluta',()=>{
+  const P=mk8(PREV8),C=mk8(CUR8);
+  const same=comparePeriods(P,C,{mode:'mensal',days:{prev:30,cur:30}}),none=comparePeriods(P,C,{mode:'mensal'});
+  assert.deepEqual(same.migrations.map(m=>[m.sku,m.relevant]),none.migrations.map(m=>[m.sku,m.relevant]),'durações iguais: regra absoluta inalterada');
+  assert.equal(same.duration_adjusted,false); assert.equal(none.entries.find(e=>e.sku==='S6').duration_adjusted,undefined);
+  assert.equal(none.migrations.find(m=>m.sku==='S6').relevant,true); assert.equal(none.migrations.find(m=>m.sku==='S7').relevant,false);
+  const d=comparePeriods(P,C,{mode:'mensal',days:{prev:28,cur:31}});
+  assert.equal(d.duration_adjusted,true); assert.equal(d.reference_days,30);
+  const s6=d.migrations.find(m=>m.sku==='S6'),s7=d.migrations.find(m=>m.sku==='S7');
+  assert.ok(s6&&s7,'a mudança de classe continua comparável'); assert.ok(s6.previous.class&&s6.current.class&&s6.delta_share_pp!=null);
+  assert.equal(s6.relevant,false,'a diferença absoluta de unidades não decide sozinha'); assert.equal(s7.relevant,true,'o ritmo por dia decide');
+  assert.equal(s6.duration_adjusted,true); assert.equal(s6.delta_units,CUR8[6]-PREV8[6]); assert.equal(s6.delta_units_equiv,Math.round((CUR8[6]/31-PREV8[6]/28)*30*100)/100);
+  assert.equal(d.migration_counts.relevant,d.migrations.filter(m=>m.relevant).length);
+});
+test('duração diferente: a leitura de crescimento em unidades também usa o ritmo (mesmo ritmo = unidades estáveis)',()=>{
+  const c=comparePeriods(cls(['A',280],['B',280]),cls(['A',310],['B',310]),{mode:'mensal',days:{prev:28,cur:31}}); // 10 un/dia nas duas
+  const a=c.entries.find(e=>e.sku==='A'); assert.equal(a.delta_units,30); assert.equal(a.delta_units_equiv,0); assert.equal(a.delta_units_pct,0); assert.match(a.growth,/ESTAVEL|UNIDADES_ESTAVEIS/);
+  const plain=comparePeriods(cls(['A',280],['B',280]),cls(['A',310],['B',310]),{mode:'mensal'}); assert.equal(plain.entries.find(e=>e.sku==='A').delta_units_pct,10.7);
+});
+test('duração diferente: novo no top 10 com 10 un. num mês de 31 dias é relevante pela soma absoluta, mas não pelo ritmo (9,7 por 30 dias)',()=>{
+  const base=[['T0',900],['T1',890],['T2',880],['T3',870],['T4',860],['T5',850],['T6',840],['T7',830],['T8',820]];
+  const prev=cls(...base,['W',5]),cur=cls(...base,['N',10],['W',5]);
+  assert.equal(comparePeriods(prev,cur,{mode:'mensal'}).new_top10.find(n=>n.sku==='N').relevant,true);
+  assert.equal(comparePeriods(prev,cur,{mode:'mensal',days:{prev:28,cur:31}}).new_top10.find(n=>n.sku==='N').relevant,false);
+  assert.equal(comparePeriods(prev,cur,{mode:'mensal',days:{prev:31,cur:28}}).new_top10.find(n=>n.sku==='N').relevant,true,'28 dias: 10,7 por 30 dias');
+});
+test('integração: meses fechados de 28 e 31 dias seguem CONFIRMADA e marcam duração ajustada',()=>{
+  const plan=planPeriods({mode:'mensal',last:'2026-12-05',month:'2026-03',firstDay:'2026-01-01'});
+  assert.equal(plan.equivalent,true); assert.match(plan.note,/número de dias diferente/);
+  const units={AAA:{m_ant:560,m_atual:620},BBB:{m_ant:280,m_atual:310},CCC:{m_ant:56,m_atual:62}}; // mesmo ritmo por dia
+  const r=build({plan,mode:'mensal',last:'2026-12-05',units}); assert.equal(r.comparison.state,'CONFIRMADA'); assert.equal(r.comparison.duration_adjusted,true);
+  assert.equal(r.comparison.entries.find(e=>e.sku==='AAA').delta_units_equiv,0); assert.equal(r.comparison.migrations.length,0);
+  assert.equal(r.comparison.entries.find(e=>e.sku==='AAA').current.share_pct,r.comparison.entries.find(e=>e.sku==='AAA').previous.share_pct);
+});

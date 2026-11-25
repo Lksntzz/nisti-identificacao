@@ -140,11 +140,12 @@ comment on function public.commerce_abc_units_monthly_v1(text, jsonb) is
 revoke all on function public.commerce_abc_units_monthly_v1(text, jsonb) from public, anon, authenticated;
 grant execute on function public.commerce_abc_units_monthly_v1(text, jsonb) to service_role;
 
--- commerce_abc_names_v1(p_skus): nomes SOMENTE para SKUs canônicos com vínculo confiável (1 a 300 SKUs, os exibidos na tela).
---   source = 'CADASTRO'  -> o SKU está cadastrado no catálogo (commerce_product_skus) com o mesmo código;
---   source = 'VENDA'     -> sem cadastro; nome do anúncio da venda com o MESMO código (rótulo diferente na tela);
---   sem vínculo          -> o SKU não aparece na resposta (a tela mantém o código, nunca inventa nome).
-create or replace function public.commerce_abc_names_v1(p_skus jsonb) returns jsonb
+-- commerce_abc_names_v1(p_platform, p_skus): nomes SOMENTE para SKUs canônicos com vínculo confiável e SEM ambiguidade (1 a 300 SKUs exibidos).
+--   source = 'CADASTRO'  -> o SKU normalizado corresponde a EXATAMENTE um produto do catálogo;
+--   source = 'VENDA'     -> sem cadastro; a venda DA CONTA PEDIDA com o mesmo código tem exatamente um nome distinto;
+--   mais de um produto/nome para o mesmo código -> ambiguidade: o SKU não aparece na resposta (a tela mostra só o código).
+--   Nunca escolhe um nome por LIMIT 1 nem por ordenação arbitrária.
+create or replace function public.commerce_abc_names_v1(p_platform text, p_skus jsonb) returns jsonb
 language plpgsql
 stable
 security invoker
@@ -154,6 +155,9 @@ declare
   v_n integer;
   r jsonb;
 begin
+  if p_platform is null or p_platform not in ('SHOPEE', 'ML_ANTIGO', 'ML_NOVO') then
+    raise exception 'abc_names: plataforma inválida' using errcode = '22023';
+  end if;
   if p_skus is null or jsonb_typeof(p_skus) <> 'array' then
     raise exception 'abc_names: SKUs devem ser uma lista' using errcode = '22023';
   end if;
@@ -167,19 +171,24 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object('sku', x.sku, 'name', x.name, 'source', x.src) order by x.sku), '[]'::jsonb) into r
   from (
     select s.sku,
-      coalesce(c.name, v.name) name,
-      case when c.name is not null then 'CADASTRO' when v.name is not null then 'VENDA' end src
+      case when c.n_prod > 0 then case when c.n_prod = 1 then c.name end else v.name end name,
+      case when c.n_prod > 0 then case when c.n_prod = 1 then 'CADASTRO' end when v.name is not null then 'VENDA' end src
     from (select distinct e #>> '{}' sku from jsonb_array_elements(p_skus) e) s
-    left join lateral (select pp.name from public.commerce_product_skus ps join public.commerce_products pp on pp.id = ps.product_id
-      where upper(regexp_replace(ps.sku, '[\s_]+', '', 'g')) = s.sku and nullif(btrim(pp.name), '') is not null limit 1) c on true
-    left join lateral (select rr.product_name name from public.commerce_sales_rows rr
-      where c.name is null and upper(regexp_replace(coalesce(rr.sku_norm, rr.sku), '[\s_]+', '', 'g')) = s.sku and nullif(btrim(rr.product_name), '') is not null
-      order by rr.units desc, rr.snapshot_id desc limit 1) v on true
+    -- catálogo: quantos produtos distintos têm este SKU normalizado (ambíguo = mais de um) e o nome quando for um só
+    left join lateral (select count(distinct pp.id)::int n_prod, min(btrim(pp.name)) filter (where nullif(btrim(pp.name), '') is not null) name
+      from public.commerce_product_skus ps join public.commerce_products pp on pp.id = ps.product_id
+      where upper(regexp_replace(ps.sku, '[\s_]+', '', 'g')) = s.sku) c on true
+    -- venda DA CONTA pedida: só vale com exatamente um nome distinto para o código
+    left join lateral (select min(btrim(rr.product_name)) name
+      from public.commerce_sales_rows rr
+      where coalesce(c.n_prod, 0) = 0 and rr.platform_code = p_platform
+        and upper(regexp_replace(coalesce(rr.sku_norm, rr.sku), '[\s_]+', '', 'g')) = s.sku and nullif(btrim(rr.product_name), '') is not null
+      having count(distinct btrim(rr.product_name)) = 1) v on true
   ) x where x.name is not null;
   return r;
 end;
 $fn$;
-comment on function public.commerce_abc_names_v1(jsonb) is
-  'GA-015: nome por SKU canônico só com vínculo confiável (cadastro ou venda com o mesmo código). Só leitura.';
-revoke all on function public.commerce_abc_names_v1(jsonb) from public, anon, authenticated;
-grant execute on function public.commerce_abc_names_v1(jsonb) to service_role;
+comment on function public.commerce_abc_names_v1(text, jsonb) is
+  'GA-015: nome por SKU canônico só com vínculo confiável e sem ambiguidade (cadastro com um único produto, ou venda da própria conta com um único nome). Só leitura.';
+revoke all on function public.commerce_abc_names_v1(text, jsonb) from public, anon, authenticated;
+grant execute on function public.commerce_abc_names_v1(text, jsonb) to service_role;

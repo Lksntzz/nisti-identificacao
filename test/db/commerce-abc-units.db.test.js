@@ -36,7 +36,7 @@ grant select on public.commerce_sku_alias_v1 to service_role;
 drop table if exists public.commerce_products, public.commerce_product_skus, public.commerce_sales_rows cascade;
 create table public.commerce_products (id integer primary key, name text);
 create table public.commerce_product_skus (product_id integer, sku text);
-create table public.commerce_sales_rows (sku_norm text, sku text, product_name text, units integer, snapshot_id integer);
+create table public.commerce_sales_rows (platform_code text, sku_norm text, sku text, product_name text, units integer, snapshot_id integer);
 grant select on public.commerce_products, public.commerce_product_skus, public.commerce_sales_rows to service_role;
 `;
 
@@ -165,24 +165,46 @@ withDb('lista completa: contagem declarada = tamanho da lista = SKUs únicos; v�
   assert.equal(per(r, '2026-10').products, r.products.length);
 });
 
-const names = (db, skus) => db.one(`select public.commerce_abc_names_v1($1::jsonb) r`, [JSON.stringify(skus)]).then((x) => x.r);
+const names = (db, skus, plat = 'SHOPEE') => db.one(`select public.commerce_abc_names_v1($1, $2::jsonb) r`, [plat, JSON.stringify(skus)]).then((x) => x.r);
 withDb('nomes: cadastro, venda com o mesmo código e sem vínculo (não aparece, nunca inventa)', async (db) => {
   await db.q(`insert into commerce_products values (1,'Produto Fictício Um'), (2,'  ')`);
   await db.q(`insert into commerce_product_skus values (1,'cad 01'), (2,'CAD02')`);
-  await db.q(`insert into commerce_sales_rows values ('VEN01','VEN01','Anúncio Fictício Dois',3,1), ('VEN01','VEN01','Anúncio Menor',1,2), ('OUTRO','OUTRO',null,5,1)`);
+  await db.q(`insert into commerce_sales_rows values ('SHOPEE','VEN01','VEN01','Anúncio Fictício Dois',3,1), ('SHOPEE','OUTRO','OUTRO',null,5,1)`);
   const r = await names(db, ['CAD01', 'CAD02', 'VEN01', 'OUTRO', 'SEMNADA', 'CAD01']);
   const m = Object.fromEntries(r.map((x) => [x.sku, x]));
   assert.deepEqual([m.CAD01.name, m.CAD01.source], ['Produto Fictício Um', 'CADASTRO']); assert.deepEqual([m.VEN01.name, m.VEN01.source], ['Anúncio Fictício Dois', 'VENDA']);
   assert.equal(m.CAD02, undefined, 'nome vazio não vale'); assert.equal(m.OUTRO, undefined); assert.equal(m.SEMNADA, undefined); assert.equal(r.length, 2);
 });
+withDb('nomes: ambiguidade no catálogo (mesmo SKU normalizado em mais de um produto) mostra só o código, sem LIMIT 1', async (db) => {
+  await db.q(`insert into commerce_products values (10,'Produto Fictício Dez'), (11,'Produto Fictício Onze'), (12,'Produto Fictício Doze')`);
+  await db.q(`insert into commerce_product_skus values (10,'amb 01'), (11,'AMB_01'), (12,'UNI01'), (12,'uni-01x')`);
+  await db.q(`insert into commerce_sales_rows values ('SHOPEE','AMB01','AMB01','Nome de venda que NÃO pode desempatar',9,1)`);
+  const r = await names(db, ['AMB01', 'UNI01']); const m = Object.fromEntries(r.map((x) => [x.sku, x]));
+  assert.equal(m.AMB01, undefined, 'dois produtos para o mesmo código: só o código (nem a venda desempata)');
+  assert.deepEqual([m.UNI01.name, m.UNI01.source], ['Produto Fictício Doze', 'CADASTRO'], 'o mesmo produto com dois registros do mesmo SKU não é ambíguo');
+  // ordem de inserção não decide: inverter não muda o resultado
+  await db.q(`delete from commerce_product_skus where product_id = 10`); assert.equal((await names(db, ['AMB01'])).find((x) => x.sku === 'AMB01').name, 'Produto Fictício Onze');
+});
+withDb('nomes: respeita a conta selecionada e exige um único nome distinto na venda', async (db) => {
+  await db.q(`insert into commerce_sales_rows values
+    ('SHOPEE','SOA','SOA','Nome Shopee',5,1), ('ML_NOVO','SOA','SOA','Nome ML Novo',50,1),
+    ('ML_NOVO','DOIS','DOIS','Título A',5,1), ('ML_NOVO','DOIS','DOIS','Título B',9,2),
+    ('ML_NOVO','IGUAL','IGUAL','Mesmo Título',5,1), ('ML_NOVO','IGUAL','IGUAL','  Mesmo Título ',9,2)`);
+  const s = Object.fromEntries((await names(db, ['SOA'], 'SHOPEE')).map((x) => [x.sku, x])); assert.equal(s.SOA.name, 'Nome Shopee');
+  const n = Object.fromEntries((await names(db, ['SOA'], 'ML_NOVO')).map((x) => [x.sku, x])); assert.equal(n.SOA.name, 'Nome ML Novo');
+  assert.deepEqual(await names(db, ['SOA'], 'ML_ANTIGO'), [], 'outra conta não empresta nome');
+  const m = Object.fromEntries((await names(db, ['DOIS', 'IGUAL'], 'ML_NOVO')).map((x) => [x.sku, x]));
+  assert.equal(m.DOIS, undefined, 'dois títulos diferentes na conta: ambíguo, só o código'); assert.equal(m.IGUAL.name, 'Mesmo Título'); assert.equal(m.IGUAL.source, 'VENDA');
+});
 withDb('nomes: validações, somente leitura e só service_role', async (db) => {
   await assert.rejects(() => names(db, []), /entre 1 e 300/); await assert.rejects(() => names(db, Array.from({ length: 301 }, (_, i) => 'S' + i)), /entre 1 e 300/);
   await assert.rejects(() => names(db, [1]), /inválido/); await assert.rejects(() => names(db, ['']), /inválido/); await assert.rejects(() => names(db, [null]), /inválido/);
-  await assert.rejects(() => db.one(`select public.commerce_abc_names_v1('{"a":1}'::jsonb)`), /lista/);
+  await assert.rejects(() => db.one(`select public.commerce_abc_names_v1('SHOPEE','{"a":1}'::jsonb)`), /lista/);
+  await assert.rejects(() => names(db, ['X'], 'TODAS'), /plataforma inválida/); await assert.rejects(() => names(db, ['X'], null), /plataforma inválida/);
   await db.main.query('begin read only'); assert.deepEqual(await names(db, ['X']), []); await db.main.query('rollback');
   const f = await db.one(`select p.provolatile v, p.prosecdef sd, p.proconfig cfg from pg_proc p where p.proname = 'commerce_abc_names_v1'`);
   assert.equal(f.v, 's'); assert.equal(f.sd, false); assert.ok(f.cfg.some((c) => /^search_path=public, pg_temp$/.test(c)));
-  for (const role of ['anon', 'authenticated']) assert.equal((await db.one(`select has_function_privilege('${role}', 'public.commerce_abc_names_v1(jsonb)', 'execute') ok`)).ok, false, role);
+  for (const role of ['anon', 'authenticated']) assert.equal((await db.one(`select has_function_privilege('${role}', 'public.commerce_abc_names_v1(text, jsonb)', 'execute') ok`)).ok, false, role);
   await db.main.query('set role service_role'); assert.deepEqual(await names(db, ['X']), []); await db.main.query('reset role');
 });
 
