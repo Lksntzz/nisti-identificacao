@@ -85,6 +85,11 @@ jobs:
           CI: 'true'
         run: node test-browser/strategic-view.mjs
 
+      - name: Decision Center (GA-014) in real Chromium (three accounts, fast switching, unproven periods, partial failures)
+        env:
+          CI: 'true'
+        run: node test-browser/decision-center.mjs
+
       - name: Show local server errors only on failure
         if: failure()
         run: tail -n 70 /tmp/nisti-vite.log || true

@@ -1,6 +1,7 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
 import { supabaseRpc as directSupabaseRpc } from '../core/supabase-read-store.js';
 import { isStrategicPlatform, STRATEGIC_DAYS, strategicPeriods, buildStrategicView } from './commerce-strategic-logic.js';
+import { isDecisionDays, buildDecisionCenter, analysisWindow, sumDailySource, PROBE_MAX_DAYS } from './commerce-decision-logic.js';
 
 function cleanText(value) {
   const text = String(value ?? '').trim();
@@ -1481,4 +1482,71 @@ export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) 
   }
   return buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,dqCatCurrent,dqCatBase,
     perf:{shopee:shopeePerf,ml:mlPerf},failed,periods,elapsed_ms:Date.now()-t0});
+}
+
+// GA-014 — Central de decisões comerciais (somente leitura, só unidades). A função SQL commerce_decision_units_v1 traz as unidades por anúncio;
+// o Dashboard dá os períodos e o total para conciliar; a GA-018 dá a cobertura; a divisão por SKU (GA-021) dá a venda sem vínculo (Shopee).
+// Parte que falhar vira INDISPONIVEL e nada é classificado sem a lista de anúncios. As regras ficam em commerce-decision-logic.js.
+export async function commerceDecisionUnits(env,{platform,current,previous}={}) {
+  const data=await supabaseRpc(env,'commerce_decision_units_v1',{p_platform:platform,p_cur_start:current.start,p_cur_end:current.end,
+    p_prev_start:previous.start,p_prev_end:previous.end},{timeoutMs:25000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
+}
+// Fonte diária de vendas da GA-019 (a mesma do Dashboard), lida com datas livres. Só unidades: a receita nem sai da função.
+export async function commerceSalesDailySource(env,{platform,start,end}={}) {
+  const data=await supabaseRpc(env,'commerce_sales_daily_source_v2',{p_platform:platform,p_from:start,p_to:end},{timeoutMs:15000});
+  if(!Array.isArray(data))throw new Error('resposta inesperada da fonte diária de vendas');
+  return data.map(r=>({sale_date:r?.sale_date,units:r?.units}));
+}
+
+const saoPauloToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const dayAdd=(d,n)=>new Date(Date.parse(d)+n*86400000).toISOString().slice(0,10);
+
+// Último dia COMPLETO comprovado pela GA-018 desta conta. A GA-018 só devolve contagens, então cada dia é consultado sozinho, de ontem para
+// trás, até achar um completo (ou esgotar PROBE_MAX_DAYS). Dia parcial, só com registros ou sem informação não conta como completo.
+async function findLastCompleteDay(env,{platform,today,quality}) {
+  const skipped=[];let lastImportDay=null,lastImportAt=null,probes=0;
+  for(let i=1;i<=PROBE_MAX_DAYS;i++){
+    const day=dayAdd(today,-i);
+    const q=await quality(env,{platform,start:day,end:day});
+    probes++;
+    const sales=q&&q.platform===platform?q.sales:null;
+    if(!sales||Number(sales.requested_days)!==1)throw new Error('resposta de cobertura inválida');
+    // As datas devolvidas têm de ser exatamente as pedidas (este dia, e o "hoje" que a GA-018 usou para decidir o que é completo).
+    if(q.period?.start!==day||q.period?.end!==day||q.period?.today!==today)throw new Error('a cobertura respondeu para outras datas');
+    if(i===1){lastImportDay=typeof sales.last_sale_day==='string'?sales.last_sale_day.slice(0,10):null;lastImportAt=sales.last_import_at??null;}
+    if(Number(sales.complete_days)===1)return {today,last_import_day:lastImportDay,last_import_at:lastImportAt,last_complete_day:day,skipped,probes};
+    skipped.push({day,state:Number(sales.partial_days)===1?'PARCIAL':Number(sales.days_with_records_unverified)===1?'COM_REGISTROS':'SEM_INFORMACAO'});
+    if(lastImportDay==null)break; // conta sem nenhuma venda importada: não há o que procurar
+  }
+  return {today,last_import_day:lastImportDay,last_import_at:lastImportAt,last_complete_day:null,skipped,probes};
+}
+
+export async function commerceDecisionCenterV1(env,{platform,days}={},deps=null) {
+  if(!isStrategicPlatform(platform)||!isDecisionDays(days))throw new Error('Filtro da Central de decisões inválido.');
+  const d=deps||{units:commerceDecisionUnits,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit,source:commerceSalesDailySource,today:saoPauloToday};
+  const t0=Date.now();
+  const n=Number(days),failed=[];
+  const settle=async(name,fn)=>{try{return await fn();}catch{if(!failed.includes(name))failed.push(name);return null;}};
+  // 1) Janela POR CONTA: termina no último dia completo (hoje conta pela data de São Paulo). Nada mais é consultado sem janela válida.
+  const facts=await settle('window',()=>findLastCompleteDay(env,{platform,today:d.today(),quality:d.quality}));
+  const aw=facts?analysisWindow(facts,n):null;
+  if(facts&&aw&&!aw.ok&&aw.reason!=='SEM_DADOS')failed.push('window');
+  const window=aw&&aw.ok?aw.window:null;
+  let units=null,dqCurrent=null,dqPrevious=null,split=null,source=null;
+  if(window){
+    const q=period=>settle('quality',()=>d.quality(env,{platform,start:period.start,end:period.end}));
+    let rows=null;
+    [units,dqCurrent,dqPrevious,rows,split]=await Promise.all([
+      settle('units',()=>d.units(env,{platform,current:window.current,previous:window.previous})),
+      q(window.current),q(window.previous),
+      settle('source',()=>d.source(env,{platform,start:window.previous.start,end:window.current.end})),
+      platform==='SHOPEE'?Promise.all([
+        settle('split',()=>d.split(env,{start:window.current.start,end:window.current.end})),
+        settle('split',()=>d.split(env,{start:window.previous.start,end:window.previous.end}))
+      ]).then(([current,previous])=>({current,previous})):Promise.resolve(null)
+    ]);
+    if(rows){source=sumDailySource(rows,window);if(!source)failed.push('source');}
+  }
+  return buildDecisionCenter({platform,days:n,window,source,units,dqCurrent,dqPrevious,split,failed,elapsed_ms:Date.now()-t0});
 }
