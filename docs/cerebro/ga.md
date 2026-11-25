@@ -57,3 +57,6 @@ Cobertura real hoje: 7 dias classifica; 30 dias só confirma "parou"; 60/90 e "s
 ## GA-013A — Refino visual da Visão estratégica (PUBLICADA, 24/11/2026, PRs #922 e #923)
 Tela reorganizada em 5 áreas (resumo, situação com filtros, gráfico atual x anterior diário/mensal, tabelas, qualidade expansível). Só apresentação; regras da GA-013 intactas; campo novo `listings.with_sales`. Ver `docs/MAPA-GA.md`.
 Mensal real: `month` vem como `aaaa-mm-01` (normalizado para `aaaa-mm`). Dia sem informação = lacuna, nunca zero. Validado com dados reais nas 3 contas. GA-014 a GA-017 só com autorização do Lucas.
+
+## GA-014 — função `commerce_decision_units_v1` (APLICADA em 25/11/2026)
+Aplicada e validada no Supabase (versão registrada `20261125175917`): `SECURITY INVOKER`, só `service_role`, seis conciliações `CONCILIADA` (3 contas x 7 e 30 dias), no máximo 0,21 s e 286 KB, nenhuma outra função, view, tabela ou lote alterado. A Central (PR #926) segue em rascunho e não usa a função até ser publicada. Reversão manual: `supabase/rollback/20261125120000_commerce_decision_units_v1.down.sql`. Detalhes na seção GA-014 de `MAPA-GA.md`.
