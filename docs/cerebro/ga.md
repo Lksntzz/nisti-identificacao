@@ -81,3 +81,6 @@ Rota `/abc-evolution` + `commerce-abc-store.js` + tela "Evolução ABC" (7d/30d/
 
 ## GA-015 — revisão técnica (resumo)
 Ausência em período não comprovado = SEM_INFORMACAO (nunca zero); mês incompleto = "mês até aqui" (provisório, sem migração confirmada); código parecido entrando/saindo = identidade não comprovada; migração com empate na fronteira nunca é relevante confirmada; top 10 inclui todos os empatados na 10ª posição; histórico por SKU; nomes só com vínculo; linha do gráfico interrompida em meses sem dado; função SQL com validação estrita e lista completa; orçamento de 40 requisições (histórico que não couber fica não verificado). Migração ainda NÃO aplicada.
+
+## GA-015 — ajustes finais
+Nomes: função recebe a conta e, havendo ambiguidade (catálogo ou título de venda), mostra só o código — nunca LIMIT 1. Identidade: semelhança é só alerta; "entrou/saiu da curva", nunca produto novo/perdido. Meses fechados com durações diferentes: classe/participação comparam; relevância e crescimento usam ritmo por 30 dias, não a diferença absoluta. Migração ainda NÃO aplicada.

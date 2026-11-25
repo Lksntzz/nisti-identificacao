@@ -12,8 +12,8 @@ import { isAbcPlatform, isAbcMode, planPeriods, buildAbcEvolution, sumDailyRange
 // O que não couber NÃO é consultado: o mês fica "não verificado nesta consulta" (nunca confirmado).
 export const SUBREQUEST_BUDGET=40;
 
-export async function commerceAbcNames(env,{skus}={}) {
-  const data=await supabaseRpc(env,'commerce_abc_names_v1',{p_skus:skus},{timeoutMs:15000});
+export async function commerceAbcNames(env,{platform,skus}={}) {
+  const data=await supabaseRpc(env,'commerce_abc_names_v1',{p_platform:platform,p_skus:skus},{timeoutMs:15000});
   return Array.isArray(data)?data:null;
 }
 
@@ -83,7 +83,7 @@ export async function commerceAbcEvolutionV1(env,{platform,mode,month}={},deps=n
   let namesState='NAO_PEDIDOS';
   if(namesFn&&out.status==='OK'){
     const skus=displayedSkus(out);
-    if(skus.length){const nm=await settle('names',()=>namesFn(env,{skus}));namesState=nm?'DISPONIVEL':'INDISPONIVEL';if(nm)attachNames(out,nm);}
+    if(skus.length){const nm=await settle('names',()=>namesFn(env,{platform,skus}));namesState=nm?'DISPONIVEL':'INDISPONIVEL';if(nm)attachNames(out,nm);}
   }
   return {...out,names_state:namesState,window:meta,failed,budget:{...budget(),history_checked:checked.size,history_skipped:skippedKeys.length},elapsed_ms:Date.now()-t0};
 }

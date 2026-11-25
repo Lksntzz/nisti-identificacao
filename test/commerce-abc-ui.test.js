@@ -54,3 +54,12 @@ test('preservação: Dashboard, Visão estratégica e Central de decisões idên
   const diff=execFileSync('git',['diff','--name-only',base,'--',...PRESERVED],{encoding:'utf8'}).trim();
   assert.equal(diff,'','Arquivos preservados alterados: '+diff);
 });
+
+// ---- revisão final: vocabulário de identidade ----
+import { readFileSync as readUi } from 'node:fs';
+test('a tela diz "entrou/saiu da curva" e nunca afirma produto novo ou perdido; semelhança é só alerta',()=>{
+  const src=readUi(new URL('../src/ga/commerce-abc-evolution.jsx',import.meta.url),'utf8');
+  assert.match(src,/Entrou na curva/); assert.match(src,/Saiu da curva/); assert.match(src,/sua ausência não comprova que a identidade do SKU permaneceu estável/);
+  assert.ok(!/produto novo|produto perdido|Não afirma produto|Sem venda antes|Sem venda agora/.test(src),'sem afirmar produto novo/perdido');
+  assert.match(src,/duração diferente/);
+});

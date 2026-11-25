@@ -154,13 +154,25 @@ test('mês incompleto: "mês até aqui" mostra mudanças provisórias à parte, 
   await context.close();
 });
 
-test('identidade: código parecido entrando e saindo não vira produto novo nem perdido',async b=>{
+test('identidade: código parecido entrando e saindo da curva não vira produto novo nem perdido',async b=>{
   const sim=createSimulator();sim.opts.mode.SHOPEE={extra:[{sku:'CADERNO-77BB',ant:50,atual:0},{sku:'CADERNO-77BXB',ant:0,atual:50}]};
   const {page,context}=await open(b,{sim});await ready(page);
   await page.locator('[aria-label="Listas"] button',{hasText:'Todos os produtos'}).click();
-  assert.match(await page.locator('[data-testid="ident-CADERNO-77BB"]').innerText(),/Identidade não comprovada.*CADERNO-77BXB.*Não afirma produto perdido/);
-  assert.match(await page.locator('[data-testid="ident-CADERNO-77BXB"]').innerText(),/Não afirma produto novo/);
-  assert.equal(await page.locator('[data-testid="count-identity"]').innerText(),'2');await context.close();
+  assert.match(await page.locator('[data-testid="ident-CADERNO-77BB"]').innerText(),/Saiu da curva.*CADERNO-77BXB.*identidade não comprovada/);
+  assert.match(await page.locator('[data-testid="ident-CADERNO-77BXB"]').innerText(),/Entrou na curva.*identidade não comprovada/);
+  assert.equal(await page.locator('[data-testid="count-identity"]').innerText(),'2');
+  assert.match(await page.locator('[data-testid="identity-note"]').innerText(),/ausência não comprova que a identidade do SKU permaneceu estável/);
+  assert.doesNotMatch(await body(page),/produto novo|produto perdido/i);await context.close();
+});
+
+test('meses fechados de 28 e 31 dias: compara classes e participação e avisa que a relevância usa o ritmo por dia',async b=>{
+  const {page,context}=await open(b);await mode(page,'Mensal').click();await ready(page);
+  await page.locator('select[aria-label="Mês"]').selectOption('2026-03');
+  await page.waitForFunction(()=>document.querySelector('[data-testid="duration-note"]'));
+  assert.match(await page.locator('[data-testid="duration-note"]').innerText(),/duração diferente.*ritmo por 30 dias.*não a diferença absoluta/);
+  assert.ok(await page.locator('[data-testid="state-CONFIRMADA"]').count()===0&&await page.locator('[data-testid="count-migrations"]').count()===1,'comparação confirmada com classes');
+  assert.match(await page.locator('[data-testid="plan-note"]').innerText(),/número de dias diferente/);
+  await context.close();
 });
 
 test('empate na fronteira: migração marcada e sem relevância confirmada',async b=>{

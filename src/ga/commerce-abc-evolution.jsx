@@ -65,7 +65,7 @@ function Cards({v,cmp,view,setView}){
       <h3>Novos no top 10</h3><p className="nae-big"><b data-testid="count-top10">{viewable?cmp.new_top10.length:'—'}</b></p><small>empatados na 10ª posição entram todos</small></button>
     <button type="button" className={'nae-card is-btn'+(view==='classeA'?' is-active':'')} aria-pressed={view==='classeA'} onClick={()=>setView('classeA')} data-testid="card-classa">
       <h3>Novos na classe A</h3><p className="nae-big"><b data-testid="count-classa">{viewable?cmp.new_class_a.length:'—'}</b></p></button>
-    {cmp.identity_uncertain>0&&<div className="nae-card" data-testid="card-identity"><h3>Identidade não comprovada</h3><p className="nae-big"><b data-testid="count-identity">{cmp.identity_uncertain}</b></p><small>códigos parecidos entrando/saindo: não contam como produto novo nem perdido</small></div>}
+    {cmp.identity_uncertain>0&&<div className="nae-card" data-testid="card-identity"><h3>Identidade não comprovada</h3><p className="nae-big"><b data-testid="count-identity">{cmp.identity_uncertain}</b></p><small>códigos parecidos entrando/saindo da curva: identidade não comprovada</small></div>}
   </div>;
 }
 
@@ -87,13 +87,13 @@ function Table({cmp,view,hist,onSku,selected}){
     <div className="nae-scroll"><table className="nae-table"><thead><tr><th>SKU</th><th className="num">Unidades</th>{ok&&<><th className="num">Participação</th><th className="num">Posição</th><th>Classe</th></>}<th>Leitura</th><th>Histórico</th></tr></thead>
       <tbody>{rows.map(r=><tr key={r.sku} data-testid={'row-'+r.sku}>
         <td><b>{r.sku}</b><Name r={r}/></td>
-        <td className="num">{r.current_units==null?<em className="nae-low">sem informação</em>:nf(r.current_units)} <small>antes {r.previous_units==null?'sem informação':nf(r.previous_units)}</small>{r.delta_units!=null&&<small className={r.delta_units<0?'is-neg':r.delta_units>0?'is-pos':''}>{sg(r.delta_units)} un{r.delta_units_pct!=null&&' ('+sg(r.delta_units_pct)+'%)'}</small>}</td>
+        <td className="num">{r.current_units==null?<em className="nae-low">sem informação</em>:nf(r.current_units)} <small>antes {r.previous_units==null?'sem informação':nf(r.previous_units)}</small>{r.duration_adjusted&&<small data-testid={'rate-'+r.sku}>ritmo: {sg(r.delta_units_equiv)} un por {cmp.reference_days} dias</small>}{r.delta_units!=null&&<small className={r.delta_units<0?'is-neg':r.delta_units>0?'is-pos':''}>{sg(r.delta_units)} un{r.delta_units_pct!=null&&' ('+sg(r.delta_units_pct)+'%)'}</small>}</td>
         {ok&&<><td className="num">{r.current?pct(r.current.share_pct):'—'} <small>antes {r.previous?pct(r.previous.share_pct):'—'}</small>{r.delta_share_pp!=null&&<small>{pp(r.delta_share_pp)}</small>}</td>
           <td className="num">{r.current?r.current.rank+'º':'—'} <small>antes {r.previous?r.previous.rank+'º':'—'}</small>{r.delta_rank!=null&&<small>{sg(r.delta_rank)} posições</small>}</td>
           <td>{r.previous?r.previous.class:'—'} → {r.current?r.current.class:'—'}{(r.current?.boundary_tie||r.previous?.boundary_tie)&&<small>empate na fronteira de classe</small>}</td></>}
         <td>{(r.kind==='MIGRACAO'||r.kind==='MUDANCA_PARCIAL')&&<><em className="nae-kind">{r.kind==='MUDANCA_PARCIAL'?'Mudou de classe (provisório): ':(r.direction==='SUBIU'?'Subiu':'Desceu')+' de classe '}({r.class_change.replace('>',' → ')})</em> {r.kind==='MIGRACAO'&&(r.relevant?<em className="nae-rel">Relevante</em>:<em className="nae-low">Sem relevância confirmada</em>)} <Flags r={r}/></>}
-          {r.kind==='ENTRADA'&&<em className="nae-kind">Sem venda antes · não é migração</em>}{r.kind==='SAIDA'&&<em className="nae-kind">Sem venda agora · não é migração</em>}
-          {r.kind==='IDENTIDADE_INCERTA'&&<em className="nae-low" data-testid={'ident-'+r.sku}>Identidade não comprovada: pode ser troca de código ({r.identity_candidates.join(', ')}). Não afirma produto {r.was==='ENTRADA'?'novo':'perdido'}.</em>}
+          {r.kind==='ENTRADA'&&<em className="nae-kind">Entrou na curva · não é migração</em>}{r.kind==='SAIDA'&&<em className="nae-kind">Saiu da curva · não é migração</em>}
+          {r.kind==='IDENTIDADE_INCERTA'&&<em className="nae-low" data-testid={'ident-'+r.sku}>{r.was==='ENTRADA'?'Entrou na curva':'Saiu da curva'} · código parecido ({r.identity_candidates.join(', ')}): identidade não comprovada.</em>}
           {r.kind==='SEM_INFORMACAO'&&<em className="nae-low" data-testid={'noinfo-'+r.sku}>Sem informação no período {r.unknown_side==='ANTERIOR'?'anterior':'atual'} (cobertura não comprovada): não é entrada, saída nem variação.</em>}
           {r.growth&&<span className="nae-growth">{GROWTH[r.growth]}</span>}</td><td><HistBtn sku={r.sku}/></td></tr>)}</tbody></table></div>
     {cmp.entries_truncated&&<p className="nae-muted" data-testid="limit-note">Mostrando {cmp.entries.length} de {nf(cmp.entries_total)} produtos; classes e contagens usam todos.</p>}
@@ -211,6 +211,8 @@ export default function CommerceAbcEvolution(){
       {STATE_TEXT[cmp.state]&&<p className="nae-notice" role="status" data-testid={'state-'+cmp.state}>{STATE_TEXT[cmp.state]}</p>}
       {cmp.entries&&!cmp.state.startsWith('BLOQUEADA')&&<>
         <BaseNote p={v.current}/>
+        <p className="nae-muted" data-testid="identity-note">Entrou/saiu da curva descreve só a venda do código. Semelhança de código é apenas um alerta: sua ausência não comprova que a identidade do SKU permaneceu estável.</p>
+        {cmp.duration_adjusted&&<p className="nae-notice" role="status" data-testid="duration-note">Períodos com duração diferente: classes e participação são comparáveis; a relevância e o crescimento em unidades usam o ritmo por {cmp.reference_days} dias, não a diferença absoluta de unidades.</p>}
         {confirmed&&cmp.relevance&&!cmp.relevance.relevant&&<p className="nae-notice" role="status" data-testid="low-volume">Volume baixo na conta (menos de {cmp.relevance.min_units} unidades em um dos períodos): as classes são calculadas, mas as mudanças têm baixa relevância comercial.</p>}
         <Cards v={v} cmp={cmp} view={activeView} setView={setView}/>
         <div className="nae-tabs" role="tablist" aria-label="Listas">{VIEWS.map(t=><button key={t.id} type="button" role="tab" aria-selected={activeView===t.id} className={activeView===t.id?'is-active':''} disabled={!confirmed&&t.id!=='todos'} onClick={()=>setView(t.id)}>{t.label}</button>)}</div>

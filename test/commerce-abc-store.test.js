@@ -129,7 +129,7 @@ const worstHandler=(provenAll)=>(name,b)=>{
   if(name==='commerce_abc_units_monthly_v1')return {platform:b.p_platform,periods:b.p_periods.map(p=>{const n=days(p.start,p.end).length;return {key:p.key,start:p.start,end:p.end,days:span(p.start,p.end),days_with_data:n,total_units:n*10,sku_units:n*10,no_sku_units:0,ranked_units:n*10,nonpositive_units:0,products:n?3:0};}),
     product_count:3,products:Object.entries(SKUS).map(([sku,u])=>({sku,units:Object.fromEntries(b.p_periods.map(p=>[p.key,days(p.start,p.end).length*u]))}))};
   if(name==='commerce_shopee_sales_link_split_v1'){const n=days(b.p_start,b.p_end).length*10;return {start:b.p_start,end:b.p_end,total_units:n,unlinked_units:0,reconciliation:{status:'EXPLICADA',identity_ok:true,source_units_match:true},difference:{residual_units:0}};}
-  if(name==='commerce_abc_names_v1')return b.p_skus.map(sku=>({sku,name:'Produto '+sku,source:'CADASTRO'}));
+  if(name==='commerce_abc_names_v1'){if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(b.p_platform))throw new Error('names sem conta');return b.p_skus.map(sku=>({sku,name:'Produto '+sku,source:'CADASTRO'}));}
   throw new Error('rpc inesperada '+name);
 };
 for(const [platform,mode] of [['SHOPEE','7d'],['SHOPEE','mensal'],['ML_NOVO','30d'],['ML_ANTIGO','anual']]){
@@ -152,10 +152,10 @@ test('Shopee no pior caso: o histórico que não cabe fica "não verificado nest
   });
 });
 test('ML com 1 sonda: histórico inteiro cabe (12 meses) e nomes são pedidos uma vez só para os SKUs exibidos',async()=>{
-  const h=worstHandler(true);
-  await withFetch((n,b)=>n==='commerce_data_quality_v1'&&b.p_start===b.p_end?dayQ(b.p_platform,b.p_start,b.p_start==='2026-11-24'?'PARCIAL':'COMPLETO'):h(n,b),async calls=>{
+  const h=worstHandler(true),namesBodies=[];
+  await withFetch((n,b)=>{if(n==='commerce_abc_names_v1')namesBodies.push(b);return n==='commerce_data_quality_v1'&&b.p_start===b.p_end?dayQ(b.p_platform,b.p_start,b.p_start==='2026-11-24'?'PARCIAL':'COMPLETO'):h(n,b);},async calls=>{
     const r=await commerceAbcEvolutionV1(ENV,{platform:'ML_NOVO',mode:'7d'},realDeps());
-    assert.equal(r.budget.history_skipped,0); assert.equal(calls.filter(c=>c==='commerce_abc_names_v1').length,1); assert.equal(r.names_state,'DISPONIVEL');
+    assert.equal(r.budget.history_skipped,0); assert.equal(calls.filter(c=>c==='commerce_abc_names_v1').length,1); assert.equal(r.names_state,'DISPONIVEL'); assert.equal(namesBodies.length,1); assert.equal(namesBodies[0].p_platform,'ML_NOVO','nomes pedidos para a conta selecionada');
     assert.equal(r.comparison.entries.find(e=>e.sku==='AAA').name,'Produto AAA'); assert.ok(calls.length<=SUBREQUEST_BUDGET);
   });
 });
