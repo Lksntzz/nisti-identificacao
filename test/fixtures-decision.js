@@ -1,7 +1,13 @@
 // GA-014 — dados FICTÍCIOS nos formatos reais das respostas (commerce_decision_units_v1 revisada, Dashboard, GA-018, GA-021). Sem rede.
-import {strategicPeriods} from '../src/ga/commerce-strategic-logic.js';
+import {analysisWindow} from '../src/ga/commerce-decision-logic.js';
 export const spanOf=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/86400000)+1;
-export const dash=(o={})=>({platform:'SHOPEE',days:7,first_day:'2025-01-01',last_day:'2026-11-23',current_start:'2026-11-17',previous_start:'2026-11-10',totals:{cur_units:0,prev_units:0},...o});
+// Hoje = 25/11; 24/11 é parcial e 23/11 é o último dia completo comprovado (caso real das três contas).
+export const TODAY='2026-11-25';
+export const facts=(o={})=>({today:TODAY,last_import_day:'2026-11-24',last_import_at:'2026-11-24T13:53:39+00:00',last_complete_day:'2026-11-23',skipped:[{day:'2026-11-24',state:'PARCIAL'}],probes:2,...o});
+export const winOf=(days=7,o={})=>{const r=analysisWindow(facts(o),days);if(!r.ok)throw new Error(r.why);return r.window;};
+// Total da fonte diária da GA-019 nas MESMAS datas da Central (soma da view + vendas sem ID).
+export const sourceOf=(u,w,o={})=>({current:{start:w.current.start,end:w.current.end,units:u.reconciliation.current.source_units,...(o.current||{})},
+  previous:{start:w.previous.start,end:w.previous.end,units:u.reconciliation.previous.source_units,...(o.previous||{})}});
 export const dq=(platform,start,end,ok=true)=>{const span=spanOf(start,end);
   return {platform,period:{start,end},sales:{status:ok?'COMPLETA':'PARCIAL',requested_days:span,complete_days:ok?span:span-2,partial_days:0,
     days_without_information:ok?0:2,days_with_records_unverified:0,missing_ranges:ok?[]:[{start:end,end,days:2}]}};};
@@ -37,12 +43,15 @@ export const units=(rows,o={})=>{
 export const splitOf=(start,end,{total,linked,base,residual=0}={})=>({start,end,status:'COMPLETO',total_units:total,linked_units:linked,unlinked_units:total-linked,unlinked_sku_count:total>linked?2:0,base_units:base??linked,
   difference:{units:(base??linked)-total,direction:'NEGATIVA',unlinked_effect_units:linked-total,other_explained_units:0,residual_units:residual,explained:residual===0},
   reconciliation:{status:residual===0?'EXPLICADA':'RESIDUO_NAO_EXPLICADO',source_units_match:true,identity_ok:true},coverage:{missing_days:0,days_with_data:7,missing_ranges:[]}});
-const WINDOWS={7:{cs:'2026-11-17',ce:'2026-11-23',ps:'2026-11-10',pe:'2026-11-16'},30:{cs:'2026-10-26',ce:'2026-11-24',ps:'2026-09-26',pe:'2026-10-25'}};
+export const splitFor=(u,w)=>{const sc=u.reconciliation.current.source_units,sp=u.reconciliation.previous.source_units;
+  return {current:splitOf(w.current.start,w.current.end,{total:sc+4,linked:sc}),previous:splitOf(w.previous.start,w.previous.end,{total:sp+4,linked:sp})};};
 export const mk=(rows,o={})=>{
-  const days=o.days||7,w=WINDOWS[days];
-  const u=units(rows,{current:{start:w.cs,end:w.ce},previous:{start:w.ps,end:w.pe},...(o.units||{})});
-  const d=dash({days,current_start:w.cs,previous_start:w.ps,last_day:w.ce,totals:{cur_units:u.totals.units_current,prev_units:u.totals.units_previous}});
-  return {platform:'SHOPEE',days,dash:d,periods:strategicPeriods(d),dqCurrent:dq('SHOPEE',w.cs,w.ce),dqPrevious:dq('SHOPEE',w.ps,w.pe),split:null,failed:[],...o,units:u};};
+  const days=o.days||7,w=o.window||winOf(days,o.facts||{});
+  const u=units(rows,{current:w.current,previous:w.previous,...(o.units||{})});
+  const {facts:_f,units:_u,...rest}=o;
+  // Shopee: a divisão por SKU (GA-021) das mesmas datas fecha por padrão; as contas do ML não têm essa fonte.
+  const split=splitFor(u,w);
+  return {platform:'SHOPEE',days,window:w,source:sourceOf(u,w),dqCurrent:dq('SHOPEE',w.current.start,w.current.end),dqPrevious:dq('SHOPEE',w.previous.start,w.previous.end),split,failed:[],...rest,units:u};};
 export const tierOf=(v,ext)=>Object.entries(v.tiers).find(([,t])=>t.rows.some(r=>r.external_id===ext))?.[0]??null;
 export const get=(v,ext)=>Object.values(v.tiers).flatMap(t=>t.rows).find(r=>r.external_id===ext);
 export const confirmedTotal=v=>['alta','revisao','oportunidade','sem_prioridade'].reduce((a,t)=>a+v.tiers[t].total,0);

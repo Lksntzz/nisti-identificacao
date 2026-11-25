@@ -2,8 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildDecisionCenter} from '../src/ga/commerce-decision-logic.js';
-import {strategicPeriods} from '../src/ga/commerce-strategic-logic.js';
-import {dash,dq,row,units,reports,perfOf,splitOf,mk,tierOf,get,confirmedTotal} from './fixtures-decision.js';
+import {dq,row,units,reports,perfOf,splitOf,mk,tierOf,get,confirmedTotal,sourceOf,winOf} from './fixtures-decision.js';
 
 const prevUnproven=o=>({dqPrevious:dq('SHOPEE','2026-11-10','2026-11-16',false),...o});
 const curUnproven=o=>({dqCurrent:dq('SHOPEE','2026-11-17','2026-11-23',false),...o});
@@ -33,12 +32,13 @@ test('item 4: ausência de vendas no período atual comprovada aparece como fato
 });
 
 // ---- Item 5: divergência de conciliação bloqueia classificações confirmadas ----
-test('item 5: divergência com o Dashboard (atual OU anterior) bloqueia toda classificação confirmada',()=>{
+test('item 5: divergência com a GA-019 (atual OU anterior) bloqueia toda classificação confirmada',()=>{
   const rows=[row('A',10,30),row('B',20,5),row('C',10,10)];
-  for(const bad of [{cur_units:99,prev_units:45},{cur_units:40,prev_units:99}]){
-    const v=buildDecisionCenter(mk(rows,{dash:dash({totals:bad})}));
+  for(const bad of [{current:{units:99}},{previous:{units:99}}]){
+    const base=mk(rows);
+    const v=buildDecisionCenter({...base,source:sourceOf(base.units,base.window,bad)});
     assert.equal(confirmedTotal(v),0,'nada confirmado'); assert.equal(v.blocked_confirmations,true);
-    assert.equal(tierOf(v,'A'),'insuficiente'); assert.ok(get(v,'A').missing.includes('CONCILIACAO'));
+    assert.equal(tierOf(v,'A'),'insuficiente'); assert.ok(get(v,'A').missing.includes('CONCILIACAO_DIVERGENTE'));
     assert.ok(v.notices.some(n=>n.kind==='UNIDADES_DIVERGENTES'&&n.essential&&/bloquead|não confirm/i.test(n.text)));
   }
   const ok=buildDecisionCenter(mk(rows)); assert.equal(ok.blocked_confirmations,false); assert.equal(tierOf(ok,'A'),'alta');
@@ -56,10 +56,11 @@ test('item 5: divisão por SKU da Shopee é conferida nos DOIS períodos; resíd
   const residue=buildDecisionCenter(mk(rows,{split:split(splitOf('2026-11-17','2026-11-23',{total:20,linked:15,residual:3}),good.previous)}));
   assert.equal(residue.blocked_confirmations,true); assert.equal(residue.reconciliation.shopee.current.status,'RESIDUO_NAO_EXPLICADO');
   const wrongDates=buildDecisionCenter(mk(rows,{split:split(good.current,splitOf('2026-11-09','2026-11-16',{total:45,linked:35}))}));
-  assert.equal(wrongDates.reconciliation.shopee.previous.status,'RESPOSTA_INVALIDA'); assert.equal(wrongDates.blocked_confirmations,true);
+  assert.equal(wrongDates.reconciliation.shopee.previous.status,'INDISPONIVEL','resposta de outras datas não concilia: indisponível, não divergente'); assert.equal(wrongDates.blocked_confirmations,true);
+  assert.equal(wrongDates.reconciliation.blocked_kind,'INDISPONIVEL');
   const missing=buildDecisionCenter(mk(rows,{split:null}));
-  assert.equal(missing.blocked_confirmations,false,'conciliação indisponível não é divergência');
-  assert.ok(missing.notices.some(n=>n.kind==='CONCILIACAO_INDISPONIVEL'&&!n.essential));
+  assert.equal(missing.blocked_confirmations,true,'conciliação necessária indisponível bloqueia'); assert.equal(missing.reconciliation.blocked_kind,'INDISPONIVEL');
+  assert.ok(missing.notices.some(n=>n.kind==='CONCILIACAO_INDISPONIVEL'&&n.essential)); assert.ok(!missing.notices.some(n=>n.kind==='UNIDADES_DIVERGENTES'));
 });
 
 test('item 5: a conciliação do banco separa sem vínculo, sem cadastro e resíduo; resíduo do banco bloqueia',()=>{
@@ -98,22 +99,22 @@ test('item 6: sem sinal só vira "sem prioridade comercial" com os dois período
   }
 });
 
-// ---- Item 7: Dashboard e relatórios validados antes de usar ----
-test('item 7: períodos do Dashboard são validados (conta, dias, datas, tamanho e continuidade) antes de classificar',()=>{
+// ---- Item 7: janela e relatórios validados antes de usar ----
+test('item 7: a janela é validada (dias, datas, tamanho, continuidade e fim antes de hoje) antes de classificar',()=>{
   const rows=[row('A',10,30)];
-  const bad={'outra conta':dash({platform:'ML_NOVO'}),'dias diferentes':dash({days:30}),'dias ausentes':dash({days:undefined}),'atual maior que os dias':dash({current_start:'2026-11-16'}),
-    'atual menor que os dias':dash({current_start:'2026-11-18'}),'anterior sem continuidade':dash({previous_start:'2026-11-09'}),'anterior colado errado':dash({previous_start:'2026-11-11'}),
-    'data inválida':dash({last_day:'2026-13-45'}),'histórico depois do atual':dash({first_day:'2026-11-20'}),'último dia no futuro do início':dash({last_day:'2026-11-10'})};
-  for(const [name,d] of Object.entries(bad)){
-    const v=buildDecisionCenter({...mk(rows),dash:{...d,totals:{cur_units:10,prev_units:30}},periods:strategicPeriods(d)});
-    assert.equal(v.status,'INDISPONIVEL',name); assert.equal(v.parts.dashboard,'RESPOSTA_INVALIDA',name); assert.equal(Object.values(v.tiers).reduce((a,t)=>a+t.total,0),0,name);
+  const w=winOf(7);
+  const bad={'outros dias':winOf(30),'dias ausentes':{...w,days:undefined},'atual maior':{...w,current:{start:'2026-11-16',end:'2026-11-23'}},'atual menor':{...w,current:{start:'2026-11-18',end:'2026-11-23'}},
+    'anterior sem continuidade':{...w,previous:{start:'2026-11-09',end:'2026-11-15'}},'anterior sobreposto':{...w,previous:{start:'2026-11-11',end:'2026-11-17'}},
+    'data inválida':{...w,current:{start:'2026-11-17',end:'2026-13-45'}},'fim em hoje':{...w,today:'2026-11-23'},'base desconhecida':{...w,basis:'X'}};
+  for(const [name,win] of Object.entries(bad)){
+    const v=buildDecisionCenter({...mk(rows),window:win});
+    assert.equal(v.status,'INDISPONIVEL',name); assert.equal(Object.values(v.tiers).reduce((a,t)=>a+t.total,0),0,name);
     assert.ok(v.notices.some(n=>n.kind==='FONTE_INVALIDA'&&n.essential),name);
   }
   assert.equal(buildDecisionCenter(mk(rows)).status,'OK');
-  const d30={...dash({days:30,current_start:'2026-10-26',previous_start:'2026-09-26',last_day:'2026-11-24'}),totals:{cur_units:10,prev_units:30}};
-  const u30=units(rows); u30.current={start:'2026-10-26',end:'2026-11-24'}; u30.previous={start:'2026-09-26',end:'2026-10-25'};
-  const v30=buildDecisionCenter({platform:'SHOPEE',days:30,dash:d30,periods:strategicPeriods(d30),units:u30,dqCurrent:dq('SHOPEE','2026-10-26','2026-11-24'),dqPrevious:dq('SHOPEE','2026-09-26','2026-10-25'),split:null,failed:[]});
-  assert.equal(v30.status,'OK','janelas reais do Dashboard de 30 dias (26/10–24/11 e 26/09–25/10) são aceitas');
+  const v30=buildDecisionCenter(mk(rows,{days:30}));
+  assert.equal(v30.status,'OK','30 dias: 25/10–23/11 contra 25/09–24/10, encerrados no último dia completo');
+  assert.deepEqual(v30.periods,{current:{start:'2026-10-25',end:'2026-11-23'},previous:{start:'2026-09-25',end:'2026-10-24'}});
 });
 
 const withReports=(rows,l,p)=>buildDecisionCenter(mk(rows,{units:{reports:reports(l,p)}}));

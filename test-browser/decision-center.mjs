@@ -5,8 +5,7 @@ import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 import {chromium} from 'playwright';
 import {buildDecisionCenter} from '../src/ga/commerce-decision-logic.js';
-import {strategicPeriods} from '../src/ga/commerce-strategic-logic.js';
-import {units as fxUnits,reports as fxReports,splitOf} from '../test/fixtures-decision.js';
+import {units as fxUnits,reports as fxReports,splitOf,winOf,sourceOf} from '../test/fixtures-decision.js';
 
 const BASE=process.env.NISTI_HARNESS_BASE||'http://127.0.0.1:4173';
 const URL_VIEW=BASE+'/test-browser/harness/decision-center.html';
@@ -15,8 +14,6 @@ const NAME={SHOPEE:'Shopee',ML_ANTIGO:'ML Antigo',ML_NOVO:'ML Novo'};
 const TAG={SHOPEE:'S',ML_ANTIGO:'MA',ML_NOVO:'MN'};
 const tests=[];const test=(name,fn)=>tests.push({name,fn});
 
-const mkDash=(platform,days)=>({platform,days,first_day:'2025-01-01',last_day:'2026-11-23',current_start:days===7?'2026-11-17':'2026-10-25',
-  previous_start:days===7?'2026-11-10':'2026-09-25',totals:{cur_units:0,prev_units:0}});
 const dq=(platform,start,end,ok=true)=>{const span=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
   return {platform,period:{start,end},sales:{status:ok?'COMPLETA':'PARCIAL',requested_days:span,complete_days:ok?span:span-3,partial_days:0,
     days_without_information:ok?0:3,days_with_records_unverified:0,missing_ranges:ok?[]:[{start,end:start,days:3}]}};};
@@ -24,7 +21,7 @@ const row=(platform,id,uc,up,o={})=>({ext:TAG[platform]+id,listing_id:Number(id)
   status_checked_at:'2026-11-17T11:17:46+00:00',units_current:uc,units_previous:up,last_sale:'2026-11-22',first_sale:'2026-01-05',perf:{latest:null,previous:null},...o});
 // Resposta fictícia de commerce_decision_units_v1, com os mesmos campos reais.
 function unitsOf(platform,days,{many=false,cur,prev}={}){
-  const periods=strategicPeriods(mkDash(platform,days));
+  const periods=winOf(days);
   const rows=[row(platform,'1',10,30),row(platform,'2',0,8),row(platform,'3',24,10),row(platform,'4',8,0),row(platform,'5',10,10),
     row(platform,'6',4,20,{status:'PAUSED'}),row(platform,'7',3,25,{registered:false,status:null,status_checked_at:null,title:null,listing_id:null}),
     row(platform,'8',9,9,{perf:{latest:{ambiguous_rows:false,impressions:5000,clicks:200,visits:400,orders:2},previous:null}})];
@@ -32,14 +29,14 @@ function unitsOf(platform,days,{many=false,cur,prev}={}){
   return fxUnits(rows,{platform:cur||platform,current:prev?{start:'2026-11-18',end:'2026-11-23'}:periods.current,previous:periods.previous,
     reports:fxReports(['2026-11-16','2026-11-22',{store_visits:4000,store_orders:200}],null)});
 }
-export function payload(platform,days,{proven=true,prevUnproven=false,diverge=false,failUnits=false,many=false,split=true}={}){
+export function payload(platform,days,{proven=true,prevUnproven=false,diverge=false,noSource=false,failUnits=false,many=false,split=true,lastDayPartial=true}={}){
+  const win=winOf(days);
   const u=unitsOf(platform,days,{many});
-  const dash={...mkDash(platform,days),totals:{cur_units:u.totals.units_current+(diverge?7:0),prev_units:u.totals.units_previous}};
-  const periods=strategicPeriods(dash);
-  return buildDecisionCenter({platform,days,dash,periods,units:failUnits?null:u,failed:failUnits?['units']:[],
-    dqCurrent:dq(platform,periods.current.start,periods.current.end,proven),dqPrevious:dq(platform,periods.previous.start,periods.previous.end,proven&&!prevUnproven),
-    split:platform==='SHOPEE'&&split?{current:splitOf(periods.current.start,periods.current.end,{total:u.totals.units_current+4,linked:u.totals.units_current}),
-      previous:splitOf(periods.previous.start,periods.previous.end,{total:u.totals.units_previous+4,linked:u.totals.units_previous})}:null});
+  const source=noSource?null:sourceOf(u,win,diverge?{current:{units:u.reconciliation.current.source_units+7}}:{});
+  return buildDecisionCenter({platform,days,window:win,source,units:failUnits?null:u,failed:[...(failUnits?['units']:[]),...(noSource?['source']:[])],
+    dqCurrent:dq(platform,win.current.start,win.current.end,proven),dqPrevious:dq(platform,win.previous.start,win.previous.end,proven&&!prevUnproven),
+    split:platform==='SHOPEE'&&split?{current:splitOf(win.current.start,win.current.end,{total:u.totals.units_current+4,linked:u.totals.units_current}),
+      previous:splitOf(win.previous.start,win.previous.end,{total:u.totals.units_previous+4,linked:u.totals.units_previous})}:null});
 }
 
 function createSimulator(){
@@ -85,7 +82,8 @@ test('três contas: faixas, contagens, só GET, sem termos financeiros e captura
     const t=await body(page);
     assert.doesNotMatch(t,/faturamento|lucro|margem|ticket|R\$|receita/i);
     assert.match(t,/Somente leitura: o GA não altera anúncios/);
-    assert.match(t,/Atual: 2026-11-17 a 2026-11-23/);
+    assert.match(t,/Analisado: atual 17\/11\/2026 a 23\/11\/2026 · anterior 10\/11\/2026 a 16\/11\/2026/);
+    assert.match(await page.locator('[data-testid="window-dates"]').innerText(),/Última data importada: 24\/11\/2026 · último dia completo comprovado: 23\/11\/2026 · fora da análise por não estarem completos: 24\/11\/2026 \(parcial\)/);
     assert.equal(await page.locator('[data-testid="count-alta"]').innerText(),'2');
     assert.equal(await page.locator('[data-testid="count-revisao"]').innerText(),'1');
     assert.equal(await page.locator('[data-testid="count-oportunidade"]').innerText(),'2');
@@ -136,7 +134,7 @@ test('troca rápida de período: resposta de 7 dias não aparece sob 30 dias',as
   await page.locator('[aria-label="Período"] button',{hasText:'30 dias'}).click();
   await ready(page,'SHOPEE');
   sim.release('SHOPEE',7);await page.waitForTimeout(400);
-  assert.match(await body(page),/Anterior: 2026-09-25/);
+  assert.match(await body(page),/anterior 25\/09\/2026 a 24\/10\/2026/);
   await context.close();
 });
 
@@ -174,15 +172,29 @@ test('item 4: período anterior não comprovado: perda não é confirmada e a au
   await context.close();
 });
 
-test('item 5: divergência com o Dashboard bloqueia classificações confirmadas e mostra o motivo',async b=>{
+test('item 5: divergência com a GA-019 bloqueia classificações confirmadas e mostra o motivo (divergência, não indisponibilidade)',async b=>{
   const sim=createSimulator();sim.opts.mode.SHOPEE={diverge:true};
   const {page,context}=await open(b,{sim});await page.waitForSelector('[data-testid="count-alta"]');
   for(const t of ['alta','revisao','oportunidade','sem_prioridade'])assert.equal(await page.locator('[data-testid="count-'+t+'"]').innerText(),'0',t);
   assert.match(await page.locator('[data-testid="notice-UNIDADES_DIVERGENTES"]').innerText(),/bloqueadas/);
   assert.ok(Number(await page.locator('[data-testid="count-insuficiente"]').innerText())>=5);
   await page.locator('details.ndc-recon summary').click();
-  assert.match(await page.locator('[data-testid="recon-dashboard"]').innerText(),/divergente/);
+  assert.match(await page.locator('[data-testid="recon-ga019"]').innerText(),/divergente/);
+  assert.match(await page.locator('details.ndc-recon summary').innerText(),/divergência: classificações bloqueadas/);
+  assert.equal(await page.locator('[data-testid="notice-CONCILIACAO_INDISPONIVEL"]').count(),0);
   assert.match(await page.locator('[data-testid="recon-breakdown"]').innerText(),/sem ID de anúncio.*sem cadastro.*resíduo/);
+  await context.close();
+});
+
+test('conciliação indisponível bloqueia com motivo próprio, distinto de divergência',async b=>{
+  const sim=createSimulator();sim.opts.mode.SHOPEE={noSource:true};
+  const {page,context}=await open(b,{sim});await page.waitForSelector('[data-testid="count-alta"]');
+  for(const t of ['alta','revisao','oportunidade','sem_prioridade'])assert.equal(await page.locator('[data-testid="count-'+t+'"]').innerText(),'0',t);
+  assert.match(await page.locator('[data-testid="notice-CONCILIACAO_INDISPONIVEL"]').innerText(),/NÃO PÔDE SER FEITA \(isto não é divergência\)/);
+  assert.equal(await page.locator('[data-testid="notice-UNIDADES_DIVERGENTES"]').count(),0);
+  assert.match(await page.locator('details.ndc-recon summary').innerText(),/conferência indisponível: classificações bloqueadas/);
+  await page.locator('[data-tier="insuficiente"]').click();await page.locator('.ndc-link').first().click();
+  assert.match(await body(page),/conciliação das unidades \(não pôde ser feita\)/);
   await context.close();
 });
 

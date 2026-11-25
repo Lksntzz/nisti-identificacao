@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {FORBIDDEN_KEY_RE} from '../src/ga/commerce-strategic-logic.js';
 import {buildDecisionCenter,DECISION_DAYS,DECISION_THRESHOLDS,isDecisionDays,TIER_LIMIT} from '../src/ga/commerce-decision-logic.js';
 
-import {dash,dq,row,units,reports,perfOf,splitOf,mk,tierOf,get} from './fixtures-decision.js';
+import {dq,row,units,reports,perfOf,splitOf,mk,tierOf,get,winOf,sourceOf} from './fixtures-decision.js';
 
 test('janelas: só 7 e 30 dias, com limiares próprios',()=>{
   assert.deepEqual([...DECISION_DAYS],[7,30]); assert.equal(isDecisionDays(7),true); assert.equal(isDecisionDays(60),false);
@@ -134,15 +134,16 @@ test('ordenação por unidades, nunca por valor; empate estável',()=>{
   assert.deepEqual(v.tiers.alta.rows.map(r=>r.external_id),['C','A','B']);
 });
 
-test('conciliação: soma por anúncio contra o Dashboard e a divisão por SKU da Shopee; sem vínculo não é distribuído',()=>{
+test('conciliação: soma por anúncio contra a fonte diária da GA-019 e a divisão por SKU da Shopee; sem vínculo não é distribuído',()=>{
   const rows=[row('A',10,20),row('B',5,5)];
   const split={current:splitOf('2026-11-17','2026-11-23',{total:20,linked:15}),previous:splitOf('2026-11-10','2026-11-16',{total:30,linked:25})};
   const ok=buildDecisionCenter(mk(rows,{split}));
-  assert.equal(ok.reconciliation.dashboard.status,'CONCILIADO'); assert.equal(ok.reconciliation.shopee.unlinked,5); assert.equal(ok.reconciliation.shopee.status,'EXPLICADA');
+  assert.equal(ok.reconciliation.ga019.status,'CONCILIADO'); assert.equal(ok.reconciliation.shopee.unlinked,5); assert.equal(ok.reconciliation.shopee.status,'EXPLICADA');
   assert.equal(ok.reconciliation.shopee.listing_sum,15); assert.match(ok.reconciliation.shopee.note,/sem vínculo/i); assert.match(ok.reconciliation.shopee.note,/não .*distribu/i);
   assert.equal(ok.summary.units.current,15,'a soma dos anúncios não inclui a venda sem vínculo');
-  const bad=buildDecisionCenter(mk(rows,{split,dash:{...mk(rows).dash,totals:{cur_units:99,prev_units:25}}}));
-  assert.equal(bad.reconciliation.dashboard.status,'DIVERGENTE'); assert.ok(bad.notices.some(n=>n.kind==='UNIDADES_DIVERGENTES'&&n.essential));
+  const base=mk(rows,{split});
+  const bad=buildDecisionCenter({...base,source:sourceOf(base.units,base.window,{current:{units:99}})});
+  assert.equal(bad.reconciliation.ga019.status,'DIVERGENTE'); assert.ok(bad.notices.some(n=>n.kind==='UNIDADES_DIVERGENTES'&&n.essential));
   const badSplit=buildDecisionCenter(mk(rows,{split:{...split,current:splitOf('2026-11-17','2026-11-23',{total:20,linked:15,base:40})}}));
   assert.equal(badSplit.reconciliation.shopee.status,'DIVERGENTE');
 });
@@ -156,8 +157,8 @@ test('resposta inválida ou truncada não classifica nada (falha fechada)',()=>{
   assert.equal(trunc.parts.units,'RESPOSTA_INVALIDA');
   const failed=buildDecisionCenter({...mk([row('A',10,30)]),units:null,failed:['units']});
   assert.equal(failed.parts.units,'INDISPONIVEL'); assert.equal(failed.status,'INDISPONIVEL');
-  const noDash=buildDecisionCenter({...mk([row('A',10,30)]),dash:null,periods:null});
-  assert.equal(noDash.status,'SEM_INFORMACAO');
+  const noWindow=buildDecisionCenter({...mk([row('A',10,30)]),window:null});
+  assert.equal(noWindow.status,'SEM_INFORMACAO');
   assert.ok(wrongPlat.notices.some(n=>n.essential));
 });
 
@@ -169,11 +170,11 @@ test('somente leitura e sem indicadores financeiros em qualquer nível da respos
 });
 
 test('fontes e idade das evidências aparecem datadas; ML sem relatório é indisponível com motivo',()=>{
-  const v=buildDecisionCenter({...mk([row('A',10,30)]),platform:'ML_ANTIGO',dash:dash({platform:'ML_ANTIGO'}),dqCurrent:dq('ML_ANTIGO','2026-11-17','2026-11-23'),
+  const v=buildDecisionCenter({...mk([row('A',10,30)]),platform:'ML_ANTIGO',split:null,dqCurrent:dq('ML_ANTIGO','2026-11-17','2026-11-23'),
     dqPrevious:dq('ML_ANTIGO','2026-11-10','2026-11-16'),units:units([row('A',10,30)],{platform:'ML_ANTIGO'})});
   assert.equal(v.platform,'ML_ANTIGO'); assert.equal(v.evidence.latest.available,false); assert.match(v.evidence.latest.text,/nenhum relatório/i);
   assert.ok(get(v,'A').unavailable.find(u=>u.item==='TRAFEGO').text.match(/nenhum relatório/i));
-  assert.ok(v.sources.some(s=>s.name==='VENDAS'&&s.until==='2026-11-23'));
+  assert.ok(v.sources.some(s=>s.name==='VENDAS'&&s.until==='2026-11-24'));
 });
 
 test('visual: estados técnicos são traduzidos (Ativo, Pausado, Inativo); valor desconhecido aparece como veio',()=>{

@@ -34,20 +34,61 @@ const ageDays=(from,to)=>Math.round((Date.parse(to)-Date.parse(from))/86400000);
 const dayBefore=d=>new Date(Date.parse(d)-86400000).toISOString().slice(0,10);
 const sameRange=(a,b)=>Boolean(a&&b&&isoDay(a.start)===b.start&&isoDay(a.end)===b.end);
 
-// Valida o Dashboard ANTES de usar os períodos: conta e dias pedidos, datas reais, tamanho exato e continuidade entre atual e anterior.
-export function validateDashboardPeriods(dash,{platform,days}){
-  if(!dash||typeof dash!=='object'||Array.isArray(dash))return {ok:false,why:'resposta do Dashboard vazia ou em formato inesperado'};
-  if(dash.platform!==platform)return {ok:false,why:'o Dashboard respondeu para outra conta'};
+const addDays=(d,n)=>new Date(Date.parse(d)+n*86400000).toISOString().slice(0,10);
+export const PROBE_MAX_DAYS=14;
+// Janela de análise POR CONTA: termina no último dia COMPLETO comprovado pela GA-018 (nunca na última data importada, que pode ser parcial
+// ou até posterior a um dia completo sem vendas). Atual e anterior têm o mesmo tamanho, são contíguos e não se sobrepõem.
+// Sem nenhum dia completo, a janela termina no último dia importado (antes de hoje) e nada é confirmado: tudo fica como candidato.
+export function analysisWindow(f,days){
+  const bad=why=>({ok:false,why});
   const n=Number(days);
-  if(!Number.isInteger(n)||Number(dash.days)!==n)return {ok:false,why:'o Dashboard respondeu para outra quantidade de dias'};
-  const last=isoDay(dash.last_day),first=isoDay(dash.first_day),cs=isoDay(dash.current_start),ps=isoDay(dash.previous_start);
-  if(!last||!first||!cs||!ps)return {ok:false,why:'datas do Dashboard ausentes ou inválidas'};
-  if(cs>last)return {ok:false,why:'o período atual do Dashboard começa depois do último dia'};
-  if(spanOf(cs,last)!==n)return {ok:false,why:'o período atual do Dashboard não tem '+n+' dias'};
-  const pe=dayBefore(cs);
-  if(spanOf(ps,pe)!==n||ps>pe)return {ok:false,why:'o período anterior do Dashboard não tem '+n+' dias ou não é contínuo com o atual'};
-  if(first>cs)return {ok:false,why:'o início do histórico é posterior ao período atual'};
-  return {ok:true,periods:{days:n,current:{start:cs,end:last},previous:{start:ps,end:pe},history:{start:first,end:last}}};
+  if(!isDecisionDays(n))return bad('quantidade de dias não suportada');
+  if(!f||typeof f!=='object')return bad('fatos da janela ausentes');
+  const today=isoDay(f.today);if(!today)return bad('data de hoje inválida');
+  const lc=f.last_complete_day==null?null:isoDay(f.last_complete_day);
+  if(f.last_complete_day!=null&&!lc)return bad('último dia completo inválido');
+  if(lc&&lc>=today)return bad('o último dia completo não pode ser hoje nem futuro');
+  const li=f.last_import_day==null?null:isoDay(f.last_import_day);
+  if(f.last_import_day!=null&&!li)return bad('última data importada inválida');
+  let end,basis;
+  if(lc){end=lc;basis='ULTIMO_DIA_COMPLETO';}
+  else if(li){end=li<today?li:addDays(today,-1);basis='SEM_DIA_COMPLETO';}
+  else return {ok:false,why:'sem vendas importadas para esta conta',reason:'SEM_DADOS'};
+  const skipped=Array.isArray(f.skipped)?f.skipped.filter(x=>x&&isoDay(x.day)&&typeof x.state==='string').map(x=>({day:isoDay(x.day),state:x.state})):[];
+  return {ok:true,window:{today,days:n,basis,end,last_import_day:li,last_import_at:typeof f.last_import_at==='string'?f.last_import_at:null,last_complete_day:lc,
+    skipped,probes:Number.isInteger(f.probes)?f.probes:null,current:{start:addDays(end,-(n-1)),end},previous:{start:addDays(end,-(2*n-1)),end:addDays(end,-n)}}};
+}
+// A janela recebida é revalidada aqui: datas reais, tamanhos exatos, continuidade, fim antes de hoje e coerência com o último dia completo.
+export function validateWindow(w,{days}){
+  const bad=why=>({ok:false,why});
+  const n=Number(days);
+  if(!w||typeof w!=='object'||Array.isArray(w))return bad('janela ausente ou em formato inesperado');
+  if(!isDecisionDays(n)||Number(w.days)!==n)return bad('a janela é de outra quantidade de dias');
+  const today=isoDay(w.today),cs=isoDay(w.current?.start),ce=isoDay(w.current?.end),ps=isoDay(w.previous?.start),pe=isoDay(w.previous?.end);
+  if(!today||!cs||!ce||!ps||!pe)return bad('datas da janela ausentes ou inválidas');
+  if(spanOf(cs,ce)!==n||ce<cs)return bad('o período atual não tem '+n+' dias');
+  if(spanOf(ps,pe)!==n||pe<ps)return bad('o período anterior não tem '+n+' dias');
+  if(pe!==dayBefore(cs))return bad('os períodos não são contíguos ou se sobrepõem');
+  if(ce>=today)return bad('o período atual termina hoje ou no futuro');
+  if(w.end!==ce)return bad('o fim da janela não é o fim do período atual');
+  if(w.basis==='ULTIMO_DIA_COMPLETO'){if(w.last_complete_day!==ce)return bad('o fim da janela não é o último dia completo');}
+  else if(w.basis==='SEM_DIA_COMPLETO'){if(w.last_complete_day!=null)return bad('há último dia completo, mas a janela não termina nele');}
+  else return bad('base da janela desconhecida');
+  return {ok:true,periods:{days:n,current:{start:cs,end:ce},previous:{start:ps,end:pe}}};
+}
+// Soma, por período e nas MESMAS datas da Central, a fonte diária de vendas da GA-019. Resposta fora do formato não vira total.
+export function sumDailySource(rows,w){
+  if(!Array.isArray(rows)||!w)return null;
+  const seen=new Set();const out={current:{start:w.current.start,end:w.current.end,units:0},previous:{start:w.previous.start,end:w.previous.end,units:0}};
+  for(const r of rows){
+    const d=r&&typeof r.sale_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(r.sale_date)?isoDay(r.sale_date):null;
+    const u=r?num(r.units):null;
+    if(!d||u==null||u<0||seen.has(d))return null;
+    seen.add(d);
+    if(d>=out.current.start&&d<=out.current.end)out.current.units+=u;
+    else if(d>=out.previous.start&&d<=out.previous.end)out.previous.units+=u;
+  }
+  return out;
 }
 
 // Valida a resposta de commerce_decision_units_v1: conta e datas devem ser as pedidas; lista cortada ou soma que não fecha não classifica nada.
@@ -81,19 +122,19 @@ function reportOk(r){
   if(r.days!=null&&Number(r.days)!==days)return null;
   return {start:st,end:en,days};
 }
-function evidenceOf(reports,periods){
+function evidenceOf(reports,today){
   const l0=reports?.latest,p0=reports?.previous;
   const out={latest:{available:false,fresh:false,stale:false,text:'Nenhum relatório de desempenho importado para esta conta: visitas, impressões e conversão estão indisponíveis.'},
     previous:{available:false,comparable:false,reason:'SEM_RELATORIO_ANTERIOR'}};
   if(!l0)return out;
   const l=reportOk(l0);
   if(!l){out.latest.text='O relatório de desempenho mais recente tem datas inválidas ou incoerentes: visitas, impressões e conversão estão indisponíveis.';out.previous.reason='RELATORIO_INVALIDO';return out;}
-  const age=Math.max(0,ageDays(l.end,periods.current.end));
+  const age=Math.max(0,ageDays(l.end,today));
   const fresh=age<=REPORT_MAX_AGE_DAYS;
   out.latest={available:true,fresh,stale:!fresh,start:l.start,end:l.end,days:l.days,imported_at:l0.imported_at??null,age_days:age,
     store_visits:num(l0.store_visits),store_orders:num(l0.store_orders),
-    text:fresh?'Relatório de desempenho de '+rng(l.start,l.end)+' ('+l.days+' dias; termina '+age+' dia(s) antes do fim do período atual).'
-      :'O relatório de desempenho mais recente é de '+rng(l.start,l.end)+' ('+(age)+' dias antes do fim do período atual): antigo demais para servir de evidência. Visitas, impressões e conversão ficam indisponíveis.'};
+    text:fresh?'Relatório de desempenho de '+rng(l.start,l.end)+' ('+l.days+' dias; termina '+age+' dia(s) antes de hoje).'
+      :'O relatório de desempenho mais recente é de '+rng(l.start,l.end)+' ('+(age)+' dias antes de hoje): antigo demais para servir de evidência. Visitas, impressões e conversão ficam indisponíveis.'};
   if(!p0)return out;
   const p=reportOk(p0);
   if(!p){out.previous={available:false,comparable:false,reason:'RELATORIO_INVALIDO'};return out;}
@@ -179,7 +220,7 @@ function factsFor(r){
   return f;
 }
 
-const MISS_PT={PERIODO_ATUAL:'a cobertura de vendas do período atual',PERIODO_ANTERIOR:'a cobertura de vendas do período anterior',CONCILIACAO:'a conciliação das unidades',SITUACAO_CADASTRADA:'a situação cadastrada do anúncio'};
+const MISS_PT={PERIODO_ATUAL:'a cobertura de vendas do período atual',PERIODO_ANTERIOR:'a cobertura de vendas do período anterior',CONCILIACAO_DIVERGENTE:'a conciliação das unidades (as fontes divergem)',CONCILIACAO_INDISPONIVEL:'a conciliação das unidades (não pôde ser feita)',SITUACAO_CADASTRADA:'a situação cadastrada do anúncio'};
 const baseRow=(platform,r,{periods,cov,ev,u,p,th})=>{
   const d=p-u;
   const small=p<th.small_base;
@@ -204,7 +245,8 @@ function classifyRow(platform,r,ctx){
   const miss=[];
   if(!cov.current.proven)miss.push('PERIODO_ATUAL');
   if(!cov.previous.proven)miss.push('PERIODO_ANTERIOR');
-  if(blocked)miss.push('CONCILIACAO');
+  if(blocked?.divergent)miss.push('CONCILIACAO_DIVERGENTE');
+  if(blocked?.unavailable)miss.push('CONCILIACAO_INDISPONIVEL');
   const verified=miss.length===0;
   // Fato separado: ausência de vendas no período atual comprovada pela cobertura do próprio período (não confirma o impacto contra o anterior).
   const absence=u===0&&cov.current.proven&&!blocked;
@@ -279,15 +321,12 @@ function makeTier(id,rows){
     limit_note:total>TIER_LIMIT?'Mostrando '+shown+' de '+total+' anúncios desta faixa (maiores impactos primeiro). Os totais incluem todos.':null,rows:sorted.slice(0,TIER_LIMIT)};
 }
 
-const BLOCKING=new Set(['DIVERGENTE','RESIDUO_NAO_EXPLICADO','INCONSISTENTE','RESPOSTA_INVALIDA']);
 // Conciliação dos DOIS períodos: Dashboard (GA-019), função do banco (sem ID, sem cadastro, resíduo) e, na Shopee, divisão por SKU (GA-021).
-function reconcile({platform,u,dash,split,periods}){
+// Conciliação com as MESMAS datas da Central: nunca se comparam totais de janelas diferentes. Dois motivos de bloqueio, sempre distintos:
+// DIVERGENTE (as fontes foram lidas e não fecham) e INDISPONIVEL (a conferência necessária não pôde ser feita nestas datas).
+const SPLIT_DIVERGENT=new Set(['DIVERGENTE','RESIDUO_NAO_EXPLICADO','INCONSISTENTE']);
+function reconcile({platform,u,source,split,window}){
   const sc=num(u.totals.units_current),sp=num(u.totals.units_previous);
-  const dc=num(dash?.totals?.cur_units),dp=num(dash?.totals?.prev_units);
-  const per=(d,s)=>d==null||s==null?'INDISPONIVEL':d===s?'CONCILIADO':'DIVERGENTE';
-  const dCur=per(dc,sc),dPrev=per(dp,sp);
-  const dashboard={status:dCur==='DIVERGENTE'||dPrev==='DIVERGENTE'?'DIVERGENTE':(dCur==='INDISPONIVEL'||dPrev==='INDISPONIVEL')?'INDISPONIVEL':'CONCILIADO',
-    current_status:dCur,previous_status:dPrev,decision:{current:sc,previous:sp},dashboard:dc==null||dp==null?null:{current:dc,previous:dp}};
   const rc=u.reconciliation;
   const brk=k=>{const x=rc[k]||{};return {source_units:num(x.source_units),units_without_id:num(x.units_without_id),units_registered:num(x.units_registered),
     units_unregistered:num(x.units_unregistered),rows_units:num(x.rows_units),unexplained_units:num(x.unexplained_units),unlinked_sku_units:null};};
@@ -297,7 +336,7 @@ function reconcile({platform,u,dash,split,periods}){
   if(platform==='SHOPEE'){
     const one=(s,period,base0,key)=>{
       if(!s||typeof s!=='object')return {status:'INDISPONIVEL'};
-      if(s.start!==period.start||s.end!==period.end)return {status:'RESPOSTA_INVALIDA'};
+      if(s.start!==period.start||s.end!==period.end)return {status:'INDISPONIVEL',note:'a resposta é de outras datas'};
       if(s.total_units==null)return {status:'SEM_INFORMACAO'};
       const base=num(s.base_units),unl=num(s.unlinked_units);
       breakdown[key].unlinked_sku_units=unl;
@@ -305,47 +344,70 @@ function reconcile({platform,u,dash,split,periods}){
       return {status:diverges?'DIVERGENTE':(s.reconciliation?.status||'INDISPONIVEL'),total:num(s.total_units),linked:num(s.linked_units),unlinked:unl,
         unlinked_skus:num(s.unlinked_sku_count),base,listing_sum:base0,residual:num(s.difference?.residual_units)};
     };
-    const cur=one(split?.current,periods.current,breakdown.current.source_units??sc,'current');
-    const prev=one(split?.previous,periods.previous,breakdown.previous.source_units??sp,'previous');
+    const cur=one(split?.current,window.current,breakdown.current.source_units??sc,'current');
+    const prev=one(split?.previous,window.previous,breakdown.previous.source_units??sp,'previous');
     const all=[cur.status,prev.status];
-    const blockedS=all.find(x=>BLOCKING.has(x));
-    const status=blockedS||(all.every(x=>x==='EXPLICADA')?'EXPLICADA':all.includes('INDISPONIVEL')?'INDISPONIVEL':all.includes('SEM_INFORMACAO')?'SEM_INFORMACAO':'INDISPONIVEL');
+    const status=all.find(x=>SPLIT_DIVERGENT.has(x))||(all.every(x=>x==='EXPLICADA')?'EXPLICADA':all.includes('SEM_INFORMACAO')?'SEM_INFORMACAO':'INDISPONIVEL');
     shopee={status,current:cur,previous:prev,total:cur.total??null,linked:cur.linked??null,unlinked:cur.unlinked??null,unlinked_skus:cur.unlinked_skus??null,base:cur.base??null,
       listing_sum:cur.listing_sum??null,residual:cur.residual??null,
       note:'Vendas por SKU sem vínculo a anúncio ('+(cur.unlinked??0)+' un no período atual, '+(prev.unlinked??0)+' no anterior) não foram atribuídas a nenhum anúncio nem distribuídas entre eles; a soma dos anúncios abaixo não as inclui.'};
   }
-  const reasons=[];
-  if(dashboard.status==='DIVERGENTE')reasons.push('a soma por anúncio ('+sc+' atual, '+sp+' anterior) não coincide com o Dashboard ('+dc+' atual, '+dp+' anterior)');
-  if(db.status!=='CONCILIADA')reasons.push('a função do banco deixou unidades sem explicação (resíduo)');
-  if(shopee&&BLOCKING.has(shopee.status))reasons.push('a conciliação com a divisão por SKU da Shopee não fecha ('+shopee.status+')');
-  const unavailable=dashboard.status==='INDISPONIVEL'||(shopee&&(shopee.status==='INDISPONIVEL'||shopee.status==='SEM_INFORMACAO'));
-  return {dashboard,shopee,breakdown,db,blocked:reasons.length>0,blocked_reasons:reasons,unavailable};
+  // GA-019: fonte diária de vendas somada nas datas exatas de cada período x total da função do banco para essas mesmas datas.
+  // Na Shopee a GA-019 pode ter unidades a mais que a view (vendas por SKU sem vínculo): só vale se a GA-021 explicar a diferença por completo
+  // (mesmo total que a GA-019, base igual à da função, resíduo zero).
+  const g=(s,period,expect,sp)=>{
+    if(!s||typeof s!=='object')return {status:'INDISPONIVEL'};
+    if(s.start!==period.start||s.end!==period.end)return {status:'INDISPONIVEL',note:'a resposta é de outras datas'};
+    const t=num(s.units);
+    if(t==null||expect==null)return {status:'INDISPONIVEL'};
+    if(t===expect)return {status:'CONCILIADO',source:t,decision:expect};
+    if(sp&&sp.status==='EXPLICADA'&&sp.total===t&&sp.base===expect&&(sp.residual??0)===0)return {status:'CONCILIADO',source:t,decision:expect,explained_by:'GA-021',unlinked:sp.unlinked};
+    return {status:'DIVERGENTE',source:t,decision:expect};
+  };
+  const gc=g(source?.current,window.current,breakdown.current.source_units,shopee?.current),gp=g(source?.previous,window.previous,breakdown.previous.source_units,shopee?.previous);
+  const ga019={status:gc.status==='DIVERGENTE'||gp.status==='DIVERGENTE'?'DIVERGENTE':(gc.status==='INDISPONIVEL'||gp.status==='INDISPONIVEL')?'INDISPONIVEL':'CONCILIADO',
+    current:gc,previous:gp,rows:{current:sc,previous:sp}};
+  const divergent=[],unavailable=[];
+  if(ga019.status==='DIVERGENTE')divergent.push('a fonte diária de vendas (GA-019) soma '+nfi(gc.source)+' un no período atual e '+nfi(gp.source)+' no anterior, e a função do banco soma '+nfi(breakdown.current.source_units)+' e '+nfi(breakdown.previous.source_units)+', nas mesmas datas');
+  if(db.status!=='CONCILIADA')divergent.push('a função do banco deixou unidades sem explicação (resíduo)');
+  if(shopee&&[shopee.current.status,shopee.previous.status].some(x=>SPLIT_DIVERGENT.has(x)))divergent.push('a conciliação com a divisão por SKU da Shopee (GA-021) não fecha ('+shopee.status+')');
+  if(ga019.status==='INDISPONIVEL')unavailable.push('a conferência com a fonte diária de vendas (GA-019) não pôde ser feita nas datas da Central');
+  if(shopee&&[shopee.current.status,shopee.previous.status].some(x=>x==='INDISPONIVEL'||x==='SEM_INFORMACAO'))unavailable.push('a divisão por SKU da Shopee (GA-021) não está disponível nas datas da Central');
+  const blocked=divergent.length>0||unavailable.length>0;
+  const blocked_kind=divergent.length&&unavailable.length?'DIVERGENTE_E_INDISPONIVEL':divergent.length?'DIVERGENTE':unavailable.length?'INDISPONIVEL':null;
+  return {ga019,shopee,breakdown,db,divergent,unavailable,blocked,blocked_kind,blocked_reasons:[...divergent,...unavailable],
+    block_ctx:blocked?{divergent:divergent.length>0,unavailable:unavailable.length>0}:null};
 }
+const nfi=v=>v==null?'—':Number(v).toLocaleString('pt-BR');
 
 export function buildDecisionCenter(p){
   const platform=p.platform,days=Number(p.days);
   const th=DECISION_THRESHOLDS[days]||DECISION_THRESHOLDS[7];
   const failed=new Set(p.failed||[]);
-  // O Dashboard é validado (conta, dias, datas, tamanhos e continuidade) ANTES de os períodos serem usados; p.periods é ignorado.
-  const dashObj=p.dash&&typeof p.dash==='object'?p.dash:null;
-  const dv=dashObj?validateDashboardPeriods(dashObj,{platform,days}):null;
-  const periods=dv&&dv.ok?dv.periods:null;
-  const dash=periods?dashObj:null;
+  // A janela (já calculada por conta no último dia completo) é revalidada antes de qualquer uso; p.periods é ignorado.
+  const win=p.window&&typeof p.window==='object'?p.window:null;
+  const wv=win?validateWindow(win,{platform,days}):null;
+  const periods=wv&&wv.ok?wv.periods:null;
   const empty={};for(const id of TIER_IDS)empty[id]=makeTier(id,[]);
-  const parts={units:'OK',dashboard:dash?'OK':(dv&&!dv.ok)?'RESPOSTA_INVALIDA':failed.has('dashboard')?'INDISPONIVEL':'SEM_DADOS',quality:(p.dqCurrent&&p.dqPrevious)?'OK':failed.has('quality')?'INDISPONIVEL':'SEM_DADOS',
+  const parts={units:'OK',quality:(p.dqCurrent&&p.dqPrevious)?'OK':failed.has('quality')?'INDISPONIVEL':'SEM_DADOS',
+    source:failed.has('source')?'INDISPONIVEL':p.source?'OK':'SEM_DADOS',
     split:platform!=='SHOPEE'?'NAO_SE_APLICA':failed.has('split')?'INDISPONIVEL':(p.split&&(p.split.current||p.split.previous))?'OK':'SEM_DADOS'};
   const notices=[];
-  const out={platform,days,status:'OK',read_only:true,thresholds:th,periods:periods?{current:periods.current,previous:periods.previous}:null,coverage:null,
+  const windowInfo=periods?{today:win.today,basis:win.basis,last_import_day:win.last_import_day??null,last_import_at:win.last_import_at??null,
+    last_complete_day:win.last_complete_day??null,analyzed:{current:periods.current,previous:periods.previous},skipped:Array.isArray(win.skipped)?win.skipped:[],probes:win.probes??null}:null;
+  const out={platform,days,status:'OK',read_only:true,thresholds:th,periods:periods?{current:periods.current,previous:periods.previous}:null,window:windowInfo,coverage:null,
     blocked_confirmations:false,summary:{counts:Object.fromEntries(TIER_IDS.map(t=>[t,0])),listings_with_sales:null,proven_no_sales_current:0,units:{current:null,previous:null}},tiers:empty,
-    evidence:{latest:{available:false},previous:{available:false}},reconciliation:{dashboard:{status:'INDISPONIVEL'},shopee:null},sources:[],notices,parts,elapsed_ms:p.elapsed_ms??null};
-  if(dv&&!dv.ok){
+    evidence:{latest:{available:false},previous:{available:false}},reconciliation:{ga019:{status:'INDISPONIVEL'},shopee:null,blocked_kind:null},sources:[],notices,parts,elapsed_ms:p.elapsed_ms??null};
+  if(wv&&!wv.ok){
     out.status='INDISPONIVEL';
-    notices.push({kind:'FONTE_INVALIDA',essential:true,text:'Os períodos do Dashboard não são confiáveis ('+dv.why+'): nada foi classificado. Isso não significa que não haja prioridades.'});
+    notices.push({kind:'FONTE_INVALIDA',essential:true,text:'A janela de análise não é confiável ('+wv.why+'): nada foi classificado. Isso não significa que não haja prioridades.'});
     return stripCommercial(out);
   }
-  if(!dash||!periods){
-    out.status='SEM_INFORMACAO';
-    notices.push({kind:'SEM_INFORMACAO',essential:true,text:'Sem informação de vendas para esta conta: nada foi classificado. Isso não significa zero vendas.'});
+  if(!periods){
+    out.status=failed.has('window')?'INDISPONIVEL':'SEM_INFORMACAO';
+    notices.push(failed.has('window')
+      ?{kind:'CONSULTA_INDISPONIVEL',essential:true,text:'Não foi possível determinar o último dia completo desta conta (consulta de cobertura indisponível): nada foi classificado. Isso não significa que não haja prioridades.'}
+      :{kind:'SEM_INFORMACAO',essential:true,text:'Sem informação de vendas para esta conta: nada foi classificado. Isso não significa zero vendas.'});
     return stripCommercial(out);
   }
   const cov=coverageState({platform,periods,dqCurrent:p.dqCurrent,dqPrevious:p.dqPrevious,dqHistory:null});
@@ -355,7 +417,7 @@ export function buildDecisionCenter(p){
   if(failed.has('units')||!rawUnits){parts.units=failed.has('units')?'INDISPONIVEL':'SEM_DADOS';chk={ok:false,why:'consulta indisponível'};}
   else{chk=checkUnits(rawUnits,{platform,periods});if(!chk.ok)parts.units='RESPOSTA_INVALIDA';}
   out.sources=[
-    {name:'VENDAS',label:'Vendas importadas',until:periods.current.end,state:parts.units},
+    {name:'VENDAS',label:'Vendas importadas',until:win.last_import_day,state:parts.units},
     {name:'COBERTURA',label:'Cobertura de vendas (GA-018)',state:parts.quality,current:cov.current.proven?'COMPROVADA':'NAO_COMPROVADA',previous:cov.previous.proven?'COMPROVADA':'NAO_COMPROVADA'},
     {name:'SITUACAO',label:'Situação cadastrada',state:'ULTIMO_ESTADO_CADASTRADO',note:'Último estado cadastrado, com a data da verificação; não é confirmação em tempo real.'},
     {name:'ESTOQUE',label:'Estoque',state:'INDISPONIVEL'},{name:'PRECO',label:'Preço',state:'INDISPONIVEL'}
@@ -367,11 +429,12 @@ export function buildDecisionCenter(p){
     notices.push({kind:parts.units==='RESPOSTA_INVALIDA'?'FONTE_INVALIDA':'CONSULTA_INDISPONIVEL',essential:true,text:'Não foi possível classificar os anúncios ('+chk.why+'). Nenhuma lista foi montada; isso não significa que não haja prioridades.'});
     return stripCommercial(out);
   }
-  const rec=reconcile({platform,u:rawUnits,dash,split:p.split,periods});
+  const rec=reconcile({platform,u:rawUnits,source:p.source,split:p.split,window:win});
   out.reconciliation=rec;out.blocked_confirmations=rec.blocked;
-  if(rec.blocked)notices.push({kind:'UNIDADES_DIVERGENTES',essential:true,text:'Classificações confirmadas bloqueadas: '+rec.blocked_reasons.join('; ')+'. Os anúncios aparecem em "Dados insuficientes" até a divergência ser conferida.'});
-  if(!rec.blocked&&rec.unavailable)notices.push({kind:'CONCILIACAO_INDISPONIVEL',essential:false,text:'Parte da conciliação das unidades não está disponível (Dashboard ou divisão por SKU da Shopee): as classificações seguem, mas não foram conferidas contra essa fonte.'});
-  const ev=evidenceOf(rawUnits.reports,periods);
+  if(rec.divergent.length)notices.push({kind:'UNIDADES_DIVERGENTES',essential:true,text:'Classificações confirmadas bloqueadas por DIVERGÊNCIA entre fontes: '+rec.divergent.join('; ')+'. Os anúncios aparecem em "Dados insuficientes" até a divergência ser conferida.'});
+  if(rec.unavailable.length)notices.push({kind:'CONCILIACAO_INDISPONIVEL',essential:true,text:'Classificações confirmadas bloqueadas porque a conciliação necessária NÃO PÔDE SER FEITA (isto não é divergência): '+rec.unavailable.join('; ')+'. Os anúncios aparecem em "Dados insuficientes" até a conferência estar disponível.'});
+  if(win.basis==='SEM_DIA_COMPLETO')notices.push({kind:'SEM_DIA_COMPLETO',essential:true,text:'Nenhum dia completo comprovado pela cobertura de vendas (GA-018) nos últimos '+PROBE_MAX_DAYS+' dias desta conta: as datas analisadas terminam no último dia importado, e todas as classificações são apenas candidatas.'});
+  const ev=evidenceOf(rawUnits.reports,win.today);
   out.evidence=ev;
   out.sources.push({name:'DESEMPENHO',label:'Relatório de desempenho',state:!ev.latest.available?'INDISPONIVEL':ev.latest.fresh?'OK':'DESATUALIZADO',period:ev.latest.available?{start:ev.latest.start,end:ev.latest.end}:null});
   if(ev.latest.stale)notices.push({kind:'RELATORIO_DESATUALIZADO',essential:false,text:ev.latest.text});
@@ -387,7 +450,7 @@ export function buildDecisionCenter(p){
         facts:['O mesmo anúncio apareceu mais de uma vez na resposta.'],reason:'Atribuição ambígua: o mesmo anúncio apareceu mais de uma vez; nenhuma venda foi atribuída a ele.',investigation:INVESTIGATE.INSUFICIENTE});
       buckets.insuficiente.push(row);continue;
     }
-    const {tier,row}=classifyRow(platform,r,{th,cov,ev,periods,blocked:rec.blocked});
+    const {tier,row}=classifyRow(platform,r,{th,cov,ev,periods,blocked:rec.block_ctx});
     if(tier==='hipotese_conversao')row.visits=num(r.perf?.latest?.visits);
     buckets[tier].push(row);
   }

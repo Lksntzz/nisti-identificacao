@@ -44,3 +44,10 @@ Shopee 30 dias: 310 anúncios, 56 KB, 0,25 s, conciliada com o Dashboard (6236 e
 
 ### Ajustes visuais pós-aprovação da estrutura
 Contagens maiores nas abas (continuam clicáveis, `role=tab`); estados em português via mapa (ACTIVE→Ativo etc.); fatos do detalhe reduzidos ao que é próprio do anúncio (unidades, variação e cobertura já estão na tabela e no topo) e sem frases repetidas; a conferência manual fica só em "O que conferir". Sem mudança de regras, limiares ou escopo.
+
+### Decisão final do Atlas: janela no último dia completo (25/11)
+- **Janela por conta**: fim = último dia completo comprovado pela GA-018 (consulta dia a dia, de ontem para trás, até 14); atual e anterior de mesmo tamanho, contíguos, sem sobreposição. Sem dia completo: fim = último dia importado antes de hoje e tudo candidato.
+- **Saída**: `window{today,basis,last_import_day,last_import_at,last_complete_day,analyzed,skipped,probes}`.
+- **Conciliação**: GA-019 (fonte diária, mesmas datas) e GA-021 (Shopee, mesmas datas); o Dashboard não define mais períodos. Bloqueio com motivos distintos: `UNIDADES_DIVERGENTES` e `CONCILIACAO_INDISPONIVEL`; `reconciliation.blocked_kind` = DIVERGENTE | INDISPONIVEL | DIVERGENTE_E_INDISPONIVEL.
+- **Relatórios**: idade medida a partir de hoje.
+- **Dados reais (leitura, 25/11)**: janelas terminadas em 23/11. Período atual COMPLETO nas 3 contas (7 e 30 dias); anterior de 7 dias COMPLETO; anterior de 30 dias PARCIAL (perda de 30 dias não é confirmada). GA-019 = view nas contas do ML; na Shopee a GA-019 tem +1 (7d anterior), +4 (30d atual) e +2 (30d anterior) un, explicadas pela GA-021 (sem vínculo, resíduo 0).

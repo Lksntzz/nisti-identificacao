@@ -20,7 +20,10 @@ const KIND={QUEDA:'Queda',PAROU:'Parou de vender',CRESCIMENTO:'Crescimento',NOVA
   POSSIVEL_PARADA:'Possível parada',POSSIVEL_OPORTUNIDADE:'Possível oportunidade',CONVERSAO_BAIXA:'Conversão baixa (hipótese)',SEM_SINAL:'Sem sinal',SEM_SINAL_NAO_COMPROVADO:'Sem sinal (não comprovado)',SEM_VENDAS_COMPROVADO:'Sem vendas nos dois períodos',ATRIBUICAO_AMBIGUA:'Atribuição ambígua'};
 const RULE={PERCENTUAL:'queda percentual',ABSOLUTA:'perda absoluta',BASE_PEQUENA:'base pequena'};
 const SRC_STATE={OK:'ok',INDISPONIVEL:'indisponível',DESATUALIZADO:'desatualizado',RESPOSTA_INVALIDA:'resposta inválida',SEM_DADOS:'sem dados',ULTIMO_ESTADO_CADASTRADO:'último estado cadastrado'};
-const PART_PT={units:'unidades por anúncio',dashboard:'Dashboard',quality:'cobertura de vendas',split:'divisão por SKU'};
+const PART_PT={units:'unidades por anúncio',source:'fonte diária de vendas (GA-019)',quality:'cobertura de vendas',split:'divisão por SKU'};
+const br=d=>d?d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4):'—';
+const rg=p=>p?br(p.start)+' a '+br(p.end):'—';
+const REC={CONCILIADO:'conciliado',DIVERGENTE:'divergente',INDISPONIVEL:'indisponível'};
 
 function Row({r,open,onToggle}){
   return <>
@@ -36,7 +39,7 @@ function Row({r,open,onToggle}){
         <section><h4>Hipóteses <small>não confirmadas</small></h4>{r.hypotheses.length===0?<p className="ndc-muted">Nenhuma hipótese com evidência suficiente.</p>
           :<ul>{r.hypotheses.map((h,i)=><li key={i}>{h.text}</li>)}</ul>}</section>
         <section><h4>Indisponível</h4><ul>{r.unavailable.map((u,i)=><li key={i}>{u.text}</li>)}</ul>
-          {r.missing?.length>0&&<p className="ndc-muted">Falta para confirmar: {r.missing.map(m=>({PERIODO_ATUAL:'cobertura do período atual',PERIODO_ANTERIOR:'cobertura do período anterior',SITUACAO_CADASTRADA:'situação cadastrada',ATRIBUICAO:'atribuição do anúncio'}[m]||m)).join(', ')}.</p>}</section>
+          {r.missing?.length>0&&<p className="ndc-muted">Falta para confirmar: {r.missing.map(m=>({PERIODO_ATUAL:'cobertura do período atual',PERIODO_ANTERIOR:'cobertura do período anterior',SITUACAO_CADASTRADA:'situação cadastrada',ATRIBUICAO:'atribuição do anúncio',CONCILIACAO_DIVERGENTE:'conciliação das unidades (as fontes divergem)',CONCILIACAO_INDISPONIVEL:'conciliação das unidades (não pôde ser feita)'}[m]||m)).join(', ')}.</p>}</section>
         <section><h4>O que conferir <small>manualmente, no painel do marketplace</small></h4>{r.investigation.length===0?<p className="ndc-muted">Sem investigação sugerida.</p>
           :<ul>{r.investigation.map((t,i)=><li key={i}>{t}</li>)}</ul>}</section>
       </div></td></tr>}
@@ -93,7 +96,10 @@ export default function CommerceDecisionCenter(){
     {error&&<p className="ndc-error" role="alert">{error} <button type="button" className="ndc-link" onClick={()=>setTick(x=>x+1)}>Tentar de novo</button></p>}
     {wrong&&<p className="ndc-error" role="alert">A resposta recebida não é da conta ou do período escolhidos e foi descartada.</p>}
     {v&&<>
-      <p className="ndc-periods" data-testid="periods">{v.periods?<>Atual: {v.periods.current.start} a {v.periods.current.end} · Anterior: {v.periods.previous.start} a {v.periods.previous.end}</>:'Períodos indisponíveis'}</p>
+      <div className="ndc-periods" data-testid="periods">{v.window?<>
+        <p>Analisado: atual {rg(v.window.analyzed.current)} · anterior {rg(v.window.analyzed.previous)} <small>(mesmo tamanho, sem sobreposição)</small></p>
+        <p className="ndc-muted" data-testid="window-dates">Última data importada: {br(v.window.last_import_day)} · último dia completo comprovado: {v.window.last_complete_day?br(v.window.last_complete_day):'nenhum'}
+          {v.window.skipped?.length>0&&<> · fora da análise por não estarem completos: {v.window.skipped.map(x=>br(x.day)+' ('+({PARCIAL:'parcial',COM_REGISTROS:'só com registros',SEM_INFORMACAO:'sem informação'}[x.state]||x.state)+')').join(', ')}</>}</p></>:<p>Períodos indisponíveis</p>}</div>
       <ul className="ndc-sources" aria-label="Fontes">{(v.sources||[]).map(s=><li key={s.name} className={'is-'+String(s.state).toLowerCase()}><b>{s.label}</b>
         {s.until&&<> até {s.until}</>}{s.period&&<> {s.period.start} a {s.period.end}</>}{s.current&&<> · atual {s.current==='COMPROVADA'?'comprovada':'não comprovada'}, anterior {s.previous==='COMPROVADA'?'comprovada':'não comprovada'}</>}
         <small> {SRC_STATE[s.state]||s.state}</small></li>)}</ul>
@@ -105,8 +111,8 @@ export default function CommerceDecisionCenter(){
           className={(tier===t.id?'is-active ':'')+'is-'+t.id} onClick={()=>setTierPick(t.id)}><b className="ndc-count" data-testid={'count-'+t.id}>{v.summary.counts[t.id]}</b><span className="ndc-tablabel">{t.label}</span></button>)}</div>
         <p className="ndc-hint">{active.hint}</p>
         <TierTable key={tier+'|'+key} t={v.tiers[tier]}/>
-        <details className="ndc-recon"><summary>Conciliação das unidades{v.blocked_confirmations?' — divergência: classificações bloqueadas':''}</summary>
-          <p data-testid="recon-dashboard">Soma por anúncio: {nf(v.reconciliation.dashboard.decision?.current)} un (atual) e {nf(v.reconciliation.dashboard.decision?.previous)} (anterior) · Dashboard: {nf(v.reconciliation.dashboard.dashboard?.current)} e {nf(v.reconciliation.dashboard.dashboard?.previous)} · <b>{v.reconciliation.dashboard.status.toLowerCase()}</b></p>
+        <details className="ndc-recon"><summary>Conciliação das unidades{v.blocked_confirmations?({DIVERGENTE:' — divergência: classificações bloqueadas',INDISPONIVEL:' — conferência indisponível: classificações bloqueadas',DIVERGENTE_E_INDISPONIVEL:' — divergência e conferência indisponível: classificações bloqueadas'}[v.reconciliation.blocked_kind]||' — classificações bloqueadas'):''}</summary>
+          <p data-testid="recon-ga019">Fonte diária de vendas (GA-019), nas mesmas datas: atual {nf(v.reconciliation.ga019.current?.source)} un · anterior {nf(v.reconciliation.ga019.previous?.source)} un; função do banco: {nf(v.reconciliation.ga019.current?.decision)} e {nf(v.reconciliation.ga019.previous?.decision)} · <b>{REC[v.reconciliation.ga019.status]||v.reconciliation.ga019.status}</b>. Soma por anúncio: {nf(v.reconciliation.ga019.rows?.current)} e {nf(v.reconciliation.ga019.rows?.previous)} un.{(v.reconciliation.ga019.current?.explained_by||v.reconciliation.ga019.previous?.explained_by)&&<> Diferença explicada pela divisão por SKU da Shopee (GA-021): {nf(v.reconciliation.ga019.current?.unlinked??0)} un sem vínculo no período atual e {nf(v.reconciliation.ga019.previous?.unlinked??0)} no anterior.</>}</p>
           {v.reconciliation.breakdown&&<p data-testid="recon-breakdown">Fonte do banco (atual / anterior): vendas sem ID de anúncio {nf(v.reconciliation.breakdown.current.units_without_id)} / {nf(v.reconciliation.breakdown.previous.units_without_id)} · de anúncios sem cadastro {nf(v.reconciliation.breakdown.current.units_unregistered)} / {nf(v.reconciliation.breakdown.previous.units_unregistered)} · resíduo não explicado {nf(v.reconciliation.breakdown.current.unexplained_units)} / {nf(v.reconciliation.breakdown.previous.unexplained_units)}</p>}
           {v.reconciliation.shopee&&<p data-testid="recon-shopee">Shopee por SKU (atual / anterior): total {nf(v.reconciliation.shopee.current?.total)} / {nf(v.reconciliation.shopee.previous?.total)}, vinculado a anúncios {nf(v.reconciliation.shopee.current?.linked)} / {nf(v.reconciliation.shopee.previous?.linked)}, sem vínculo {nf(v.reconciliation.shopee.current?.unlinked)} / {nf(v.reconciliation.shopee.previous?.unlinked)} ({String(v.reconciliation.shopee.status).toLowerCase()}). {v.reconciliation.shopee.note}</p>}
           <p className="ndc-muted">{v.evidence?.latest?.text}</p>
