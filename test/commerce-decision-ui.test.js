@@ -52,3 +52,9 @@ test('preservação: Dashboard, Visão estratégica, GA-018/019/021 idênticos �
   const diff=execFileSync('git',['diff','--name-only',base,'--',...files],{encoding:'utf8'}).trim();
   assert.equal(diff,'','Arquivos preservados alterados: '+diff);
 });
+
+test('visual: contagens em destaque nas abas, ainda clicáveis (botões com role=tab)',()=>{
+  assert.ok(ui.includes('className="ndc-count"')&&ui.includes("data-testid={'count-'+t.id}")&&ui.includes('role="tab"'));
+  const css=read('src/ga/commerce-decision-center.css');
+  assert.match(css,/\.ndc-count\{[^}]*font-size:2[0-9]px/);
+});

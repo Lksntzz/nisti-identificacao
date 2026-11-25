@@ -70,7 +70,7 @@ test('situação é o último estado cadastrado, com data; só ativo entra em al
     row('M',2,20,{ambiguous_status:true,status:null,status_checked_at:null,title:null})]));
   assert.equal(tierOf(v,'P'),'revisao','não ativo nunca é alta'); const p=get(v,'P');
   assert.equal(p.status.label,'Último estado cadastrado'); assert.equal(p.status.value,'PAUSED'); assert.equal(p.status.checked_at,'2026-11-17T11:17:46.521006+00:00');
-  assert.ok(p.facts.some(f=>/Último estado cadastrado: PAUSED.*verificado em 2026-11-17/.test(f)),p.facts.join('|'));
+  assert.ok(p.facts.some(f=>/Último estado cadastrado: Pausado.*verificado em 17\/11\/2026/.test(f)),p.facts.join('|')); assert.equal(p.status.value,'PAUSED'); assert.equal(p.status.value_pt,'Pausado');
   assert.ok(!p.facts.concat(p.reason).some(t=>/confirmad[oa] em tempo real|está (ativo|pausado)/i.test(t)));
   assert.equal(tierOf(v,'U'),'insuficiente'); assert.deepEqual(get(v,'U').missing,['SITUACAO_CADASTRADA']);
   assert.equal(tierOf(v,'M'),'insuficiente'); assert.match(get(v,'M').reason,/ambígu/i);
@@ -174,4 +174,24 @@ test('fontes e idade das evidências aparecem datadas; ML sem relatório é indi
   assert.equal(v.platform,'ML_ANTIGO'); assert.equal(v.evidence.latest.available,false); assert.match(v.evidence.latest.text,/nenhum relatório/i);
   assert.ok(get(v,'A').unavailable.find(u=>u.item==='TRAFEGO').text.match(/nenhum relatório/i));
   assert.ok(v.sources.some(s=>s.name==='VENDAS'&&s.until==='2026-11-23'));
+});
+
+test('visual: estados técnicos são traduzidos (Ativo, Pausado, Inativo); valor desconhecido aparece como veio',()=>{
+  const v=buildDecisionCenter(mk([row('A',10,30),row('P',2,20,{status:'PAUSED'}),row('I',2,20,{status:'INACTIVE'}),row('X',2,20,{status:'EM_ANALISE'})]));
+  const pt=e=>get(v,e).status.value_pt;
+  assert.deepEqual(['A','P','I','X'].map(pt),['Ativo','Pausado','Inativo','EM_ANALISE']);
+  assert.match(get(v,'A').facts.join(' '),/Último estado cadastrado: Ativo, verificado em 17\/11\/2026/);
+  assert.match(get(v,'P').reason,/\(Pausado\)/); assert.doesNotMatch(JSON.stringify(Object.values(v.tiers).flatMap(t=>t.rows.map(r=>[r.reason,r.facts]))),/ACTIVE|PAUSED|INACTIVE/);
+});
+
+test('visual: os fatos não repetem o que a tabela já mostra e as indisponibilidades não repetem o "o que conferir"',()=>{
+  const v=buildDecisionCenter(mk([row('A',10,30,{in_report:false})]));
+  const a=get(v,'A');
+  assert.doesNotMatch(a.facts.join(' '),/Unidades vendidas|Variação:|Cobertura de vendas/,'unidades, variação e cobertura já estão na tabela e no topo');
+  assert.ok(a.facts.length>=1&&a.facts.some(f=>/Último estado cadastrado/.test(f)));
+  assert.doesNotMatch(a.unavailable.map(u=>u.text).join(' '),/Conferir/,'a conferência manual fica só em "o que conferir"');
+  assert.ok(a.unavailable.some(u=>u.item==='ESTOQUE'&&/Estoque: indisponível/.test(u.text))&&a.unavailable.some(u=>u.item==='PRECO'&&/Preço: indisponível/.test(u.text)));
+  assert.ok(a.investigation.length>0);
+  const all=[...a.facts,...a.unavailable.map(u=>u.text),...a.investigation];
+  assert.equal(new Set(all).size,all.length,'nenhuma frase repetida no detalhe');
 });

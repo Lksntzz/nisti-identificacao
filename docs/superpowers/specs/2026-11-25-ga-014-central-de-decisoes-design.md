@@ -41,3 +41,6 @@ O dia 24/11 é **parcial** nas três contas: o período atual (7 e 30 dias) fica
 
 ### Desempenho medido (view real, leitura)
 Shopee 30 dias: 310 anúncios, 56 KB, 0,25 s, conciliada com o Dashboard (6236 e 4897 un). Relatórios reais da Shopee: recente 7 dias, anterior 30 dias, intervalo de 11 dias.
+
+### Ajustes visuais pós-aprovação da estrutura
+Contagens maiores nas abas (continuam clicáveis, `role=tab`); estados em português via mapa (ACTIVE→Ativo etc.); fatos do detalhe reduzidos ao que é próprio do anúncio (unidades, variação e cobertura já estão na tabela e no topo) e sem frases repetidas; a conferência manual fica só em "O que conferir". Sem mudança de regras, limiares ou escopo.

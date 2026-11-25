@@ -24,6 +24,9 @@ const num=v=>v==null||v===''||!Number.isFinite(Number(v))?null:Number(v);
 const isoDay=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}/.test(v)&&!Number.isNaN(Date.parse(v.slice(0,10)))?v.slice(0,10):null;
 const ddmm=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
 const rng=(a,b)=>ddmm(a)+' a '+ddmm(b);
+const STATUS_PT=Object.freeze({ACTIVE:'Ativo',INACTIVE:'Inativo',PAUSED:'Pausado',REMOVED:'Removido',UNKNOWN:'Desconhecido',ABSENT:'Ausente',DISABLED:'Desativado'});
+const statusPt=v=>v==null?null:(STATUS_PT[v]||String(v));
+const brDate=d=>d?d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4):'';
 const nf1=v=>String(Math.round(Number(v)*10)/10).replace('.',',');
 const pc=v=>String(Math.round(v*10)/10).replace('.',',')+'%';
 const spanOf=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/86400000)+1;
@@ -152,29 +155,27 @@ const EXTRA={VISIBILIDADE_MENOR:'Verificar posição na busca, categoria e parti
   VISITAS_MENORES:'Verificar posição na busca e participação em campanhas.',CONVERSAO_MENOR:'Conferir fotos, descrição, variações e avaliações.'};
 
 function unavailableFor(platform,r,ev){
+  // Só o que falta saber; a conferência manual fica em "o que conferir" (sem repetir aqui).
   const list=[{item:'ESTOQUE',text:platform==='SHOPEE'
-      ?'Estoque: indisponível. A única fonte é a foto do catálogo, que não é estoque real nem em tempo real. Conferir no painel da Shopee.'
-      :'Estoque: indisponível. Esta conta não tem fonte de estoque no GA. Conferir no painel do Mercado Livre.'},
-    {item:'PRECO',text:'Preço: indisponível como evidência (sem fonte datada). O GA não recomenda nem altera preços; conferência manual no painel do marketplace.'}];
+      ?'Estoque: indisponível (a única fonte é a foto do catálogo, que não é estoque real nem em tempo real).'
+      :'Estoque: indisponível (esta conta não tem fonte de estoque no GA).'},
+    {item:'PRECO',text:'Preço: indisponível como evidência (sem fonte datada); o GA não recomenda nem altera preços.'}];
   const l=r.perf?.latest;
-  if(!ev.latest.available)list.push({item:'TRAFEGO',text:'Visitas e conversão: indisponíveis. '+ev.latest.text});
-  else if(!ev.latest.fresh)list.push({item:'TRAFEGO',text:'Visitas e conversão: indisponíveis. '+ev.latest.text});
-  else if(!l)list.push({item:'TRAFEGO',text:'Visitas e conversão: este anúncio não aparece no relatório de '+rng(ev.latest.start,ev.latest.end)+'.'});
+  if(!ev.latest.available)list.push({item:'TRAFEGO',text:'Visitas e conversão: indisponíveis (nenhum relatório de desempenho importado para esta conta).'});
+  else if(!ev.latest.fresh)list.push({item:'TRAFEGO',text:'Visitas e conversão: indisponíveis (o relatório de desempenho mais recente, de '+rng(ev.latest.start,ev.latest.end)+', é antigo demais).'});
+  else if(!l)list.push({item:'TRAFEGO',text:'Visitas e conversão: o anúncio não aparece no relatório de '+rng(ev.latest.start,ev.latest.end)+'.'});
   else if(l.ambiguous_rows)list.push({item:'TRAFEGO',text:'Visitas e conversão: o relatório traz mais de uma linha para este anúncio (variações); não foram somadas.'});
   return list;
 }
 
-function factsFor(r,{periods,cov,u,p,pct,newBase}){
-  const f=['Unidades vendidas: '+u+' no período atual ('+rng(periods.current.start,periods.current.end)+') e '+p+' no anterior ('+rng(periods.previous.start,periods.previous.end)+').'];
-  const d=u-p;
-  f.push('Variação: '+(d>0?'+':'')+d+' un'+(pct!=null?' ('+(pct>0?'+':'')+pc(pct)+')':newBase?' (base pequena: sem porcentagem)':'')+'.');
-  const covTxt=[cov.current.proven&&'período atual',cov.previous.proven&&'período anterior'].filter(Boolean);
-  f.push(covTxt.length===2?'Cobertura de vendas comprovada nos dois períodos (GA-018).':covTxt.length===1?'Cobertura de vendas comprovada só no '+covTxt[0]+' (GA-018).':'Cobertura de vendas não comprovada nos dois períodos (GA-018).');
+// Fatos próprios do anúncio. Unidades, variação e cobertura já aparecem na tabela e no topo da tela, então não se repetem aqui.
+function factsFor(r){
+  const f=[];
   if(r.registered&&!r.ambiguous_status&&r.status){
     const when=isoDay(r.status_checked_at);
-    f.push('Último estado cadastrado: '+r.status+(when?', verificado em '+when:', sem data de verificação')+' (não é uma confirmação em tempo real).');
+    f.push('Último estado cadastrado: '+statusPt(r.status)+(when?', verificado em '+brDate(when):', sem data de verificação')+' (não é uma confirmação em tempo real).');
   }
-  if(r.last_sale)f.push('Última venda importada: '+r.last_sale+' (só histórico importado).');
+  if(r.last_sale)f.push('Última venda importada: '+brDate(isoDay(r.last_sale)||r.last_sale)+' (só histórico importado).');
   return f;
 }
 
@@ -184,9 +185,9 @@ const baseRow=(platform,r,{periods,cov,ev,u,p,th})=>{
   const small=p<th.small_base;
   const pct=p>0&&!(small&&u>p)?Math.round((u-p)/p*1000)/10:null;
   return {key:platform+':'+r.ext,external_id:r.ext,listing_id:r.listing_id??null,title:r.title??null,
-    status:{label:'Último estado cadastrado',value:r.registered&&!r.ambiguous_status?r.status??null:null,checked_at:r.registered&&!r.ambiguous_status?r.status_checked_at??null:null,registered:Boolean(r.registered)},
+    status:{label:'Último estado cadastrado',value:r.registered&&!r.ambiguous_status?r.status??null:null,value_pt:r.registered&&!r.ambiguous_status?statusPt(r.status??null):null,checked_at:r.registered&&!r.ambiguous_status?r.status_checked_at??null:null,registered:Boolean(r.registered)},
     units_current:u,units_previous:p,delta:d,impact_units:u-p,pct_change:pct,kind:null,reason:'',rules:[],missing:[],
-    facts:factsFor(r,{periods,cov,u,p,pct,newBase:small&&u>=th.gain&&p<th.small_base}),hypotheses:[],unavailable:unavailableFor(platform,r,ev),investigation:[]};
+    facts:factsFor(r),hypotheses:[],unavailable:unavailableFor(platform,r,ev),investigation:[]};
 };
 
 function classifyRow(platform,r,ctx){
@@ -246,7 +247,7 @@ function classifyRow(platform,r,ctx){
     return {tier:'insuficiente',row};
   }
   if(r.status!=='ACTIVE'){
-    row.reason='Variação de unidades confirmada, mas o último estado cadastrado não é ativo ('+r.status+'): o cadastro pode estar desatualizado ou explicar a variação.';
+    row.reason='Variação de unidades confirmada, mas o último estado cadastrado não é ativo ('+statusPt(r.status)+'): o cadastro pode estar desatualizado ou explicar a variação.';
     row.investigation=INVESTIGATE.NAO_ATIVO;
     return {tier:'revisao',row};
   }

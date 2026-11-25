@@ -105,7 +105,9 @@ test('detalhe: fatos, hipóteses, indisponível e o que conferir; situação com
   await page.getByRole('button',{name:/Caderno Shopee 1$/}).click();
   const d=await page.locator('[data-testid="detail-S1"]').innerText();
   assert.match(d,/Fatos/);assert.match(d,/Hipóteses/);assert.match(d,/Indisponível/);assert.match(d,/O que conferir/);
-  assert.match(d,/Último estado cadastrado: ACTIVE, verificado em 2026-11-17/);
+  assert.match(d,/Último estado cadastrado: Ativo, verificado em 17\/11\/2026/);assert.doesNotMatch(d,/\b(ACTIVE|PAUSED|INACTIVE)\b/);
+  const items=await page.locator('[data-testid^="detail-"] li').allInnerTexts();assert.equal(new Set(items).size,items.length,'frase repetida no detalhe');
+  assert.doesNotMatch(d,/Unidades vendidas:|Variação:/);
   assert.match(d,/Estoque: indisponível/);assert.match(d,/Preço: indisponível/);
   assert.doesNotMatch(d,/sem estoque|estoque baixo|preço (alto|baixo)/i);
   if(SHOTS)await page.screenshot({path:SHOTS+'/decisoes-shopee-detalhe.png',fullPage:true});
@@ -148,6 +150,15 @@ test('períodos não comprovados: nada confirmado, aviso essencial visível e tu
   await page.locator('[data-tier="insuficiente"]').click();
   assert.match(await body(page),/Possível queda, não confirmada/);
   assert.doesNotMatch(await body(page),/Parou de vender: /);
+  await context.close();
+});
+
+test('visual: contagens grandes nas abas e abas continuam clicáveis',async b=>{
+  const {page,context}=await open(b);await page.waitForSelector('[data-testid="count-alta"]');
+  const fs=await page.locator('[data-testid="count-alta"]').evaluate(e=>parseFloat(getComputedStyle(e).fontSize));
+  assert.ok(fs>=20,'fonte da contagem '+fs);
+  await page.locator('[data-tier="revisao"]').click();
+  assert.equal(await page.locator('[data-tier="revisao"]').getAttribute('aria-selected'),'true');
   await context.close();
 });
 

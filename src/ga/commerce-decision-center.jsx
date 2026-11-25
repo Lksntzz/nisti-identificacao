@@ -32,7 +32,7 @@ function Row({r,open,onToggle}){
     </tr>
     {open&&<tr className="ndc-detail"><td colSpan={4} data-testid={'detail-'+r.external_id}>
       <div className="ndc-cols">
-        <section><h4>Fatos <small>comprovados</small></h4><ul>{r.facts.map((f,i)=><li key={i}>{f}</li>)}</ul></section>
+        <section><h4>Fatos <small>comprovados</small></h4>{r.facts.length===0?<p className="ndc-muted">Sem fatos além dos mostrados na tabela.</p>:<ul>{r.facts.map((f,i)=><li key={i}>{f}</li>)}</ul>}</section>
         <section><h4>Hipóteses <small>não confirmadas</small></h4>{r.hypotheses.length===0?<p className="ndc-muted">Nenhuma hipótese com evidência suficiente.</p>
           :<ul>{r.hypotheses.map((h,i)=><li key={i}>{h.text}</li>)}</ul>}</section>
         <section><h4>Indisponível</h4><ul>{r.unavailable.map((u,i)=><li key={i}>{u.text}</li>)}</ul>
@@ -102,7 +102,7 @@ export default function CommerceDecisionCenter(){
       {v.status==='OK'&&<>
         <p className="ndc-summary" data-testid="summary">{nf(v.summary.listings_with_sales)} anúncios com venda · {nf(v.summary.units.current)} un no período atual · {nf(v.summary.units.previous)} no anterior{v.summary.proven_no_sales_current>0&&<> · <span data-testid="proven-absence">{nf(v.summary.proven_no_sales_current)} anúncio(s) sem vendas no período atual (ausência comprovada; o impacto contra o anterior não é confirmado)</span></>}</p>
         <div className="ndc-tabs" role="tablist" aria-label="Faixas de prioridade">{TIERS.map(t=><button key={t.id} type="button" role="tab" aria-selected={tier===t.id} data-tier={t.id}
-          className={(tier===t.id?'is-active ':'')+'is-'+t.id} onClick={()=>setTierPick(t.id)}>{t.label} <b data-testid={'count-'+t.id}>{v.summary.counts[t.id]}</b></button>)}</div>
+          className={(tier===t.id?'is-active ':'')+'is-'+t.id} onClick={()=>setTierPick(t.id)}><b className="ndc-count" data-testid={'count-'+t.id}>{v.summary.counts[t.id]}</b><span className="ndc-tablabel">{t.label}</span></button>)}</div>
         <p className="ndc-hint">{active.hint}</p>
         <TierTable key={tier+'|'+key} t={v.tiers[tier]}/>
         <details className="ndc-recon"><summary>Conciliação das unidades{v.blocked_confirmations?' — divergência: classificações bloqueadas':''}</summary>
