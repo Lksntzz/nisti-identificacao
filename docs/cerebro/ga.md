@@ -57,3 +57,6 @@ Cobertura real hoje: 7 dias classifica; 30 dias só confirma "parou"; 60/90 e "s
 ## GA-013A — Refino visual da Visão estratégica (PUBLICADA, 24/11/2026, PRs #922 e #923)
 Tela reorganizada em 5 áreas (resumo, situação com filtros, gráfico atual x anterior diário/mensal, tabelas, qualidade expansível). Só apresentação; regras da GA-013 intactas; campo novo `listings.with_sales`. Ver `docs/MAPA-GA.md`.
 Mensal real: `month` vem como `aaaa-mm-01` (normalizado para `aaaa-mm`). Dia sem informação = lacuna, nunca zero. Validado com dados reais nas 3 contas. GA-014 a GA-017 só com autorização do Lucas.
+
+## GA-014 — Central de decisões (EM RASCUNHO, não publicada)
+Aplicação em PR rascunho, depende da migração `commerce_decision_units_v1` (PR separado, não aplicada). Rota `/api/admin/commerce/decision-center`, regras em `commerce-decision-logic.js`, tela `commerce-decision-center.jsx`. Só unidades, 7 e 30 dias, conta + ID, perda percentual e absoluta (20/60), hipóteses separadas dos fatos, situação como último estado cadastrado. Só publicar após a função ser aprovada, aplicada e validada. GA-015 a GA-017 não iniciadas.

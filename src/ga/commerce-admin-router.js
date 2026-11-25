@@ -50,6 +50,7 @@ import {
   commerceSalesImportHistory,
   commerceDataQuality,
   commerceStrategicViewV1,
+  commerceDecisionCenterV1,
   commerceSalesDashboardV1,
   commerceDashboardAbcV2,commerceDashboardShippingSplitV1,commerceAppendShopeeFullDailyV1,commerceAppendShopeeOrderExtrasV1,
   commerceSalesDashboardSeriesV1,
@@ -756,6 +757,14 @@ async function handleCommerceAdminRequestUncached(request, env) {
       if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
         return json({error:'Filtro da Visão estratégica inválido.'},400);
       return json(await commerceStrategicViewV1(env,{platform,days}));
+    }
+    // GA-014 — Central de decisões comerciais (somente leitura; só GET). Fora de /sales-dashboard/: nunca entra no cache de borda.
+    if(method==='GET'&&pathname===BASE_PATH+'/decision-center'){
+      const platform=String(query(url,'platform')||'').toUpperCase();
+      const days=Number(query(url,'days')||7);
+      if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30].includes(days))
+        return json({error:'Filtro da Central de decisões inválido.'},400);
+      return json(await commerceDecisionCenterV1(env,{platform,days}));
     }
     if(method==='GET'&&pathname===BASE_PATH+'/data-quality'){
       const platform=String(query(url,'platform')||'').toUpperCase();

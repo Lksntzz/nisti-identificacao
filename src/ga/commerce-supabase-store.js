@@ -1,6 +1,7 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
 import { supabaseRpc as directSupabaseRpc } from '../core/supabase-read-store.js';
 import { isStrategicPlatform, STRATEGIC_DAYS, strategicPeriods, buildStrategicView } from './commerce-strategic-logic.js';
+import { isDecisionDays, buildDecisionCenter } from './commerce-decision-logic.js';
 
 function cleanText(value) {
   const text = String(value ?? '').trim();
@@ -1481,4 +1482,32 @@ export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) 
   }
   return buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,dqCatCurrent,dqCatBase,
     perf:{shopee:shopeePerf,ml:mlPerf},failed,periods,elapsed_ms:Date.now()-t0});
+}
+
+// GA-014 — Central de decisões comerciais (somente leitura, só unidades). A função SQL commerce_decision_units_v1 traz as unidades por anúncio;
+// o Dashboard dá os períodos e o total para conciliar; a GA-018 dá a cobertura; a divisão por SKU (GA-021) dá a venda sem vínculo (Shopee).
+// Parte que falhar vira INDISPONIVEL e nada é classificado sem a lista de anúncios. As regras ficam em commerce-decision-logic.js.
+export async function commerceDecisionUnits(env,{platform,current,previous}={}) {
+  const data=await supabaseRpc(env,'commerce_decision_units_v1',{p_platform:platform,p_cur_start:current.start,p_cur_end:current.end,
+    p_prev_start:previous.start,p_prev_end:previous.end},{timeoutMs:25000});
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
+}
+export async function commerceDecisionCenterV1(env,{platform,days}={},deps=null) {
+  if(!isStrategicPlatform(platform)||!isDecisionDays(days))throw new Error('Filtro da Central de decisões inválido.');
+  const d=deps||{dashboard:commerceSalesDashboardV1,units:commerceDecisionUnits,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit};
+  const t0=Date.now();
+  const n=Number(days),failed=[];
+  const settle=async(name,fn)=>{try{return await fn();}catch{if(!failed.includes(name))failed.push(name);return null;}};
+  const dash=await settle('dashboard',()=>d.dashboard(env,{platform,days:n}));
+  const periods=dash&&dash.platform===platform?strategicPeriods(dash):null;
+  let units=null,dqCurrent=null,dqPrevious=null,split=null;
+  if(periods){
+    const q=period=>settle('quality',()=>d.quality(env,{platform,start:period.start,end:period.end}));
+    [units,dqCurrent,dqPrevious,split]=await Promise.all([
+      settle('units',()=>d.units(env,{platform,current:periods.current,previous:periods.previous})),
+      q(periods.current),q(periods.previous),
+      platform==='SHOPEE'?settle('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null)
+    ]);
+  }
+  return buildDecisionCenter({platform,days:n,dash,periods,units,dqCurrent,dqPrevious,split,failed,elapsed_ms:Date.now()-t0});
 }

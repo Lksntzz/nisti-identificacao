@@ -1,0 +1,33 @@
+/* GA-014 — Central de decisões. Mesma identidade do GA: azul #2a78d6 e cinza #64748b; nenhuma cor carrega sozinha o significado. */
+.ndc{display:flex;flex-direction:column;gap:12px;color:#0f172a}
+.ndc-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start}
+.ndc-head h1{margin:0;font-size:22px}.ndc-head p{margin:4px 0 0;color:#475569;font-size:14px}
+.ndc-controls{display:flex;flex-wrap:wrap;gap:10px}
+.ndc-seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#fff}
+.ndc-seg button{border:0;background:transparent;padding:8px 14px;font:inherit;cursor:pointer;color:#334155}
+.ndc-seg button.is-active{background:#2a78d6;color:#fff;font-weight:600}
+.ndc-periods,.ndc-summary{margin:0;font-size:13px;color:#475569}
+.ndc-sources{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.ndc-sources li{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:4px 10px;font-size:12px;color:#334155}
+.ndc-sources li.is-indisponivel,.ndc-sources li.is-desatualizado,.ndc-sources li.is-resposta_invalida{background:#fff7ed;border-color:#fdba74}
+.ndc-notice{margin:0;padding:10px 12px;border-left:4px solid #d97706;background:#fffbeb;font-size:14px}
+.ndc-error{margin:0;padding:10px 12px;border-left:4px solid #b91c1c;background:#fef2f2;font-size:14px}
+.ndc-loading,.ndc-empty,.ndc-hint,.ndc-muted{margin:0;font-size:13px;color:#64748b}
+.ndc-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.ndc-tabs button{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer;color:#334155}
+.ndc-tabs button.is-active{border-color:#2a78d6;box-shadow:inset 0 -3px 0 #2a78d6;font-weight:600}
+.ndc-tabs button b{margin-left:6px;background:#e2e8f0;border-radius:999px;padding:1px 8px;font-size:12px}
+.ndc-scroll{overflow-x:auto}
+.ndc-table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border:1px solid #e2e8f0;border-radius:10px}
+.ndc-table th{text-align:left;font-size:12px;color:#64748b;padding:8px 10px;border-bottom:1px solid #e2e8f0}
+.ndc-table td{padding:8px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.ndc-table .num{text-align:right;white-space:nowrap}.ndc-table small{display:block;color:#64748b;font-size:11px}
+.ndc-impact.is-neg{color:#b91c1c;font-weight:600}.ndc-impact.is-pos{color:#15803d;font-weight:600}
+.ndc-kind{font-style:normal;font-weight:600;font-size:12px;background:#eef2ff;border-radius:6px;padding:1px 6px}
+.ndc-reason{display:block;color:#475569;font-size:13px;margin-top:2px}
+.ndc-link{border:0;background:none;padding:0;color:#2a78d6;cursor:pointer;font:inherit;text-align:left}
+.ndc-detail td{background:#f8fafc}
+.ndc-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.ndc-cols h4{margin:0 0 4px;font-size:13px}.ndc-cols h4 small{font-weight:400;color:#64748b}
+.ndc-cols ul{margin:0;padding-left:18px;font-size:13px;color:#334155}
+.ndc-recon{font-size:13px}.ndc-recon summary{cursor:pointer;font-weight:600}

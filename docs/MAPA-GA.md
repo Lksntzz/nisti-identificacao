@@ -346,6 +346,16 @@ Antes de apagar qualquer coisa: fazer uma cópia (`select backup.take_snapshot_v
 - **Pendência futura:** `commerce_current_sales_listing_daily_v1` ainda repete a regra de seleção (CTE `current_sku`) em vez de ler a nova fonte; migrá-la para a fonte única é uma etapa separada (a view é usada por todas as telas de vendas).
 - **Testes:** `test/db/commerce-shopee-current-sku-source.db.test.js` (Postgres local, dados fictícios): lote aberto, aberto duplicado, falho, versão substituída, importação em partes e parcial, SKU sem vínculo, janelas de 7/30/90 dias e ano com as mesmas datas da fonte da GA-019, Mercado Livre intacto, permissões, reaplicação, cache, e mutação (cada uma das dez funções voltando à tabela crua é detectada).
 
+## GA-014 — Central de decisões comerciais (aplicação PREPARADA, NÃO PUBLICADA; depende da função `commerce_decision_units_v1`)
+Rascunho de PR. **Não publicar antes de a função SQL (PR de migração) ser aprovada, aplicada manualmente no Supabase e validada.** Sem a função, a tela mostra "consulta indisponível" (nunca lista vazia).
+- Rota `GET /api/admin/commerce/decision-center?platform=SHOPEE|ML_ANTIGO|ML_NOVO&days=7|30` (só leitura, sem cache). Montagem em `commerceDecisionCenterV1` (store); regras puras em `src/ga/commerce-decision-logic.js`; tela `commerce-decision-center.jsx/.css`; menu "Central de decisões" depois de "Visão estratégica".
+- Identidade = conta + ID. Venda sem cadastro continua contada. Cadastro repetido da mesma conta+ID só esconde título/situação.
+- Prioridade por unidades (nunca faturamento): alta = queda ≥30% (7d e 30d) com perda ≥5/10, **ou perda absoluta ≥20 (7d) / ≥60 (30d)** independentemente do percentual; revisão = perda ≥2/4; oportunidade = ganho ≥5/10 ou saída de zero/base pequena (sem inventar percentual). "Sem prioridade comercial" é separado de "dados insuficientes". Hipóteses de conversão ficam à parte, com relatório comparável (≤14 dias, mesma conta, volume mínimo), sem projetar vendas.
+- Cobertura define a classificação dinamicamente (GA-013/GA-018). Período não comprovado não confirma queda.
+- Situação do anúncio = "Último estado cadastrado" com data. Estoque, preço e tráfego: só "indisponível" / conferência manual, sem valores.
+- Conciliação: soma por anúncio x Dashboard e, na Shopee, x divisão GA-021 (vendas sem vínculo identificadas, nunca distribuídas). Totais e classificações antes de limitar as listas (50 por faixa).
+- Testes: `test/commerce-decision-logic|store|ui.test.js`, `test-browser/decision-center.mjs` (Chromium, no `browser-smoke.yml`). Dashboard, Visão estratégica, GA-018/019/021 intactos (teste de árvore contra a main).
+
 ## Roadmap (propostas, nada implementado sem aprovação do dono)
 
 | Item | Estado | Resumo |
