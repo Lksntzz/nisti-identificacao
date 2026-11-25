@@ -33,6 +33,11 @@ drop view if exists public.commerce_current_sales_listing_daily_v1 cascade;
 create view public.commerce_current_sales_listing_daily_v1 as select platform_code, sale_date, external_listing_id, sku_norm, units from public.fx_listing;
 grant select on public.commerce_shopee_current_sku_daily_v1, public.commerce_current_sales_listing_daily_v1 to service_role;
 grant select on public.commerce_sku_alias_v1 to service_role;
+drop table if exists public.commerce_products, public.commerce_product_skus, public.commerce_sales_rows cascade;
+create table public.commerce_products (id integer primary key, name text);
+create table public.commerce_product_skus (product_id integer, sku text);
+create table public.commerce_sales_rows (sku_norm text, sku text, product_name text, units integer, snapshot_id integer);
+grant select on public.commerce_products, public.commerce_product_skus, public.commerce_sales_rows to service_role;
 `;
 
 function withDb(name, fn) {
@@ -109,6 +114,17 @@ withDb('validações: conta, lista, quantidade, datas, tamanho, chaves repetidas
   await bad('SHOPEE', [P('a', '2026-10-05', '2026-10-01')], /inválidos/); await bad('SHOPEE', [P('a', '2026-01-01', '2026-06-30')], /inválidos/);
   await bad('SHOPEE', [OUT, OUT], /repetidas/); await bad('SHOPEE', [P('a', '2026-13-45', '2026-13-46')], /inválidos/); await bad('SHOPEE', [P('a b', '2026-10-01', '2026-10-02')], /inválidos/);
   await bad('SHOPEE', [{ key: 'a', start: '2026-10-01' }], /inválidos/); await bad('SHOPEE', ['x'], /inválidos/);
+  // Datas nulas, tipos errados e elementos misturados com um período válido NÃO podem passar em silêncio.
+  await bad('SHOPEE', [OUT, { key: 'b', start: null, end: '2026-10-02' }], /inválidos/);
+  await bad('SHOPEE', [OUT, { key: 'b', start: '2026-10-01', end: null }], /inválidos/);
+  await bad('SHOPEE', [OUT, { key: 'b', start: 20261001, end: '2026-10-02' }], /inválidos/);
+  await bad('SHOPEE', [OUT, { key: 7, start: '2026-10-01', end: '2026-10-02' }], /inválidos/);
+  await bad('SHOPEE', [OUT, { key: null, start: '2026-10-01', end: '2026-10-02' }], /inválidos/);
+  await bad('SHOPEE', [OUT, null], /inválidos/); await bad('SHOPEE', [OUT, [1]], /inválidos/);
+  await bad('SHOPEE', [OUT, P('b', '2026-10-01', '2026-02-30')], /inválidos/);
+  await bad('SHOPEE', [OUT, P('b', '2026-10-01', '2026-10-02'), P('b', '2026-10-03', '2026-10-04')], /repetidas/);
+  await bad('SHOPEE', [P('a', '2020-01-01', '2020-01-02'), P('b', '2026-10-01', '2026-10-02')], /800 dias/);
+  assert.ok(await call(db, 'SHOPEE', [P('a', '2025-01-01', '2025-01-02'), P('b', '2026-10-01', '2026-10-02')]), 'dois anos de distância cabem');
   await assert.rejects(() => db.one(`select public.commerce_abc_units_monthly_v1('SHOPEE','{"a":1}'::jsonb)`), /lista/);
   assert.ok(await call(db, 'SHOPEE', [P('a', '2026-10-01', '2026-10-01')]), 'um dia é válido');
   assert.ok(await call(db, 'SHOPEE', [P('a', '2026-08-01', '2026-11-01')]), '93 dias é válido');
@@ -131,13 +147,43 @@ withDb('somente leitura e sem receita: roda em transação read only, é STABLE,
   assert.ok(!/product_revenue|receita/i.test(body), 'a coluna de receita nunca é lida');
 });
 
-withDb('reversão remove só a função e não toca dados nem outras funções', async (db) => {
+withDb('reversão remove só as duas funções e não toca dados nem outras funções', async (db) => {
   await sku(db, '2026-10-05', 'AAA', 5);
   const before = await db.one(`select (select count(*) from fx_sku)::int n, (select count(*) from pg_proc where proname='commerce_sku_canon_v1')::int c`);
   await db.main.query(ROLLBACK);
-  assert.equal((await db.one(`select count(*)::int n from pg_proc where proname='commerce_abc_units_monthly_v1'`)).n, 0);
+  assert.equal((await db.one(`select count(*)::int n from pg_proc where proname in ('commerce_abc_units_monthly_v1','commerce_abc_names_v1')`)).n, 0);
   assert.deepEqual(await db.one(`select (select count(*) from fx_sku)::int n, (select count(*) from pg_proc where proname='commerce_sku_canon_v1')::int c`), before);
   await db.main.query(MIGRATION); assert.ok(await call(db, 'SHOPEE', [OUT]), 'a migração pode ser reaplicada');
+});
+
+withDb('lista completa: contagem declarada = tamanho da lista = SKUs únicos; vínculo comprovado (apelido) aparece em linked_from', async (db) => {
+  await db.q(`insert into commerce_sku_alias_v1 values ('OLD1','NEW1')`);
+  await sku(db, '2026-10-05', 'OLD1', 4); await sku(db, '2026-10-06', 'NEW1', 6); await sku(db, '2026-10-07', 'BBB', 2); await sku(db, '2026-10-08', 'BBB ', 1);
+  const r = await call(db, 'SHOPEE', [OUT]);
+  assert.equal(r.product_count, r.products.length); assert.equal(new Set(r.products.map((x) => x.sku)).size, r.products.length);
+  assert.deepEqual(prod(r, 'NEW1').linked_from, ['OLD1']); assert.equal(prod(r, 'BBB').linked_from, undefined, 'sem apelido, sem vínculo');
+  assert.equal(per(r, '2026-10').products, r.products.length);
+});
+
+const names = (db, skus) => db.one(`select public.commerce_abc_names_v1($1::jsonb) r`, [JSON.stringify(skus)]).then((x) => x.r);
+withDb('nomes: cadastro, venda com o mesmo código e sem vínculo (não aparece, nunca inventa)', async (db) => {
+  await db.q(`insert into commerce_products values (1,'Produto Fictício Um'), (2,'  ')`);
+  await db.q(`insert into commerce_product_skus values (1,'cad 01'), (2,'CAD02')`);
+  await db.q(`insert into commerce_sales_rows values ('VEN01','VEN01','Anúncio Fictício Dois',3,1), ('VEN01','VEN01','Anúncio Menor',1,2), ('OUTRO','OUTRO',null,5,1)`);
+  const r = await names(db, ['CAD01', 'CAD02', 'VEN01', 'OUTRO', 'SEMNADA', 'CAD01']);
+  const m = Object.fromEntries(r.map((x) => [x.sku, x]));
+  assert.deepEqual([m.CAD01.name, m.CAD01.source], ['Produto Fictício Um', 'CADASTRO']); assert.deepEqual([m.VEN01.name, m.VEN01.source], ['Anúncio Fictício Dois', 'VENDA']);
+  assert.equal(m.CAD02, undefined, 'nome vazio não vale'); assert.equal(m.OUTRO, undefined); assert.equal(m.SEMNADA, undefined); assert.equal(r.length, 2);
+});
+withDb('nomes: validações, somente leitura e só service_role', async (db) => {
+  await assert.rejects(() => names(db, []), /entre 1 e 300/); await assert.rejects(() => names(db, Array.from({ length: 301 }, (_, i) => 'S' + i)), /entre 1 e 300/);
+  await assert.rejects(() => names(db, [1]), /inválido/); await assert.rejects(() => names(db, ['']), /inválido/); await assert.rejects(() => names(db, [null]), /inválido/);
+  await assert.rejects(() => db.one(`select public.commerce_abc_names_v1('{"a":1}'::jsonb)`), /lista/);
+  await db.main.query('begin read only'); assert.deepEqual(await names(db, ['X']), []); await db.main.query('rollback');
+  const f = await db.one(`select p.provolatile v, p.prosecdef sd, p.proconfig cfg from pg_proc p where p.proname = 'commerce_abc_names_v1'`);
+  assert.equal(f.v, 's'); assert.equal(f.sd, false); assert.ok(f.cfg.some((c) => /^search_path=public, pg_temp$/.test(c)));
+  for (const role of ['anon', 'authenticated']) assert.equal((await db.one(`select has_function_privilege('${role}', 'public.commerce_abc_names_v1(jsonb)', 'execute') ok`)).ok, false, role);
+  await db.main.query('set role service_role'); assert.deepEqual(await names(db, ['X']), []); await db.main.query('reset role');
 });
 
 withDb('desempenho: 600 SKUs x 120 dias, 12 períodos mensais', async (db) => {

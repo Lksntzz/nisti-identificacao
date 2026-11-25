@@ -1,7 +1,7 @@
 // GA-015 — regras puras da evolução da Curva ABC por produto (dados FICTÍCIOS).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {classifyPeriod,comparePeriods,reconcilePeriod,planPeriods,buildAbcEvolution,ABC_THRESHOLDS,RELEVANCE_MIN_UNITS,dayAdd,daysBetween} from '../src/ga/commerce-abc-logic.js';
+import {sumDailyRange,classifyPeriod,comparePeriods,reconcilePeriod,planPeriods,buildAbcEvolution,ABC_THRESHOLDS,RELEVANCE_MIN_UNITS,dayAdd,daysBetween} from '../src/ga/commerce-abc-logic.js';
 
 const P=(...pairs)=>pairs.map(([sku,units])=>({sku,units}));
 const bySku=(c,s)=>c.rows.find(r=>r.sku===s);
@@ -38,7 +38,7 @@ test('concentração top 1, 3, 5 e 10 sobre a base de unidades com SKU',()=>{
 });
 
 // ---- conciliação ----
-const fp=(o={})=>({key:'k',total_units:20,sku_units:15,no_sku_units:5,ranked_units:15,...o});
+const fp=(o={})=>({key:'k',total_units:20,sku_units:15,no_sku_units:5,ranked_units:15,products:2,...o});
 const prods15=P(['A',10],['B',5]);
 test('conciliação ML: GA-019 igual concilia; diferente diverge; ausente fica indisponível; SEM SKU conta no total',()=>{
   assert.equal(reconcilePeriod({platform:'ML_NOVO',period:fp(),products:prods15,ga019:20}).status,'CONCILIADO');
@@ -82,7 +82,8 @@ test('histórico: 12 meses no máximo, não antes do primeiro dado, mês corrent
 test('mensal: mês incompleto compara com o mesmo número de dias do mês anterior; mês maior que o anterior não é equivalente',()=>{
   const p=planPeriods({mode:'mensal',last:'2026-11-23',firstDay:'2026-01-01'});
   assert.deepEqual([p.current.start,p.current.end,p.current.incomplete],['2026-11-01','2026-11-23',true]); assert.deepEqual([p.previous.start,p.previous.end],['2026-10-01','2026-10-23']); assert.equal(p.equivalent,true);
-  const q=planPeriods({mode:'mensal',last:'2026-03-31',firstDay:'2026-01-01'}); assert.equal(q.equivalent,false); assert.ok(q.note); assert.equal(q.previous.end,'2026-02-28');
+  const q=planPeriods({mode:'mensal',last:'2026-03-30',firstDay:'2026-01-01'}); assert.equal(q.equivalent,false); assert.ok(q.note); assert.equal(q.previous.end,'2026-02-28');
+  const f=planPeriods({mode:'mensal',last:'2026-03-31',firstDay:'2026-01-01'}); assert.equal(f.equivalent,true,'mês fechado contra mês fechado'); assert.match(f.note,/número de dias diferente/);
   const o=planPeriods({mode:'mensal',month:'2026-10',last:'2026-11-23',firstDay:'2026-01-01'}); assert.deepEqual([o.current.end,o.current.incomplete,o.previous.start,o.previous.end],['2026-10-31',false,'2026-09-01','2026-09-30']);
   assert.equal(planPeriods({mode:'mensal',month:'2026-12',last:'2026-11-23'}).error,'MES_SEM_DADOS_COMPLETOS'); assert.equal(planPeriods({mode:'mensal',month:'2026-13',last:'2026-11-23'}).error,'MES_INVALIDO');
 });
@@ -116,7 +117,7 @@ test('relevância exige variação mínima de unidades e de posições (limiares
 test('entrada e saída da curva NÃO são migração (sem vínculo de identidade) e ficam separadas',()=>{
   const prev=cls(['A',50],['OLD',50]),cur=cls(['A',50],['NEW',50]);
   const c=comparePeriods(prev,cur,{mode:'7d'}); const o=c.entries.find(e=>e.sku==='OLD'),n=c.entries.find(e=>e.sku==='NEW');
-  assert.equal(o.kind,'SAIDA'); assert.equal(n.kind,'ENTRADA'); assert.equal(o.identity_note,'SEM_VENDA_NO_ATUAL'); assert.equal(n.identity_note,'SEM_VENDA_NO_ANTERIOR');
+  assert.equal(o.kind,'SAIDA'); assert.equal(n.kind,'ENTRADA'); assert.equal(o.current_units,0); assert.equal(n.previous_units,0,'ausência num período comprovado é zero vendas');
   assert.equal(c.migrations.length,0); assert.equal(c.entered,1); assert.equal(c.left,1); assert.equal(n.class_change,undefined);
 });
 test('crescimento de unidades x crescimento de participação são diferentes',()=>{
@@ -149,9 +150,10 @@ const plan7=planPeriods({mode:'7d',last:'2026-11-23',firstDay:'2026-01-01'});
 function fixture({totals,units,cover='COMPLETA',ga019,splitOk=true,platform='ML_NOVO'}={}){
   const keys=[...plan7.history.map(h=>h.key),plan7.current.key,plan7.previous.key];
   const periods=keys.map(k=>{const sku=Object.values(units).reduce((s,u)=>s+(u[k]||0),0),nos=totals?.[k]??3;return {key:k,total_units:sku+nos,sku_units:sku,no_sku_units:nos,ranked_units:sku,nonpositive_units:0,products:Object.values(units).filter(u=>u[k]>0).length};});
-  const data={periods,products:Object.entries(units).map(([sku,u])=>({sku,units:u}))};
+  const allP=[...plan7.history,plan7.current,plan7.previous];periods.forEach(p=>{const pd=allP.find(q=>q.key===p.key);p.start=pd.start;p.end=pd.end;});
+  const data={platform,periods,product_count:Object.keys(units).length,products:Object.entries(units).map(([sku,u])=>({sku,units:u}))};
   const ga=ga019||Object.fromEntries(periods.map(p=>[p.key,p.total_units]));
-  const splits=platform==='SHOPEE'?Object.fromEntries(periods.map(p=>[p.key,splitOk?split({total_units:p.total_units}):split({total_units:p.total_units,difference:{residual_units:null}})])):{};
+  const splits=platform==='SHOPEE'?Object.fromEntries(periods.map(p=>[p.key,splitOk?split({total_units:p.total_units,start:p.start,end:p.end}):split({total_units:p.total_units,start:p.start,end:p.end,difference:{residual_units:null}})])):{};
   const coverage=Object.fromEntries(keys.map(k=>[k,typeof cover==='function'?cover(k):cover]));
   return {platform,mode:'7d',today:'2026-11-25',last:'2026-11-23',plan:plan7,data,ga019:ga,coverage,splits};
 }
@@ -196,13 +198,27 @@ test('lista limitada só na exibição: contagens e classes usam a população c
   assert.equal(r.current.class_counts.A+r.current.class_counts.B+r.current.class_counts.C,300);
 });
 test('períodos diferentes, sem anterior e plano inválido não comparam',()=>{
-  const q=planPeriods({mode:'mensal',last:'2026-03-31',firstDay:'2026-01-01'}); const keys=[...q.history.map(h=>h.key),q.current.key,q.previous.key];
-  const data={periods:keys.map(k=>({key:k,total_units:10,sku_units:10,no_sku_units:0,ranked_units:10,nonpositive_units:0,products:1})),products:[{sku:'A',units:Object.fromEntries(keys.map(k=>[k,10]))}]};
-  const r=buildAbcEvolution({platform:'ML_NOVO',mode:'mensal',last:'2026-03-31',plan:q,data,ga019:Object.fromEntries(keys.map(k=>[k,10])),coverage:Object.fromEntries(keys.map(k=>[k,'COMPLETA'])),splits:{}});
+  const q=planPeriods({mode:'mensal',last:'2026-03-30',firstDay:'2026-01-01'}); const keys=[...q.history.map(h=>h.key),q.current.key,q.previous.key];
+  const data={platform:'ML_NOVO',periods:keys.map(k=>({key:k,start:[...q.history,q.current,q.previous].find(h=>h.key===k).start,end:[...q.history,q.current,q.previous].find(h=>h.key===k).end,total_units:10,sku_units:10,no_sku_units:0,ranked_units:10,nonpositive_units:0,products:1})),product_count:1,products:[{sku:'A',units:Object.fromEntries(keys.map(k=>[k,10]))}]};
+  const r=buildAbcEvolution({platform:'ML_NOVO',mode:'mensal',last:'2026-03-30',plan:q,data,ga019:Object.fromEntries(keys.map(k=>[k,10])),coverage:Object.fromEntries(keys.map(k=>[k,'COMPLETA'])),splits:{}});
   assert.equal(r.comparison.state,'PERIODOS_DIFERENTES');
   assert.equal(buildAbcEvolution({platform:'ML_NOVO',mode:'7d',plan:{error:'SEM_ULTIMO_DIA_COMPLETO'}}).status,'INDISPONIVEL'); assert.equal(buildAbcEvolution({platform:'TODAS',plan:plan7}).status,'INVALIDO');
 });
 test('o módulo não calcula nem menciona valores financeiros',async()=>{
   const fs=await import('node:fs'); const src=fs.readFileSync(new URL('../src/ga/commerce-abc-logic.js',import.meta.url),'utf8').replace(/\/\/.*$/gm,'');
   assert.ok(!/revenue|receita|ticket|faturamento|margem|price|preço/i.test(src));
+});
+
+test('a resposta da função só vale se for da conta e das datas pedidas; GA-021 de outras datas é indisponível',()=>{
+  const f=fixture({units:U}); f.data.platform='SHOPEE'; const a=buildAbcEvolution(f);
+  assert.equal(a.current.status,'BLOQUEADO_INDISPONIVEL'); assert.equal(a.comparison.state,'BLOQUEADA_INDISPONIVEL');
+  const g=fixture({units:U}); g.data.periods.find(p=>p.key==='j7_atual').end='2026-11-22'; assert.equal(buildAbcEvolution(g).current.status,'BLOQUEADO_INDISPONIVEL');
+  const h=fixture({units:U,platform:'SHOPEE'}); h.splits.j7_atual={...h.splits.j7_atual,start:'2026-11-16'}; const r=buildAbcEvolution(h);
+  assert.equal(r.current.reconciliation.reason,'GA021_OUTRAS_DATAS'); assert.equal(r.current.status,'BLOQUEADO_INDISPONIVEL');
+});
+test('soma da GA-019 nas mesmas datas; formato inválido, data repetida ou negativo não viram total',()=>{
+  const rows=[{sale_date:'2026-11-01',units:3},{sale_date:'2026-11-02',units:4},{sale_date:'2026-11-09',units:100}];
+  assert.equal(sumDailyRange(rows,'2026-11-01','2026-11-07'),7); assert.equal(sumDailyRange([],'2026-11-01','2026-11-07'),0);
+  for(const bad of [[{sale_date:'2026-11-01',units:1},{sale_date:'2026-11-01',units:1}],[{sale_date:'x',units:1}],[{sale_date:'2026-11-01',units:-1}],[{sale_date:'2026-11-01',units:'3'}],[null]]) assert.equal(sumDailyRange(bad,'2026-11-01','2026-11-07'),null);
+  assert.equal(sumDailyRange(null,'2026-11-01','2026-11-07'),null); assert.equal(sumDailyRange(rows,'2026-11-07','2026-11-01'),null);
 });

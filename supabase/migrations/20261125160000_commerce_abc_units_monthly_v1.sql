@@ -27,7 +27,9 @@ set search_path = public, pg_temp
 as $fn$
 declare
   v_n integer;
-  v_bad boolean;
+  v_ok integer;
+  v_keys integer;
+  v_prod integer;
   v_lo date;
   v_hi date;
   r jsonb;
@@ -42,21 +44,31 @@ begin
   if v_n < 1 or v_n > 24 then
     raise exception 'abc_units: entre 1 e 24 períodos' using errcode = '22023';
   end if;
+  -- Cada elemento precisa ser objeto com key/start/end TEXTO (nulo, número ou objeto são recusados), datas reais, 1 a 93 dias.
+  -- Qualquer elemento inválido derruba a chamada (nunca é ignorado em silêncio).
   begin
-    select bool_or(jsonb_typeof(e) <> 'object' or e->>'key' is null or (e->>'key') !~ '^[A-Za-z0-9_:.-]{1,24}$'
-        or (e->>'start') !~ '^\d{4}-\d{2}-\d{2}$' or (e->>'end') !~ '^\d{4}-\d{2}-\d{2}$'
-        or (e->>'end')::date < (e->>'start')::date or (e->>'end')::date - (e->>'start')::date + 1 > 93),
-      min((e->>'start')::date), max((e->>'end')::date)
-    into v_bad, v_lo, v_hi
+    select count(*) filter (where jsonb_typeof(e) = 'object'
+          and jsonb_typeof(e->'key') = 'string' and (e->>'key') ~ '^[A-Za-z0-9_:.-]{1,24}$'
+          and jsonb_typeof(e->'start') = 'string' and (e->>'start') ~ '^\d{4}-\d{2}-\d{2}$'
+          and jsonb_typeof(e->'end') = 'string' and (e->>'end') ~ '^\d{4}-\d{2}-\d{2}$'
+          and (e->>'end')::date >= (e->>'start')::date
+          and (e->>'end')::date - (e->>'start')::date + 1 <= 93),
+      count(distinct e->>'key'),
+      min((e->>'start')::date) filter (where jsonb_typeof(e) = 'object'),
+      max((e->>'end')::date) filter (where jsonb_typeof(e) = 'object')
+    into v_ok, v_keys, v_lo, v_hi
     from jsonb_array_elements(p_periods) e;
   exception when others then
     raise exception 'abc_units: períodos inválidos' using errcode = '22023';
   end;
-  if v_bad is distinct from false then
+  if v_ok is distinct from v_n then
     raise exception 'abc_units: chave, datas ou tamanho de período inválidos (1 a 93 dias)' using errcode = '22023';
   end if;
-  if (select count(distinct e->>'key') from jsonb_array_elements(p_periods) e) <> v_n then
+  if v_keys <> v_n then
     raise exception 'abc_units: chaves repetidas' using errcode = '22023';
+  end if;
+  if v_hi - v_lo + 1 > 800 then
+    raise exception 'abc_units: intervalo total acima de 800 dias' using errcode = '22023';
   end if;
 
   with per as (
@@ -90,6 +102,11 @@ begin
   ), prod as (
     select a.canon, jsonb_object_agg(a.key, a.u) units, sum(a.u) total
     from agg a where a.canon is not null and a.u > 0 group by a.canon
+  ), lk as (
+    -- Vínculo COMPROVADO de identidade: códigos brutos diferentes do canônico que o apelido revisado já unificou neste produto.
+    select c.canon, (array_agg(distinct c.sku order by c.sku))[1:5] linked
+    from cm c where c.canon is not null and c.sku <> c.canon
+      and exists (select 1 from prod p2 where p2.canon = c.canon) group by c.canon
   )
   select jsonb_build_object(
     'platform', p_platform,
@@ -100,11 +117,18 @@ begin
         'ranked_units', t.ranked_units, 'nonpositive_units', t.sku_units - t.ranked_units, 'products', t.products) order by t.ord)
       from per_tot t),
     'product_count', (select count(*) from prod),
-    'products', coalesce((select jsonb_agg(jsonb_build_object('sku', canon, 'units', units) order by total desc, canon) from prod), '[]'::jsonb)
+    'products', coalesce((select jsonb_agg(jsonb_strip_nulls(jsonb_build_object('sku', pr.canon, 'units', pr.units, 'linked_from', to_jsonb(lk.linked))) order by pr.total desc, pr.canon)
+      from prod pr left join lk on lk.canon = pr.canon), '[]'::jsonb)
   ) into r;
 
-  if (r->>'product_count')::integer > 5000 then
+  v_prod := (r->>'product_count')::integer;
+  if v_prod > 5000 then
     raise exception 'abc_units: população acima de 5000 produtos' using errcode = '54000';
+  end if;
+  -- A lista nunca pode ser truncada nem repetir SKU: contagem declarada = tamanho da lista = SKUs distintos.
+  if jsonb_array_length(r->'products') <> v_prod
+     or (select count(distinct e->>'sku') from jsonb_array_elements(r->'products') e) <> v_prod then
+    raise exception 'abc_units: lista de produtos incompleta ou com SKU repetido' using errcode = 'XX001';
   end if;
   return r;
 end;
@@ -115,3 +139,47 @@ comment on function public.commerce_abc_units_monthly_v1(text, jsonb) is
 
 revoke all on function public.commerce_abc_units_monthly_v1(text, jsonb) from public, anon, authenticated;
 grant execute on function public.commerce_abc_units_monthly_v1(text, jsonb) to service_role;
+
+-- commerce_abc_names_v1(p_skus): nomes SOMENTE para SKUs canônicos com vínculo confiável (1 a 300 SKUs, os exibidos na tela).
+--   source = 'CADASTRO'  -> o SKU está cadastrado no catálogo (commerce_product_skus) com o mesmo código;
+--   source = 'VENDA'     -> sem cadastro; nome do anúncio da venda com o MESMO código (rótulo diferente na tela);
+--   sem vínculo          -> o SKU não aparece na resposta (a tela mantém o código, nunca inventa nome).
+create or replace function public.commerce_abc_names_v1(p_skus jsonb) returns jsonb
+language plpgsql
+stable
+security invoker
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_n integer;
+  r jsonb;
+begin
+  if p_skus is null or jsonb_typeof(p_skus) <> 'array' then
+    raise exception 'abc_names: SKUs devem ser uma lista' using errcode = '22023';
+  end if;
+  v_n := jsonb_array_length(p_skus);
+  if v_n < 1 or v_n > 300 then
+    raise exception 'abc_names: entre 1 e 300 SKUs' using errcode = '22023';
+  end if;
+  if exists (select 1 from jsonb_array_elements(p_skus) e where jsonb_typeof(e) <> 'string' or length(e #>> '{}') not between 1 and 80) then
+    raise exception 'abc_names: SKU inválido' using errcode = '22023';
+  end if;
+  select coalesce(jsonb_agg(jsonb_build_object('sku', x.sku, 'name', x.name, 'source', x.src) order by x.sku), '[]'::jsonb) into r
+  from (
+    select s.sku,
+      coalesce(c.name, v.name) name,
+      case when c.name is not null then 'CADASTRO' when v.name is not null then 'VENDA' end src
+    from (select distinct e #>> '{}' sku from jsonb_array_elements(p_skus) e) s
+    left join lateral (select pp.name from public.commerce_product_skus ps join public.commerce_products pp on pp.id = ps.product_id
+      where upper(regexp_replace(ps.sku, '[\s_]+', '', 'g')) = s.sku and nullif(btrim(pp.name), '') is not null limit 1) c on true
+    left join lateral (select rr.product_name name from public.commerce_sales_rows rr
+      where c.name is null and upper(regexp_replace(coalesce(rr.sku_norm, rr.sku), '[\s_]+', '', 'g')) = s.sku and nullif(btrim(rr.product_name), '') is not null
+      order by rr.units desc, rr.snapshot_id desc limit 1) v on true
+  ) x where x.name is not null;
+  return r;
+end;
+$fn$;
+comment on function public.commerce_abc_names_v1(jsonb) is
+  'GA-015: nome por SKU canônico só com vínculo confiável (cadastro ou venda com o mesmo código). Só leitura.';
+revoke all on function public.commerce_abc_names_v1(jsonb) from public, anon, authenticated;
+grant execute on function public.commerce_abc_names_v1(jsonb) to service_role;
