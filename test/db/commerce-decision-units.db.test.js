@@ -177,3 +177,99 @@ withDb('desempenho: 1.500 anúncios com 14 dias de venda e relatórios respondem
   assert.equal(r.row_count, 1500); assert.equal(r.truncated, false);
   assert.ok(ms < 3000, `demorou ${ms} ms`);
 });
+
+// ---- Revisão técnica (itens 1 a 3) ----
+withDb('item 1: anúncio cadastrado sem vendas e sem relatório entra (com 0 unidades) e é identificado', async (db) => {
+  await listing(db, 'SHOPEE', '111', 'ACTIVE', 'Com venda');
+  await listing(db, 'SHOPEE', '555', 'PAUSED', 'Parado sem relatório');
+  await listing(db, 'SHOPEE', '777', 'ACTIVE', 'Repetido 1'); await listing(db, 'SHOPEE', '777', 'ACTIVE', 'Repetido 2');
+  await listing(db, 'MERCADO_LIVRE', '555', 'ACTIVE', 'Outra conta, mesmo ID', 'NOVO');
+  await sale(db, 'SHOPEE', '111', '2026-11-20', 3);
+  const r = await call(db);
+  const z = rowOf(r, '555');
+  assert.ok(z, 'o anúncio cadastrado sem venda e sem relatório precisa existir na lista');
+  assert.deepEqual([z.units_current, z.units_previous, z.registered, z.status, z.title, z.in_report, z.last_sale], [0, 0, true, 'PAUSED', 'Parado sem relatório', false, null]);
+  const rep = rowOf(r, '777'); assert.equal(rep.ambiguous_status, true); assert.equal(rep.title, null, 'cadastro repetido não escolhe um título');
+  assert.equal(r.rows.filter((x) => x.ext === '555').length, 1, 'a outra conta não duplica nem entra');
+  assert.equal(r.totals.listings, 3); assert.equal(r.totals.listings_registered, 3); assert.equal(r.totals.listings_with_sales, 1); assert.equal(r.totals.listings_without_sales, 2);
+  const m = await call(db, 'ML_NOVO');
+  assert.deepEqual(m.rows.map((x) => x.ext), ['555'], 'ML Novo só vê o cadastro da própria conta'); assert.equal(m.rows[0].title, 'Outra conta, mesmo ID');
+  const a = await call(db, 'ML_ANTIGO'); assert.equal(a.rows.length, 0); assert.equal(a.totals.listings, 0);
+});
+
+withDb('item 1: cadastro sem ID externo não vira anúncio, é contado à parte; venda sem ID não é atribuída a ninguém', async (db) => {
+  await listing(db, 'SHOPEE', null, 'ACTIVE', 'Sem ID'); await listing(db, 'SHOPEE', '  ', 'ACTIVE', 'ID em branco'); await listing(db, 'SHOPEE', '111', 'ACTIVE', 'Normal');
+  await sale(db, 'SHOPEE', null, '2026-11-20', 7); await sale(db, 'SHOPEE', '', '2026-11-12', 2); await sale(db, 'SHOPEE', '111', '2026-11-20', 1);
+  const r = await call(db);
+  assert.deepEqual(r.rows.map((x) => x.ext), ['111']);
+  assert.equal(r.totals.listings_without_external_id, 2);
+  assert.equal(r.reconciliation.current.units_without_id, 7); assert.equal(r.reconciliation.previous.units_without_id, 2);
+});
+
+withDb('item 2: conciliação dos dois períodos separa sem ID, sem cadastro, cadastradas e resíduo (zero quando fecha)', async (db) => {
+  await listing(db, 'SHOPEE', '111', 'ACTIVE', 'A');
+  await sale(db, 'SHOPEE', '111', '2026-11-20', 4); await sale(db, 'SHOPEE', '111', '2026-11-12', 5);
+  await sale(db, 'SHOPEE', '999', '2026-11-21', 3); await sale(db, 'SHOPEE', '999', '2026-11-13', 1); // sem cadastro
+  await sale(db, 'SHOPEE', null, '2026-11-22', 2);
+  await sale(db, 'ML_NOVO', '111', '2026-11-20', 50); // outra conta: fora
+  const r = await call(db);
+  const c = r.reconciliation.current, p = r.reconciliation.previous;
+  assert.deepEqual([c.source_units, c.units_registered, c.units_unregistered, c.units_without_id, c.unexplained_units], [9, 4, 3, 2, 0]);
+  assert.deepEqual([p.source_units, p.units_registered, p.units_unregistered, p.units_without_id, p.unexplained_units], [6, 5, 1, 0, 0]);
+  assert.equal(c.rows_units, 7); assert.equal(p.rows_units, 6);
+  assert.equal(r.totals.units_current, 7, 'a soma das linhas não inclui a venda sem ID'); assert.equal(r.totals.units_previous, 6);
+  assert.equal(r.reconciliation.status, 'CONCILIADA');
+});
+
+withDb('item 2: totais e conciliação continuam corretos quando a lista é cortada pelo limite', async (db) => {
+  for (let i = 1; i <= 6; i++) { await listing(db, 'SHOPEE', 'L' + i, 'ACTIVE', 'T' + i); await sale(db, 'SHOPEE', 'L' + i, '2026-11-20', i); }
+  const r = await call(db, 'SHOPEE', '2026-11-17', '2026-11-23', '2026-11-10', '2026-11-16', 2);
+  assert.equal(r.rows.length, 2); assert.equal(r.truncated, true); assert.equal(r.row_count, 6);
+  assert.equal(r.totals.units_current, 21); assert.equal(r.reconciliation.current.rows_units, 21, 'conciliação usa todos os anúncios, não só a lista cortada');
+});
+
+withDb('item 3: relatórios com durações diferentes trazem dias e valores por dia; sem anterior fica marcado', async (db) => {
+  await listing(db, 'SHOPEE', '111', 'ACTIVE', 'A'); await sale(db, 'SHOPEE', '111', '2026-11-20', 1);
+  await db.q(`insert into commerce_shopee_performance_reports_v1(period_start,period_end) values ('2026-10-06','2026-11-04'),('2026-11-16','2026-11-22')`); // 30 dias e 7 dias
+  await db.q(`insert into commerce_shopee_performance_rows_v1 values (1,'111',3000,300,900,30),(2,'111',700,70,140,7)`);
+  const r = await call(db);
+  assert.equal(r.reports.latest.days, 7); assert.equal(r.reports.previous.days, 30); assert.equal(r.reports.gap_days, 11);
+  assert.equal(r.reports.comparable.ok, true);
+  const a = rowOf(r, '111');
+  assert.deepEqual([a.perf.latest.impressions_per_day, a.perf.latest.visits_per_day, a.perf.latest.orders_per_day], [100, 20, 1]);
+  assert.deepEqual([a.perf.previous.impressions_per_day, a.perf.previous.visits_per_day, a.perf.previous.orders_per_day], [100, 30, 1]);
+  assert.equal(a.perf.latest.impressions, 700, 'o valor bruto continua disponível');
+  const solo = await newDb();
+  try {
+    await solo.main.query(DEPS); await solo.main.query(MIGRATION);
+    await solo.q(`insert into commerce_shopee_performance_reports_v1(period_start,period_end) values ('2026-11-16','2026-11-22')`);
+    const s = await call(solo);
+    assert.equal(s.reports.previous, null); assert.equal(s.reports.comparable.ok, false); assert.equal(s.reports.comparable.reason, 'SEM_RELATORIO_ANTERIOR');
+    await solo.q(`delete from commerce_shopee_performance_reports_v1`);
+    const n = await call(solo); assert.equal(n.reports.latest, null); assert.equal(n.reports.comparable.ok, false); assert.equal(n.reports.comparable.reason, 'SEM_RELATORIO');
+  } finally { await solo.close(); }
+});
+
+withDb('item 3: por dia só quando a linha do relatório é única (variação do ML continua ambígua)', async (db) => {
+  await db.q(`insert into commerce_ml_performance_reports_v1(account_code,period_start,period_end) values ('NOVO','2026-11-16','2026-11-22')`);
+  await db.q(`insert into commerce_ml_performance_rows_v1 values (1,'MLB7','Azul',70,5),(1,'MLB7','Vermelho',70,3),(1,'MLB8',null,70,2)`);
+  const m = await call(db, 'ML_NOVO');
+  assert.equal(rowOf(m, 'MLB7').perf.latest.visits_per_day, null); assert.equal(rowOf(m, 'MLB8').perf.latest.visits_per_day, 10);
+  assert.equal(m.reports.comparable.ok, false);
+});
+
+// ---- Reversão ----
+withDb('reversão: o arquivo de reversão remove só a função e não mexe em mais nada; reaplicar a migração restaura', async (db) => {
+  const down = fs.readFileSync(path.join(here, '../../supabase/rollback/20261125120000_commerce_decision_units_v1.down.sql'), 'utf8');
+  const objs = async () => (await db.q(`select 'f:'||p.proname n from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public'
+      union all select 'c:'||c.relname from pg_class c join pg_namespace s on s.oid=c.relnamespace where s.nspname='public' and c.relkind in ('r','v','m','S')`)).map((x) => x.n).sort();
+  const before = await objs();
+  assert.ok(before.includes('f:commerce_decision_units_v1'));
+  await db.main.query(down);
+  assert.equal((await db.one(`select to_regprocedure('public.commerce_decision_units_v1(text,date,date,date,date,integer)') r`)).r, null);
+  assert.deepEqual(await objs(), before.filter((x) => x !== 'f:commerce_decision_units_v1'), 'só a função some');
+  await db.main.query(down); // idempotente
+  await db.main.query(MIGRATION);
+  assert.ok((await objs()).includes('f:commerce_decision_units_v1'));
+  assert.equal(typeof (await call(db)).totals.listings, 'number');
+});
