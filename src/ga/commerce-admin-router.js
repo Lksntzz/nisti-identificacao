@@ -758,7 +758,7 @@ async function handleCommerceAdminRequestUncached(request, env) {
       const days=Number(query(url,'days')||7);
       if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||![7,30,60,90].includes(days))
         return json({error:'Filtro da Visão estratégica inválido.'},400);
-      return json(await commerceStrategicViewV1(env,{platform,days}));
+      return abcJsonResponse(await commerceStrategicViewV1(env,{platform,days}),'strategic','ga_strategic'); // GA-P02: métricas + volume; no-store
     }
     // GA-014 — Central de decisões comerciais (somente leitura; só GET). Fora de /sales-dashboard/: nunca entra no cache de borda.
     if(method==='GET'&&pathname===BASE_PATH+'/decision-center'){

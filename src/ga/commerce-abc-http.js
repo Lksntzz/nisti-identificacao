@@ -24,9 +24,9 @@ export const MAX_BODY_CHARS=MAX_SKUS_PARAM;
 
 // Resposta JSON com o volume (bytes do corpo, sem o próprio campo) em metrics.response_bytes e no cabeçalho x-ga-response-bytes.
 // Um log curto por chamada (tempo, consultas, falhas, volume): só números e a conta/modo, nunca SKU nem venda.
-export function abcJsonResponse(data,kind){
+export function abcJsonResponse(data,kind,ev='ga_abc'){
   const bytes=new TextEncoder().encode(JSON.stringify(data)).length;
   if(data&&data.metrics)data.metrics.response_bytes=bytes;
-  try{console.log(JSON.stringify({ev:'ga_abc',kind,platform:data?.platform??null,mode:data?.mode??null,status:data?.status??null,ms:data?.metrics?.elapsed_ms??null,queries:data?.metrics?.queries??null,failed_count:data?.metrics?.failed_count??null,bytes}));}catch{/* log nunca derruba a resposta */}
+  try{console.log(JSON.stringify({ev,kind,platform:data?.platform??null,mode:data?.mode??(data?.days!=null?data.days+'d':null),status:data?.status??null,ms:data?.metrics?.elapsed_ms??null,queries:data?.metrics?.queries??null,failed_count:data?.metrics?.failed_count??null,bytes}));}catch{/* log nunca derruba a resposta */}
   return new Response(JSON.stringify(data),{status:200,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-ga-response-bytes':String(bytes)}});
 }
