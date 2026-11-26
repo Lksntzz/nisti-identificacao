@@ -143,3 +143,73 @@ test('GA-P02: duas contas ao mesmo tempo não misturam respostas (limitador por 
   assert.equal(va.platform,'SHOPEE');assert.equal(vb.platform,'ML_NOVO');
   assert.ok(a.calls.every(c=>c[1].platform==null||c[1].platform==='SHOPEE'));assert.ok(b.calls.every(c=>c[1].platform==null||c[1].platform==='ML_NOVO'));
 });
+
+// ---- GA-P02A etapa 1: concorrência configurável SÓ da Visão estratégica; fila e chamada medidas separadamente ----
+import {strategicParallel} from '../src/ga/commerce-supabase-store.js';
+import {MAX_PARALLEL_DB} from '../src/ga/commerce-concurrency.js';
+const volatile=v=>{const c=JSON.parse(JSON.stringify(v));delete c.metrics;if(c.sources)delete c.sources.elapsed_ms;return c;};
+test('GA-P02A: strategicParallel aceita só 1..3; inválido ou ausente volta ao padrão 3; MAX_PARALLEL_DB não muda',()=>{
+  assert.equal(MAX_PARALLEL_DB,3);
+  assert.equal(strategicParallel({}),3);
+  assert.equal(strategicParallel({GA_STRATEGIC_PARALLEL:'1'}),1);assert.equal(strategicParallel({GA_STRATEGIC_PARALLEL:' 2 '}),2);
+  assert.equal(strategicParallel({GA_STRATEGIC_PARALLEL:2}),2);assert.equal(strategicParallel({},1),1);
+  for(const bad of ['0','4','-1','2.5','abc','','Infinity',null,undefined,{},[]])assert.equal(strategicParallel({GA_STRATEGIC_PARALLEL:bad}),3,'inválido: '+String(bad));
+  assert.equal(strategicParallel({GA_STRATEGIC_PARALLEL:'1'},9),3,'override inválido nunca vira ilimitado');
+});
+test('GA-P02A: com 1 ou 2 consultas simultâneas o pico respeita o limite em todas as contas e janelas',async()=>{
+  for(const par of [1,2])for(const platform of ['SHOPEE','ML_ANTIGO','ML_NOVO'])for(const days of [7,30,60,90]){
+    const {deps}=mk();const {deps:w,st}=withPeak(deps);
+    const v=await commerceStrategicViewV1({},{platform,days,parallel:par},w);
+    assert.ok(st.peak<=par,par+' '+platform+' '+days+': pico '+st.peak);assert.equal(v.metrics.max_parallel,par);assert.equal(v.metrics.queries,st.total);
+  }
+});
+test('GA-P02A: a variável de ambiente controla a simultaneidade e a URL não tem como mudá-la',async()=>{
+  const {deps}=mk();const {deps:w,st}=withPeak(deps);
+  const v=await commerceStrategicViewV1({GA_STRATEGIC_PARALLEL:'1'},{platform:'SHOPEE',days:30},w);
+  assert.equal(st.peak,1);assert.equal(v.metrics.max_parallel,1);
+  const route=router.slice(router.indexOf("pathname===BASE_PATH+'/strategic-view'"),router.indexOf("pathname===BASE_PATH+'/strategic-view'")+900);
+  assert.ok(!/parallel/i.test(route),'a rota não lê paralelismo da URL');
+});
+test('GA-P02A: resultado idêntico com 1, 2 e 3 consultas simultâneas (mesmos dados, mesma cobertura, mesmas falhas)',async()=>{
+  for(const platform of ['SHOPEE','ML_ANTIGO','ML_NOVO'])for(const days of [7,30,60,90]){
+    const out=[];
+    for(const par of [1,2,3]){const {deps}=mk();out.push(volatile(await commerceStrategicViewV1({},{platform,days,parallel:par},withPeak(deps).deps)));}
+    assert.deepEqual(out[0],out[1],platform+' '+days+': 1 x 2');assert.deepEqual(out[0],out[2],platform+' '+days+': 1 x 3');
+  }
+  const bad={series:async()=>{throw new Error('x');},split:async()=>{throw new Error('y');}};
+  const a=volatile(await commerceStrategicViewV1({},{platform:'SHOPEE',days:30,parallel:1},mk(bad).deps));
+  const b=volatile(await commerceStrategicViewV1({},{platform:'SHOPEE',days:30,parallel:3},mk(bad).deps));
+  assert.deepEqual(a,b,'a falha parcial é a mesma');
+});
+test('GA-P02A: a ordem de prioridade é a mesma com 1 consulta (Dashboard primeiro, cobertura antes do mensal)',async()=>{
+  const {deps}=mk();const {deps:w,st}=withPeak(deps);
+  await commerceStrategicViewV1({},{platform:'SHOPEE',days:7,parallel:1},w);
+  assert.equal(st.order[0],'dashboard');assert.ok(st.order.indexOf('quality')<st.order.indexOf('monthly'));
+});
+test('GA-P02A: fila e chamada são medidas separadamente (relógio injetado, sem depender de tempo real)',async()=>{
+  // Relógio falso: cada chamada "dura" 10 ms de relógio; com 1 consulta por vez, a espera de cada parte é a soma das anteriores.
+  let t=0;const advance=ms=>{t+=ms;};
+  const {deps}=mk();const slow={};for(const [k,fn] of Object.entries(deps))slow[k]=async(...a)=>{const r=await fn(...a);advance(10);return r;};
+  slow.now=()=>t;
+  const v=await commerceStrategicViewV1({},{platform:'ML_NOVO',days:7,parallel:1},slow);
+  const m=v.metrics;
+  assert.equal(m.max_parallel,1);assert.equal(m.call_ms,m.queries*10,'cada chamada medida tem 10 ms');
+  assert.ok(m.queue_wait_ms>0,'com 1 por vez existe espera');
+  assert.equal(Object.values(m.parts).reduce((a,x)=>a+x.n,0),m.queries);
+  for(const x of Object.values(m.parts)){assert.ok(x.call_ms>=0&&x.wait_ms>=0);}
+  assert.ok(!JSON.stringify(m).match(/PROD|SKU|sku/));
+});
+test('GA-P02A: chamada que falha também registra o tempo de chamada e a espera',async()=>{
+  const {deps}=mk({series:async()=>{await new Promise(r=>setTimeout(r,15));throw new Error('x');}});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7,parallel:2},deps);
+  assert.ok(v.metrics.failed.includes('series'));assert.ok(v.metrics.parts.series.call_ms>=10);assert.equal(v.metrics.parts.series.n,1);
+});
+test('GA-P02A: o log da rota inclui simultaneidade, espera e chamada, sem dados de venda',()=>{
+  const http=read('src/ga/commerce-abc-http.js');
+  assert.ok(http.includes('parallel:data?.metrics?.max_parallel')&&http.includes('wait_ms:data?.metrics?.queue_wait_ms')&&http.includes('call_ms:data?.metrics?.call_ms'));
+});
+test('GA-P02A: Evolução ABC continua com MAX_PARALLEL_DB fixo (não lê GA_STRATEGIC_PARALLEL)',()=>{
+  const abc=read('src/ga/commerce-abc-store.js');
+  assert.ok(/makeLimiter\(MAX_PARALLEL_DB\)/.test(abc));assert.ok(!/GA_STRATEGIC_PARALLEL|strategicParallel/.test(abc));
+  assert.ok(!/GA_STRATEGIC_PARALLEL/.test(read('src/ga/commerce-concurrency.js')));
+});

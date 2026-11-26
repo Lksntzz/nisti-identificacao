@@ -1444,7 +1444,14 @@ export async function commerceShopeeSalesLinkSplit(env,{start,end}={}) {
   return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
 }
 const STRATEGIC_MAX_HISTORY_DAYS=1099;
-export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) {
+// GA-P02A — consultas simultâneas SÓ da Visão estratégica (1 a MAX_PARALLEL_DB). Vem de GA_STRATEGIC_PARALLEL (variável de configuração, nunca da URL);
+// ausente ou inválida = MAX_PARALLEL_DB (comportamento da GA-P02). Não altera MAX_PARALLEL_DB nem a Evolução ABC.
+export function strategicParallel(env,override){
+  const raw=override!=null?override:env?.GA_STRATEGIC_PARALLEL;
+  const n=Number(typeof raw==='string'?raw.trim():raw);
+  return Number.isInteger(n)&&n>=1&&n<=MAX_PARALLEL_DB?n:MAX_PARALLEL_DB;
+}
+export async function commerceStrategicViewV1(env,{platform,days,parallel}={},deps=null) {
   if(!isStrategicPlatform(platform)||!STRATEGIC_DAYS.includes(Number(days)))throw new Error('Filtro da Visão estratégica inválido.');
   const d=deps||{
     dashboard:commerceSalesDashboardV1,overview:commerceSalesDashboardOverviewV1,monthly:commerceSalesDashboardMonthlyV1,
@@ -1456,9 +1463,15 @@ export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) 
   // dependem dos períodos (cobertura GA-018 e divisão GA-021), antes das partes que o cache do banco costuma entregar rápido.
   // Consultas idênticas (mesma conta, início e fim) são feitas uma vez só.
   const t0=Date.now();
-  const n=Number(days),failed=[],meter={used:0,shared:0},phases={},run=makeLimiter(MAX_PARALLEL_DB);
+  const n=Number(days),failed=[],meter={used:0,shared:0},phases={},width=strategicParallel(env,parallel),run=makeLimiter(width);
+  const parts={};const clock=deps&&typeof deps.now==='function'?deps.now:Date.now;
   const settle=async(name,fn)=>{try{return await fn();}catch{if(!failed.includes(name))failed.push(name);return null;}};
-  const part=(name,fn)=>settle(name,async()=>{const s0=Date.now();try{meter.used++;return await run(fn);}finally{phases[name]=Math.max(phases[name]||0,Date.now()-s0);}});
+  // Espera na fila (do pedido até a chamada começar) e tempo da chamada ao Supabase (da chamada até terminar) ficam separados por parte.
+  const part=(name,fn)=>settle(name,async()=>{
+    const s0=clock();let started=null;const rec=parts[name]||(parts[name]={n:0,wait_ms:0,call_ms:0});
+    try{meter.used++;rec.n++;return await run(async()=>{started=clock();try{return await fn();}finally{rec.call_ms+=clock()-started;}});}
+    finally{rec.wait_ms+=(started==null?clock():started)-s0;phases[name]=Math.max(phases[name]||0,clock()-s0);}
+  });
   const qMemo=new Map();
   const q=period=>{
     if(!period)return Promise.resolve(null);
@@ -1494,7 +1507,9 @@ export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) 
   const view=buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,dqCatCurrent,dqCatBase,
     perf:{shopee:shopeePerf,ml:mlPerf},failed,periods,elapsed_ms:Date.now()-t0});
   // Métricas da operação (tempo, consultas feitas, repetidas evitadas, falhas, fases mais lentas). Sem dados de venda.
-  return {...view,metrics:{elapsed_ms:Date.now()-t0,queries:meter.used,shared_queries:meter.shared,max_parallel:MAX_PARALLEL_DB,failed:failed.slice(),failed_count:failed.length,phases_ms:{...phases}}};
+  const waitTotal=Object.values(parts).reduce((a,x)=>a+x.wait_ms,0),callTotal=Object.values(parts).reduce((a,x)=>a+x.call_ms,0);
+  return {...view,metrics:{elapsed_ms:Date.now()-t0,queries:meter.used,shared_queries:meter.shared,max_parallel:width,failed:failed.slice(),failed_count:failed.length,phases_ms:{...phases},
+    queue_wait_ms:waitTotal,call_ms:callTotal,parts:Object.fromEntries(Object.entries(parts).map(([k,x])=>[k,{...x}]))}};
 }
 
 // GA-014 — Central de decisões comerciais (somente leitura, só unidades). A função SQL commerce_decision_units_v1 traz as unidades por anúncio;
