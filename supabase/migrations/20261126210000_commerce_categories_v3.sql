@@ -1,17 +1,17 @@
--- GA-P02A etapa 2 — CANDIDATA (só para teste local; NÃO é migração e NÃO foi aplicada em produção).
--- commerce_categories_v3 = mesma assinatura e mesmo resultado de commerce_categories_v2, sem montar as views de vendas inteiras:
---  * o período (as_of/cf/ct/bf/bt) é calculado aqui, com UMA leitura barata por fonte (máx. de data), em vez de commerce_period_v1
---    (que monta a view de vendas por SKU duas vezes);
---  * (ML) a escolha do snapshot mais novo por conta+dia é feita num passo só (função de janela), sem as CTEs intermediárias da view;
---  * a escolha do lote/snapshot "mais novo do dia" é por dia (Shopee) e por conta+dia (ML): filtrar plataforma e datas ANTES dela não muda
---    qual lote vence em cada dia, só evita processar dias que a consulta descarta;
---  * a conta ML só lê lotes da própria conta; a Shopee só lê o ramo Shopee;
---  * o arredondamento e os tipos de cada linha (sum::integer, round(..,2)::numeric(14,2)) são os mesmos da view;
---  * a partir de "skus" o corpo é idêntico ao da v2 (nomes e coleções NÃO foram otimizados nesta rodada).
--- Reversão: não há; a v2 continua intacta e o Worker continua chamando a v2. Descartar a v3 = drop function.
+-- GA-P02C — commerce_categories_v3 (PREPARADA; NÃO aplicada em produção; aplicação só com aprovação do Atlas).
+-- Mesma assinatura e mesmo resultado de commerce_categories_v2, sem montar as views de vendas inteiras:
+--  * o período (as_of/cf/ct/bf/bt) é calculado na própria função, com uma leitura barata por fonte (máx. de data), em vez de commerce_period_v1;
+--  * (ML) a escolha do snapshot mais novo por conta+dia é feita num passo só (função de janela);
+--  * a escolha do lote/snapshot vencedor é por dia (Shopee) e por conta+dia (ML): filtrar plataforma e datas ANTES dela não muda quem vence;
+--  * a conta ML só lê lotes da própria conta; a Shopee só lê o ramo Shopee; só lotes COMMITTED contam;
+--  * arredondamento e tipos por linha iguais aos da view (sum::integer, round(..,2)::numeric(14,2));
+--  * a partir de "skus" o corpo é idêntico ao da v2 (nomes e coleções NÃO foram otimizados).
+-- Segurança: SECURITY INVOKER, search_path fixo em public, execução só para service_role.
+-- A v2 NÃO é alterada nem removida. commerce_cached_read_v1 NÃO é alterada aqui (v3 fica fora da lista permitida até migração própria).
+-- Reversão: supabase/rollback/20261126210000_commerce_categories_v3.down.sql (drop function da v3).
 create or replace function public.commerce_categories_v3(p_platform text default 'SHOPEE', p_year integer default null,
   p_mode text default 'ytd', p_month integer default null, p_days integer default null)
-returns jsonb language sql stable set search_path to 'public' as $function$
+returns jsonb language sql stable security invoker set search_path to 'public' as $function$
 with prm as materialized (
   select case when upper(coalesce(p_platform,'SHOPEE')) in ('SHOPEE','ML_ANTIGO','ML_NOVO') then upper(p_platform) else 'TODAS' end plat,
          coalesce(p_year,(select extract(year from max(d.sale_date))::int
@@ -108,3 +108,6 @@ select jsonb_build_object(
       'cols',(select jsonb_agg(jsonb_build_object('name',s.col,'cur',s.cu,'base',s.bu,'cur_rev',s.cr,'base_rev',s.br,'c28',s.c28,'b28',s.b28) order by (s.col='Sem coleção'), s.cu desc, s.col)
               from sub_agg s where s.cat=c.cat and (s.cu>0 or s.bu>0))) order by c.cu desc, c.bu desc, c.cat) from cat_agg c where c.cu>0 or c.bu>0),'[]'::jsonb));
 $function$;
+
+revoke all on function public.commerce_categories_v3(text,integer,text,integer,integer) from public,anon,authenticated;
+grant execute on function public.commerce_categories_v3(text,integer,text,integer,integer) to service_role;
