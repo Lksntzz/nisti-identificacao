@@ -450,12 +450,37 @@ Rascunho de PR. **Não publicar antes de a função SQL (PR de migração) ser a
 - Não foi feita comparação número a número com a versão antiga (ela não existe mais em produção); a igualdade de regras foi provada nos testes automáticos (resultado completo anterior = indicadores + histórico).
 
 
-## GA-P02 — Otimização da Visão estratégica (EM RASCUNHO; ainda não medida em produção)
+## GA-P02 — Otimização da Visão estratégica (PUBLICADA, PARCIALMENTE APROVADA: etapa NÃO concluída; continua na GA-P02A)
 - **Antes (diagnóstico e medição de 26/11/2026, 7 dias):** Shopee ~8,5 s (8–11 s), ML Antigo ~1,7 s, ML Novo ~1,1 s; até 13 consultas ao banco disparadas de uma vez em duas ondas (7 em paralelo, depois até 6 de cobertura/divisão que só começavam quando as 7 terminavam), sem limite, sem métricas.
 - **Mudança (`commerceStrategicViewV1`, `commerce-supabase-store.js`):** limitador de 3 consultas simultâneas por operação (`commerce-concurrency.js`); o Dashboard sai primeiro junto com overview e série e, assim que responde, entram na fila as consultas lentas que dependem dos períodos (cobertura GA-018 e divisão GA-021), antes das partes que o cache do banco entrega rápido (mensal, desempenho, categorias); a cobertura das categorias entra assim que as datas delas são conhecidas; consultas de cobertura idênticas (mesma conta, início e fim) são feitas uma vez só (`shared_queries`). O cache existente do banco (`commerce_cached_read_v1`) já cobre dashboard/overview/série/mensal/categorias e continua sendo usado; GA-018/GA-021 não têm cache (exigiria migração: não feita).
 - **Resposta:** o mesmo conteúdo de antes + `metrics{elapsed_ms,queries,shared_queries,max_parallel,failed,failed_count,phases_ms,response_bytes}`; cabeçalho `x-ga-response-bytes`, `cache-control: no-store`, uma linha de log `{ev:'ga_strategic',...}` sem dados de venda. Cobertura, conciliação, filtros e isolamento entre contas inalterados; a tela não mudou.
 - **Testes:** `commerce-strategic-store.test.js` (pico ≤ 3 nas 3 contas × 4 janelas, ordem, repetição evitada, métricas, falha parcial, conta indisponível, duas contas simultâneas). Mutação confirmada: sem o limitador o teste de pico falha.
-- **Limite honesto:** o tempo da Shopee depende da GA-018 (1–3 s por chamada). O ganho esperado vem de sobrepor as ondas e limitar a contenção; a meta de 5 s só é conferida depois da publicação.
+- **Limite honesto:** o tempo da Shopee depende da GA-018 (1–3 s por chamada em 7 dias).
+- **Medição real após o deploy (26/11/2026, PR #932, uma consulta por vez, pausa de 10 s; medição única, não é média):**
+
+| Conta / período | Tempo | Consultas | Falhas |
+|---|---|---|---|
+| Shopee 7 d (antes ~8,5 s) | 4,2 s | 11 | 0 |
+| Shopee 30 d | 18,9 s | 10 | qualidade, categorias |
+| Shopee 60 d | 16,5 s | 10 | qualidade, categorias |
+| Shopee 90 d | 16,6 s | 10 | qualidade, categorias, divisão |
+| ML Antigo 7 d (antes ~1,65 s) | 2,6 s e, repetida, 1,2 s | 10 | 0 |
+| ML Novo 7 d (antes ~1,08 s) | 1,2 s | 10 | 0 |
+
+- **Resultado:** a meta de 5 s foi atingida só na Shopee 7 d. Em 30/60/90 d a Shopee abre sem cobertura e sem categorias (HTTP 200, `failed` preenchido). As contas ML em 7 d ficaram na faixa anterior (a primeira medição do ML Antigo oscilou; só duas medições, não prova). `shared_queries` ficou 0: o ganho veio do limite de 3 e da ordem, não de consulta repetida evitada. Consultas por abertura: 10–11 (antes até 13). Não há medição "antes" de 30/60/90 d, então não se sabe se essas falhas já existiam.
+- **Não feito:** comparação dos indicadores com as fontes de vendas/cobertura (os períodos longos da Shopee estão incompletos); a conferência dos filtros 30/60/90 das contas ML não foi repetida para não pressionar o banco.
+- **Decisão do Atlas:** manter a melhoria publicada, não separar a interface agora, abrir a GA-P02A (diagnóstico SQL, somente leitura).
+
+## GA-P02A — Diagnóstico das consultas SQL da Visão estratégica (EM ANDAMENTO; só leitura)
+- **Evidência já obtida (sem ANALYZE, sem alterar nada):**
+  1. O log do Postgres mostra `canceling statement due to statement timeout` nas aberturas de 30/60/90 d: as falhas são estouro do limite de 8 s do banco (papel `authenticator`), não erro do Worker. O Worker não repete chamadas (sem retry em `supabaseRpc`).
+  2. **Por que o cache não evita a falha:** `commerce_cached_read_v1` só grava depois que o cálculo termina dentro do limite; a chave de versão (`commerce_data_version_v1`) muda toda virada do dia (São Paulo) e a cada importação. Para 30/60 d de categorias nunca existiu linha em `commerce_read_cache_v1`; só há linhas de 7 d (cálculo de 4,3–6,8 s), ano corrente e 90 d da Shopee de 25/11 (cálculo de 7,7 s, hoje com versão antiga). Cálculo acima de 8 s nunca é gravado, então toda abertura recalcula e falha.
+  3. Mesmo em 7 d, `commerce_categories_v2` calcula em 4–7 s, perto do limite; o histórico de `pg_stat_statements` registra execuções dela de até 18 s e de `commerce_data_quality_v1` de até 20 s.
+  4. As tabelas são pequenas (maior: `commerce_sales_rows`, 244 mil linhas, 80 MB; vendas por SKU/dia 32 mil) e os índices dos filtros por SKU existem e são usados (confirmado por EXPLAIN simples). Hipótese de varredura completa por SKU em `commerce_sku_name_v1` **descartada**. Não há evidência para criar índice.
+  5. Suspeitas, ainda não medidas: `commerce_categories_v2` consulta a view `commerce_shopee_current_sku_daily_v1` até 3 vezes (duas dentro de `commerce_period_v1`) e o filtro de datas é aplicado depois de montar a view inteira (~25 mil linhas) em cada vez; `commerce_data_quality_v1` varre o histórico inteiro de `commerce_sales_daily_source_v2` só para achar a última data, chama conciliação mensal e de pedidos para até 12 meses (cresce com o período) e calcula `commerce_shopee_reconciliation_v1`, que a divisão GA-021 recalcula para o mesmo período; a Visão estratégica faz de 4 a 5 chamadas da GA-018 por abertura.
+  6. Fila x execução: `phases_ms` são instantes de término desde o início da operação e incluem a espera na fila do limitador; o Worker não registra a execução SQL separadamente. Como o banco corta em 8 s, uma fase que termina perto de 16 s inclui no mínimo cerca de 8 s de espera/competição. Falta instrumentar (mudança só no Worker, não feita).
+- **Não feito (sem aprovação do Atlas):** migração, índice, alteração de função SQL, aumento de timeout, alteração de dados, EXPLAIN ANALYZE.
+
 
 ### Pendência técnica separada — check "Supabase Preview" vermelho
 O check falha no `main` (e já falhava antes da GA-P01) com "Remote migration versions not found in local migrations directory": versões de migração aplicadas no banco remoto não existem na pasta local (já registrada acima como anterior à GA-019). Não bloqueia merge nem deploy (não é check obrigatório), não é causada pela GA-P01/GA-P02 e **não foi corrigida** (exige reconciliar versões, mexe em histórico de migração). Tratar em etapa própria.
