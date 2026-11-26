@@ -47,15 +47,17 @@ function historyPayload(platform,mode,opts={}){
 }
 
 function createSimulator(){
-  const calls=[];const holds=new Map();const opts={mode:{},fail:{},histFail:false,histVersionChanged:false};
+  const calls=[];const holds=new Map();const opts={mode:{},fail:{},histFail:false,histVersionChanged:false,histVersionDown:false,indicatorsVersionDown:false};
   const key=(p,m)=>p+'|'+m;
   const hold=(p,m='7d')=>{let release;const gate=new Promise(r=>{release=r;});holds.set(key(p,m),{gate,release});};
   const release=(p,m='7d')=>holds.get(key(p,m))?.release();
   const handler=async route=>{
     const req=route.request(),url=new URL(req.url());
-    calls.push({path:url.pathname,method:req.method(),query:Object.fromEntries(url.searchParams)});
+    calls.push({path:url.pathname,method:req.method(),query:Object.fromEntries(url.searchParams),body:req.postData()});
     const json=(b,s=200)=>route.fulfill({status:s,contentType:'application/json',body:JSON.stringify(b)});
-    if(req.method()!=='GET')return json({error:'Escrita bloqueada no teste'},403);
+    const histPath=url.pathname==='/api/admin/commerce/abc-evolution/history';
+    if(req.method()!=='GET'&&!(histPath&&req.method()==='POST'))return json({error:'Escrita bloqueada no teste'},403);
+    if(histPath&&req.method()!=='POST')return json({error:'Histórico só por POST de leitura'},405);
     const isHist=url.pathname==='/api/admin/commerce/abc-evolution/history';
     if(url.pathname!=='/api/admin/commerce/abc-evolution'&&!isHist)return json({});
     const platform=url.searchParams.get('platform'),mode=url.searchParams.get('mode'),month=url.searchParams.get('month')||null;
@@ -65,11 +67,13 @@ function createSimulator(){
     const m=opts.mode[key(platform,mode)]||opts.mode[platform]||{};
     if(opts.fail[platform])return json({error:'falha simulada'},500);
     if(isHist){
+      if(opts.histVersionDown)return json({status:'VERSAO_INDISPONIVEL',platform,mode,data_version:null,failed:['version']});
       if(opts.histFail)return json({error:'falha simulada do histórico'},500);
       if(opts.histVersionChanged){return json({status:'VERSAO_ALTERADA',reason:'IMPORTACAO_DURANTE_CONSULTA',platform,mode});}
       if(h2?.gate)await h2.gate;
       return json(historyPayload(platform,mode,{month,...m}));
     }
+    if(opts.indicatorsVersionDown&&!isHist)return json({status:'VERSAO_INDISPONIVEL',reason:'VERSAO_ILEGIVEL_NO_FIM',platform,mode,data_version:null,failed:['version']});
     if(m.wrongPlatform)return json(payload('ML_NOVO',mode,{month}));
     if(m.wrongMode)return json(payload(platform,mode==='7d'?'30d':'7d'));
     return json(payload(platform,mode,{month,...m}));
@@ -299,7 +303,8 @@ test('GA-P01: indicadores aparecem sem pedir histórico; histórico só por cliq
   await page.waitForFunction(()=>document.querySelector('[data-testid="history-table"]'));
   assert.equal(histCalls(sim).length,1,'sem requisição duplicada');
   const q=histCalls(sim)[0].query;assert.equal(q.platform,'SHOPEE');assert.equal(q.last,'2026-11-23');assert.match(q.version,/^vtest-SHOPEE-7d$/);
-  assert.ok(sim.calls.every(c=>c.method==='GET'));
+  assert.ok(sim.calls.filter(c=>!c.path.endsWith('/history')).every(c=>c.method==='GET'));
+  const hc=histCalls(sim)[0];assert.equal(hc.method,'POST');assert.ok(!('skus' in hc.query),'SKUs nunca na URL');assert.ok(JSON.parse(hc.body).skus.includes('PROD-01'));
   await context.close();
 });
 test('GA-P01: troca de conta durante o carregamento do histórico descarta a resposta da conta anterior',async b=>{
@@ -340,6 +345,29 @@ test('GA-P01: importação durante o carregamento (versão alterada): não mistu
   await context.close();
 });
 
+test('GA-P01 revisão: versão indisponível nos indicadores mostra mensagem explícita, nenhum número, e tentar de novo recupera',async b=>{
+  const sim=createSimulator();sim.opts.indicatorsVersionDown=true;
+  const {page,context}=await open(b,{sim});
+  await page.waitForSelector('[data-testid="unavailable"]');
+  assert.match(await page.locator('[data-testid="unavailable"]').innerText(),/não foi possível confirmar a versão dos dados/);
+  assert.equal(await page.locator('[data-testid="periods"]').count(),0,'nenhum número sem versão comprovada');
+  assert.equal(await page.locator('[data-testid="history-load"]').count(),0);
+  sim.opts.indicatorsVersionDown=false;await page.locator('[data-testid="unavailable-retry"]').click();await ready(page);
+  assert.equal(await page.locator('[data-testid="history-load"]').count(),1);
+  await context.close();
+});
+test('GA-P01 revisão: versão indisponível no histórico mostra mensagem, o botão do produto responde e tentar de novo recupera',async b=>{
+  const sim=createSimulator();sim.opts.histVersionDown=true;
+  const {page,context}=await open(b,{sim});await ready(page);
+  await page.locator('[aria-label="Listas"] button',{hasText:'Todos os produtos'}).click();
+  await page.locator('[data-testid="hist-btn-PROD-01"]').click();
+  await page.waitForSelector('[data-testid="history-error"]');
+  assert.match(await page.locator('[data-testid="history-error"]').innerText(),/versão dos dados/);
+  assert.equal(await page.locator('[data-testid="sku-history-PROD-01"]').count(),0);
+  sim.opts.histVersionDown=false;await page.locator('[data-testid="history-retry"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="history-table"]'));
+  await context.close();
+});
 test('erro do servidor: mensagem clara e botão recupera',async b=>{
   const sim=createSimulator();sim.opts.fail.ML_NOVO=true;
   const {page,context}=await open(b,{sim});await pick(page,'ML_NOVO').click();

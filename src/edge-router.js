@@ -726,7 +726,7 @@ export default {
 
     const commerceResponse = await handleCommerceAdminRequest(request, env);
     if (commerceResponse) {
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(String(request.method || 'GET').toUpperCase()) && commerceResponse.ok) await bumpReadCacheGeneration();
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(String(request.method || 'GET').toUpperCase()) && commerceResponse.ok && !/\/abc-evolution\/history$/.test(new URL(request.url).pathname)) await bumpReadCacheGeneration(); // POST de leitura (GA-P01) não grava nada
       return withSecurityHeaders(commerceResponse);
     }
 

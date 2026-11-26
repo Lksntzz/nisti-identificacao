@@ -56,6 +56,8 @@ export async function commerceAbcEvolutionV1(env,{platform,mode,month}={},deps=n
   const op=operation(d);
   const {settle,timed}=op;
   const version0=await timed('version',()=>readVersion(op,env));
+  // Sem versão legível no começo a consistência não pode ser provada: nada é consultado nem confirmado (a tela oferece tentar de novo).
+  if(!version0)return {status:'VERSAO_INDISPONIVEL',reason:'VERSAO_ILEGIVEL_NO_INICIO',platform,mode,data_version:null,failed:op.failed,budget:op.budget(),elapsed_ms:Date.now()-op.t0,metrics:op.metrics()};
   const today=d.today();
   // 1) Último dia completo comprovado pela GA-018 desta conta (as datas devolvidas são conferidas lá). Sondas de 3 em 3 dias, lidas em ordem.
   const facts=await timed('window',()=>settle('window',()=>findLastCompleteDay(env,{platform,today,quality:op.quality,concurrency:MAX_PARALLEL_DB})));
@@ -97,7 +99,9 @@ export async function commerceAbcEvolutionV1(env,{platform,mode,month}={},deps=n
   }
   // 5) A versão dos dados tem de ser a mesma do começo: importação no meio da consulta = nada é entregue (a tela pede de novo).
   const version1=await timed('version_end',()=>readVersion(op,env));
-  if(version0&&version1&&version0!==version1)
+  if(!version1)
+    return {status:'VERSAO_INDISPONIVEL',reason:'VERSAO_ILEGIVEL_NO_FIM',platform,mode,data_version:null,failed:op.failed,budget:op.budget(),elapsed_ms:Date.now()-op.t0,metrics:op.metrics()};
+  if(version1!==version0)
     return {status:'VERSAO_ALTERADA',reason:'IMPORTACAO_DURANTE_CONSULTA',platform,mode,data_version:version1,failed:op.failed,budget:op.budget(),elapsed_ms:Date.now()-op.t0,metrics:op.metrics()};
   return done({...out,names_state:namesState,history_state:'SOB_DEMANDA',history_months:historyMonthsOf(full)});
 }

@@ -128,7 +128,7 @@ async function withFetch(handler,fn){
     const out=handler(name,body);return new Response(JSON.stringify(out),{status:200,headers:{'content-type':'application/json'}});};
   try{return await fn(calls);}finally{globalThis.fetch=real;}
 }
-const realDeps=()=>({today:()=>TODAY,units:commerceAbcUnits,names:commerceAbcNames,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit,source:commerceSalesDailySource});
+const realDeps=()=>({today:()=>TODAY,units:commerceAbcUnits,names:commerceAbcNames,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit,source:commerceSalesDailySource,version:async()=>'vfix'});
 // 13 dias parciais seguidos e o 14º completo = máximo de sondas (PROBE_MAX_DAYS).
 const worstHandler=(provenAll)=>(name,b)=>{
   if(name==='commerce_data_quality_v1'){
@@ -146,7 +146,7 @@ for(const [platform,mode] of [['SHOPEE','7d'],['SHOPEE','mensal'],['ML_NOVO','30
   test(`pior cenário ${platform}/${mode}: 14 sondas + fonte + unidades + nomes + cobertura + conciliação cabem em ${SUBREQUEST_BUDGET} requisições reais`,async()=>{
     await withFetch(worstHandler(true),async calls=>{
       const r=await commerceAbcEvolutionV1(ENV,{platform,mode},realDeps());
-      assert.ok(calls.length<=SUBREQUEST_BUDGET,`${platform}/${mode}: ${calls.length} requisições`); assert.equal(r.budget.used,calls.length,'o medidor conta exatamente as requisições reais');
+      assert.ok(calls.length<=SUBREQUEST_BUDGET,`${platform}/${mode}: ${calls.length} requisições`); assert.equal(r.budget.used,calls.length+2,'o medidor conta as requisições reais mais as 2 leituras de versão (simuladas)');
       assert.equal(r.window.probes,14); assert.ok(r.status==='OK'||r.status==='INDISPONIVEL');
       if(r.status==='OK'){assert.equal(calls.filter(c=>c==='commerce_abc_units_monthly_v1').length,1); assert.equal(calls.filter(c=>c==='commerce_sales_daily_source_v2').length,1); assert.ok(calls.filter(c=>c==='commerce_abc_names_v1').length<=1);}
     });
@@ -206,8 +206,10 @@ test('GA-P01 versão: sem conseguir ler a versão, o histórico não é entregue
   const r=await commerceAbcHistoryV1({},histArgs(),deps); assert.equal(r.status,'VERSAO_INDISPONIVEL'); assert.equal(r.history,undefined);
   const i=await commerceAbcEvolutionV1({},{platform:'ML_NOVO',mode:'7d'},mk({}).deps);
   assert.equal(i.data_version,'v1');
-  const {deps:d2,state:s2}=mk(); s2.version=new Error('fora'); const i2=await commerceAbcEvolutionV1({},{platform:'ML_NOVO',mode:'7d'},d2);
-  assert.equal(i2.status,'OK','indicadores não dependem da versão para existir'); assert.equal(i2.data_version,null); assert.ok(i2.failed.includes('version'));
+  // GA-P01 (revisão Atlas): indicadores também exigem versão legível e igual no começo e no fim
+  const {deps:d2,state:s2,calls:c2}=mk(); s2.version=new Error('fora'); const i2=await commerceAbcEvolutionV1({},{platform:'ML_NOVO',mode:'7d'},d2);
+  assert.equal(i2.status,'VERSAO_INDISPONIVEL'); assert.equal(i2.reason,'VERSAO_ILEGIVEL_NO_INICIO'); assert.equal(i2.comparison,undefined); assert.equal(i2.current,undefined);
+  assert.deepEqual(c2.filter(c=>c[0]!=='version'),[],'sem versão no início nada mais é consultado');
 });
 test('GA-P01 versão: importação DURANTE os indicadores devolve VERSAO_ALTERADA, sem indicadores misturados',async()=>{
   const {deps,state}=mk(); let n=0; state.version=()=>(++n>=2?'v2':'v1');
@@ -275,4 +277,24 @@ test('GA-P01 sondas do último dia em lote dão o MESMO resultado da busca em s�
   const ok=await findLastCompleteDay({},{platform:'SHOPEE',today:TODAY,quality:q2,concurrency:3}); assert.equal(ok.last_complete_day,'2026-11-23');
   // erro numa sonda que SERIA lida (a mais nova) continua sendo erro
   await assert.rejects(()=>findLastCompleteDay({},{platform:'SHOPEE',today:TODAY,quality:async()=>{throw new Error('boom');},concurrency:3}),/boom/);
+});
+
+test('GA-P01 revisão: versão ilegível só no FIM dos indicadores não confirma resultado',async()=>{
+  const {deps,state}=mk(); let n=0; state.version=()=>{if(++n>=2)throw new Error('fora');return 'v1';};
+  const r=await commerceAbcEvolutionV1({},{platform:'SHOPEE',mode:'7d'},deps);
+  assert.equal(r.status,'VERSAO_INDISPONIVEL'); assert.equal(r.reason,'VERSAO_ILEGIVEL_NO_FIM'); assert.equal(r.comparison,undefined); assert.equal(r.data_version,null);
+  const e=mk(); let m=0; e.state.version=()=>(++m>=2?'':'v1'); // versão vazia no fim também é ilegível
+  const r2=await commerceAbcEvolutionV1({},{platform:'ML_NOVO',mode:'7d'},e.deps); assert.equal(r2.status,'VERSAO_INDISPONIVEL');
+});
+test('GA-P01 revisão: histórico com versão ilegível no FIM não é entregue',async()=>{
+  const {deps,state}=mk(); let n=0; state.version=()=>{if(++n>=2)throw new Error('fora');return 'v1';};
+  const r=await commerceAbcHistoryV1({},histArgs(),deps);
+  assert.equal(r.status,'VERSAO_INDISPONIVEL'); assert.equal(r.history,undefined); assert.equal(r.sku_history,undefined);
+});
+test('GA-P01 revisão: recuperação — depois da falha de versão, nova consulta com versão legível entrega o resultado',async()=>{
+  const {deps,state}=mk(); state.version=new Error('fora');
+  assert.equal((await commerceAbcEvolutionV1({},{platform:'ML_NOVO',mode:'7d'},deps)).status,'VERSAO_INDISPONIVEL');
+  state.version='v9';
+  const ok=await commerceAbcEvolutionV1({},{platform:'ML_NOVO',mode:'7d'},deps); assert.equal(ok.status,'OK'); assert.equal(ok.data_version,'v9');
+  const h=await commerceAbcHistoryV1({},histArgs({dataVersion:'v9'}),deps); assert.equal(h.status,'OK'); assert.equal(h.data_version,'v9');
 });

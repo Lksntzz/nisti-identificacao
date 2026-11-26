@@ -18,16 +18,30 @@ test('tela: só as três contas, escopo por chave e confere conta, comparação 
   assert.ok(ui.includes('/api/admin/commerce/abc-evolution?'));
 });
 test('tela: somente leitura e estados bloqueados não viram lista vazia nem classe C',()=>{
-  assert.doesNotMatch(code(ui),/method:\s*['"](POST|PUT|PATCH|DELETE)/i);
+  // único POST permitido: o histórico (leitura; SKUs no corpo). Nada de PUT/PATCH/DELETE.
+  assert.doesNotMatch(code(ui),/method:\s*['"](PUT|PATCH|DELETE)/i);
+  assert.equal((code(ui).match(/method:\s*['"]POST/g)||[]).length,1);
+  assert.ok(code(ui).includes("abc-evolution/history?'+q,{signal:c.signal,method:'POST',body:JSON.stringify({skus})"));
+  assert.doesNotMatch(code(ui),/[?&]skus=/,'SKUs nunca vão na URL');
   assert.doesNotMatch(code(ui),/>\s*(Alterar|Pausar|Reativar|Aplicar|Salvar)\b/);
   assert.ok(ui.includes('Isto não significa que não houve vendas')&&ui.includes('nunca vira classe C nem "zero vendas"'));
   assert.ok(ui.includes('Concentração alta não prova redução do catálogo ativo'));
 });
 test('rota: GET único da Evolução ABC, validada, sem corpo',()=>{
-  const i=router.indexOf("BASE_PATH+'/abc-evolution'");assert.ok(i>0);
-  const block=router.slice(i,i+700);
+  const i=router.indexOf("method==='GET'&&pathname===BASE_PATH+'/abc-evolution'");assert.ok(i>0);
+  const block=router.slice(i,router.indexOf('GA-P01 — histórico mensal',i));
   assert.match(block,/method==='GET'|GET/);assert.doesNotMatch(block,/POST|request\.json/);assert.match(block,/Filtro da Evolução ABC inválido/);
   assert.equal(router.split("'/abc-evolution'").length-1,1);
+});
+test('GA-P01 rota do histórico: POST só de leitura, corpo limitado, sem gravação e sem invalidar o cache de leitura',()=>{
+  const i=router.indexOf("method==='POST'&&pathname===BASE_PATH+'/abc-evolution/history'");assert.ok(i>0);
+  const block=router.slice(i,i+900);
+  assert.match(block,/MAX_BODY_CHARS/);assert.match(block,/parseAbcHistoryRequest/);assert.match(block,/commerceAbcHistoryV1/);
+  assert.doesNotMatch(block,/supabaseRpc|insert|update\(|delete/i);
+  assert.equal(router.split("/abc-evolution/history'").length-1,1);
+  const edge=read('src/edge-router.js');
+  assert.match(edge,/abc-evolution\\\/history\$\/\.test\(new URL\(request\.url\)\.pathname\)\) await bumpReadCacheGeneration/);
+  assert.doesNotMatch(read('src/ga/commerce-read-cache.js').replace(/\/\/.*$/gm,''),/abc-evolution/,'nenhuma rota da Evolução ABC entra no cache de borda');
 });
 test('menu: Evolução ABC fica depois da Central de decisões e o Dashboard não a importa',()=>{
   assert.ok(app.indexOf("id: 'abcEvolution'")>app.indexOf("id: 'decisions'")&&app.includes("activeView === 'abcEvolution' && <CommerceAbcEvolution />"));
@@ -67,7 +81,7 @@ test('a tela diz "entrou/saiu da curva" e nunca afirma produto novo ou perdido; 
 // ---- GA-P01: histórico sob demanda ----
 test('GA-P01 tela: indicadores não pedem histórico; histórico só por clique, com estado próprio e rota própria',()=>{
   const c=code(ui);
-  assert.ok(c.includes('/api/admin/commerce/abc-evolution/history?'));
+  assert.ok(c.includes('/api/admin/commerce/abc-evolution/history?'));assert.ok(c.includes('unavailable-retry')&&c.includes('VERSAO_INDISPONIVEL'),'versão indisponível: mensagem e nova tentativa');
   assert.ok(c.includes('history-load')&&c.includes('history-loading')&&c.includes('history-error')&&c.includes('history-retry'));
   // a chamada do histórico só existe dentro de loadHistory (nunca no efeito que carrega os indicadores)
   const eff=c.slice(c.indexOf('useEffect(()=>{'),c.indexOf('},[key,tick]);'));
@@ -83,6 +97,6 @@ test('GA-P01 tela: descarta resposta de outra conta, comparação, mês, dia ou 
 test('GA-P01 tela: seletor de mês vem dos indicadores (history_months) e o histórico é só leitura',()=>{
   const c=code(ui);
   assert.ok(c.includes('history_months'));
-  assert.doesNotMatch(c,/method:\s*['"](POST|PUT|PATCH|DELETE)/i);
+  assert.doesNotMatch(c,/method:\s*['"](PUT|PATCH|DELETE)/i);
   assert.doesNotMatch(c,/faturamento|lucro|margem|ticket|R\$|receita|revenue/i);
 });

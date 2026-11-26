@@ -111,7 +111,7 @@ import {
   commerceResolveReconciliationListing
 } from './commerce-supabase-store.js';
 import { commerceAbcEvolutionV1, commerceAbcHistoryV1 } from './commerce-abc-store.js';
-import { parseAbcHistoryQuery, abcJsonResponse } from './commerce-abc-http.js';
+import { parseAbcHistoryRequest, MAX_BODY_CHARS, abcJsonResponse } from './commerce-abc-http.js';
 
 const BASE_PATH = '/api/admin/commerce';
 const MONTH_RE=/^20[0-9]{2}-(0[1-9]|1[0-2])$/;
@@ -777,9 +777,13 @@ async function handleCommerceAdminRequestUncached(request, env) {
         return json({error:'Filtro da Evolução ABC inválido.'},400);
       return abcJsonResponse(await commerceAbcEvolutionV1(env,{platform,mode,month}),'indicators');
     }
-    // GA-P01 — histórico mensal e individual da Evolução ABC, pedido pela tela só quando precisa. Mesma regra: só GET, nunca no cache de borda.
-    if(method==='GET'&&pathname===BASE_PATH+'/abc-evolution/history'){
-      const parsed=parseAbcHistoryQuery(url);
+    // GA-P01 — histórico mensal e individual da Evolução ABC, pedido pela tela só quando precisa. POST SOMENTE DE LEITURA: a lista de SKUs vai no
+    // corpo (URL de 200 SKUs passaria do limite e apareceria em logs). Nada é gravado; o edge-router não invalida o cache por esta rota.
+    if(method==='POST'&&pathname===BASE_PATH+'/abc-evolution/history'){
+      const text=await request.text();
+      if(text.length>MAX_BODY_CHARS)return json({error:'Lista de SKUs inválida.'},400);
+      let body=null;try{body=JSON.parse(text);}catch{return json({error:'Lista de SKUs inválida.'},400);}
+      const parsed=parseAbcHistoryRequest(url,body);
       if(parsed.error)return json({error:parsed.error},400);
       return abcJsonResponse(await commerceAbcHistoryV1(env,parsed.value),'history');
     }

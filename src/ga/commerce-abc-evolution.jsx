@@ -184,7 +184,8 @@ export default function CommerceAbcEvolution(){
         if(c.signal.aborted)return;
         // importação durante a consulta: a resposta foi descartada pelo servidor; pede de novo (no máximo 2 vezes seguidas)
         if(d&&d.status==='VERSAO_ALTERADA'&&versionRetry.current.n<2){versionRetry.current.n++;setTick(x=>x+1);return;}
-        setEntry({key,data:d});setLoading(false);
+        const safe=d&&d.status==='OK'&&!d.data_version?{...d,status:'VERSAO_INDISPONIVEL',reason:'VERSAO_ILEGIVEL_NO_INICIO'}:d; // sem versão não há como provar a consistência
+        setEntry({key,data:safe});setLoading(false);
       })
       .catch(e=>{if(!c.signal.aborted){setError(e.message||'Não foi possível carregar a Evolução ABC.');setLoading(false);}});
     return()=>{c.abort();histCtl.current?.abort();};
@@ -209,9 +210,9 @@ export default function CommerceAbcEvolution(){
     const c=new AbortController();histCtl.current=c;
     setHist({status:'loading',key:histKey,data:null,error:''});
     const skus=[...new Set((okData.comparison?.entries||[]).map(e=>e.sku))];
-    const q='platform='+platform+'&mode='+mode+(monthOn&&month?'&month='+month:'')+'&last='+okData.last_complete_day+'&version='+encodeURIComponent(okData.data_version)+'&skus='+encodeURIComponent(JSON.stringify(skus));
+    const q='platform='+platform+'&mode='+mode+(monthOn&&month?'&month='+month:'')+'&last='+okData.last_complete_day+'&version='+encodeURIComponent(okData.data_version);
     const fail=msg=>{if(!c.signal.aborted){histBusy.current=null;setPendingSku(null);setHist({status:'error',key:histKey,data:null,error:msg});}};
-    fetchCommercialManager('/api/admin/commerce/abc-evolution/history?'+q,{signal:c.signal}).then(d=>{
+    fetchCommercialManager('/api/admin/commerce/abc-evolution/history?'+q,{signal:c.signal,method:'POST',body:JSON.stringify({skus})}).then(d=>{
       if(c.signal.aborted)return;
       if(d&&d.status==='VERSAO_ALTERADA'){ // houve importação entre os indicadores e o histórico: nunca mistura; recarrega os indicadores
         histBusy.current=null;
@@ -250,7 +251,7 @@ export default function CommerceAbcEvolution(){
     {loading&&!v&&<p className="nae-loading" role="status">Carregando…</p>}
     {error&&<p className="nae-error" role="alert">{error} <button type="button" className="nae-link" onClick={()=>setTick(x=>x+1)}>Tentar de novo</button></p>}
     {wrong&&<p className="nae-error" role="alert">A resposta recebida não é da conta ou da comparação escolhidas e foi descartada.</p>}
-    {v&&v.status!=='OK'&&<p className="nae-error" role="status" data-testid="unavailable">Evolução indisponível agora ({v.reason==='SEM_ULTIMO_DIA_COMPLETO'?'não há dia completo comprovado pela cobertura de vendas':v.reason==='JANELA_INDISPONIVEL'?'a cobertura de vendas não respondeu':v.reason==='MES_SEM_DADOS_COMPLETOS'?'esse mês ainda não tem dias completos':v.reason==='IMPORTACAO_DURANTE_CONSULTA'?'houve uma importação durante a consulta e a resposta foi descartada para não misturar versões dos dados; tente de novo':v.reason}). Isto não significa que não houve vendas.</p>}
+    {v&&v.status!=='OK'&&<p className="nae-error" role="status" data-testid="unavailable">Evolução indisponível agora ({v.reason==='SEM_ULTIMO_DIA_COMPLETO'?'não há dia completo comprovado pela cobertura de vendas':v.reason==='JANELA_INDISPONIVEL'?'a cobertura de vendas não respondeu':v.reason==='MES_SEM_DADOS_COMPLETOS'?'esse mês ainda não tem dias completos':v.status==='VERSAO_INDISPONIVEL'?'não foi possível confirmar a versão dos dados; sem essa conferência nenhum número é mostrado':v.reason==='IMPORTACAO_DURANTE_CONSULTA'?'houve uma importação durante a consulta e a resposta foi descartada para não misturar versões dos dados; tente de novo':v.reason}). Isto não significa que não houve vendas. <button type="button" className="nae-link" data-testid="unavailable-retry" onClick={()=>{versionRetry.current.n=0;setTick(x=>x+1);}}>Tentar de novo</button></p>}
     {v&&v.status==='OK'&&<>
       <div className="nae-periods" data-testid="periods">
         <p data-testid="window-dates">Último dia completo comprovado: <b>{br(v.last_complete_day)}</b>{v.window?.last_import_day&&<> · última data importada: {br(v.window.last_import_day)}</>}
