@@ -58,6 +58,8 @@ DISPATCH_SENDER_TOKEN_SHA256 = "943d6e3f2c36d7e37c8f6aa9cbad1ba9cc17f9309945bb53
 COMMERCE_COMMIT_ENABLED = "1"
 SUPABASE_URL = "https://yioetdcbgorunwgwuawg.supabase.co"
 SUPABASE_READS_ENABLED = "1"
+# GA-P02B (TEMPORARIO, medicao): fila da Visao estrategica. Remover para voltar ao padrao 3.
+GA_STRATEGIC_PARALLEL = "1"
 SUPABASE_READ_TIMEOUT_MS = "5000"
 SUPABASE_WRITE_MODE = "primary"
 SUPABASE_CUTOVER_WRITE_FREEZE = "0"
