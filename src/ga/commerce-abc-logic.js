@@ -238,9 +238,9 @@ export const isPartialPeriod=pd=>Boolean(pd&&(pd.incomplete||(pd.month_end&&pd.e
 // skipped = chaves de períodos que NÃO foram verificados nesta consulta (limite de consultas): ficam bloqueados como "não verificado".
 // plan = planPeriods(...). Períodos sem prova de cobertura ficam "não comprovados": mostram unidades, nunca classe confirmada nem migração.
 const STATE_CODES=Object.freeze(['CLASSIFICADO','SEM_VENDA','NAO_CONFIRMADO','SEM_INFORMACAO','BLOQUEADO']);
-export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,coverage,splits,skipped=[],limit=LIST_LIMIT}){
-  if(!isAbcPlatform(platform))return {status:'INVALIDO',reason:'PLATAFORMA'};
-  if(!plan||plan.error)return {status:'INDISPONIVEL',reason:plan?plan.error:'SEM_PLANO',platform,mode,today:today||null,last_complete_day:last||null};
+// Montagem de UM período (conciliação, cobertura, classe). Usada pelo cálculo dos indicadores e pelo do histórico mensal,
+// para que as duas respostas apliquem exatamente as mesmas regras.
+function periodBuilder({platform,data,ga019,coverage,splits,skipped=[]}){
   const skipSet=new Set(skipped);
   const plist=data&&Array.isArray(data.products)?data.products:[];
   // A lista tem de ser completa e sem SKU repetido: contagem declarada = tamanho da lista = SKUs distintos.
@@ -248,9 +248,7 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
   const linked={};for(const p of plist)if(p&&Array.isArray(p.linked_from)&&p.linked_from.length)linked[p.sku]=p.linked_from.filter(x=>typeof x==='string').slice(0,5);
   const fper=new Map((data&&Array.isArray(data.periods)?data.periods:[]).map(p=>[p.key,p]));
   const skuUnits=key=>plist.filter(p=>p&&p.units&&isInt(p.units[key])&&p.units[key]>0).map(p=>({sku:p.sku,units:p.units[key]}));
-  const all=[...plan.history,plan.current,...(plan.previous?[plan.previous]:[])];
-  const info=new Map();
-  for(const pd of all){
+  const info=pd=>{
     // a resposta da função só vale se for desta conta e das MESMAS datas pedidas
     const raw=fper.get(pd.key),fp=raw&&data.platform===platform&&raw.start===pd.start&&raw.end===pd.end?raw:null,products=fp?skuUnits(pd.key):[];
     const rec=reconcilePeriod({platform,period:fp,products,ga019:ga019?ga019[pd.key]:null,split:splits?splits[pd.key]:null,range:{start:pd.start,end:pd.end},listOk,skipped:skipSet.has(pd.key)});
@@ -258,8 +256,8 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
     const blocked=rec.status!=='CONCILIADO';
     const status=blocked?(rec.status==='DIVERGENTE'?'BLOQUEADO_DIVERGENTE':'BLOQUEADO_INDISPONIVEL'):cov==='COMPLETA'?'CONFIRMADO':'NAO_COMPROVADO';
     const cls=blocked?null:classifyPeriod(products,pd.key);
-    info.set(pd.key,{pd,fp,products,rec,cov,status,cls});
-  }
+    return {pd,fp,products,rec,cov,status,cls};
+  };
   const view=i=>{
     const {pd,fp,rec,cov,status,cls}=i;
     const base=fp?{kind:'UNIDADES_COM_SKU',ranked_units:fp.ranked_units,total_units:fp.total_units,no_sku_units:fp.no_sku_units,no_sku_pct:pc(fp.no_sku_units,fp.total_units),nonpositive_units:fp.nonpositive_units}:null;
@@ -269,6 +267,45 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
       concentration:cls&&status==='CONFIRMADO'?cls.concentration:null,concentration_provisional:cls&&status!=='CONFIRMADO'?cls.concentration:null,
       top10_members:cls?cls.top10_members:null,classes_confirmed:status==='CONFIRMADO'};
   };
+  return {info,view,linked};
+}
+
+// Histórico individual por SKU (só dos SKUs pedidos): um item por mês do histórico, na ordem de history.
+// [estado, unidades, participação %, posição, classe]. Ausente em mês comprovado = SEM_VENDA (0); em mês não comprovado = SEM_INFORMACAO (nulo).
+function skuHistoryOf(histInfos,skus){
+  const rows={};
+  if(!histInfos.length)return rows;
+  const rowMaps=histInfos.map(i=>({i,m:i.cls?new Map(i.cls.rows.map(r=>[r.sku,r])):null,u:new Map(i.products.map(x=>[x.sku,x.units]))}));
+  for(const sku of skus)rows[sku]=rowMaps.map(({i,m,u})=>{
+    if(i.status.startsWith('BLOQUEADO'))return ['BLOQUEADO',null,null,null,null];
+    const r=m.get(sku);
+    if(i.status==='CONFIRMADO')return r?['CLASSIFICADO',r.units,r.share_pct,r.rank,r.class]:['SEM_VENDA',0,null,null,null];
+    return u.has(sku)?['NAO_CONFIRMADO',u.get(sku),null,null,null]:['SEM_INFORMACAO',null,null,null,null];
+  });
+  return rows;
+}
+
+// Meses do histórico (chave e se é incompleto), sem nenhuma consulta: serve ao seletor de mês enquanto o histórico não foi carregado.
+export const historyMonthsOf=plan=>plan&&Array.isArray(plan.history)?plan.history.map(h=>({key:h.key,incomplete:Boolean(h.incomplete)})):[];
+
+// Histórico mensal e individual calculado À PARTE dos indicadores, com as mesmas regras de conciliação/cobertura.
+// history = plano dos meses; data/ga019/coverage/splits/skipped como em buildAbcEvolution; skus = SKUs exibidos nos indicadores.
+export function buildAbcHistory({platform,history,data,ga019,coverage,splits,skipped=[],skus=[]}){
+  const b=periodBuilder({platform,data,ga019,coverage,splits,skipped});
+  const infos=(Array.isArray(history)?history:[]).map(b.info);
+  return {history:infos.map(b.view),
+    sku_history:{columns:['state','units','share_pct','rank','class'],states:STATE_CODES,months:infos.map(i=>i.pd.key),rows:skuHistoryOf(infos,[...new Set(skus)])}};
+}
+
+export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,coverage,splits,skipped=[],limit=LIST_LIMIT}){
+  if(!isAbcPlatform(platform))return {status:'INVALIDO',reason:'PLATAFORMA'};
+  if(!plan||plan.error)return {status:'INDISPONIVEL',reason:plan?plan.error:'SEM_PLANO',platform,mode,today:today||null,last_complete_day:last||null};
+  const b=periodBuilder({platform,data,ga019,coverage,splits,skipped});
+  const linked=b.linked;
+  const all=[...plan.history,plan.current,...(plan.previous?[plan.previous]:[])];
+  const info=new Map();
+  for(const pd of all)info.set(pd.key,b.info(pd));
+  const view=b.view;
   const cur=info.get(plan.current.key),prv=plan.previous?info.get(plan.previous.key):null;
   let comparison;
   if(!prv)comparison={state:'SEM_PERIODO_ANTERIOR',reason:plan.note||'SEM_HISTORICO'};
@@ -290,18 +327,7 @@ export function buildAbcEvolution({platform,mode,today,last,plan,data,ga019,cove
     comparison.entries=comparison.entries.slice(0,limit);comparison.entries_truncated=comparison.entries_total>comparison.entries.length;
     delete comparison.thresholds;comparison.thresholds=ABC_THRESHOLDS[mode];
   }
-  // Histórico individual por SKU (só dos produtos exibidos): um item por mês do histórico, na ordem de history.
-  // [estado, unidades, participação %, posição, classe]. Ausente em mês comprovado = SEM_VENDA (0); em mês não comprovado = SEM_INFORMACAO (nulo).
-  const skuHistory={};
-  if(comparison.entries&&comparison.entries.length){
-    const rowMaps=plan.history.map(h=>{const i=info.get(h.key);return {i,m:i.cls?new Map(i.cls.rows.map(r=>[r.sku,r])):null,u:new Map(i.products.map(x=>[x.sku,x.units]))};});
-    for(const e of comparison.entries)skuHistory[e.sku]=rowMaps.map(({i,m,u})=>{
-      if(i.status.startsWith('BLOQUEADO'))return ['BLOQUEADO',null,null,null,null];
-      const r=m.get(e.sku);
-      if(i.status==='CONFIRMADO')return r?['CLASSIFICADO',r.units,r.share_pct,r.rank,r.class]:['SEM_VENDA',0,null,null,null];
-      return u.has(e.sku)?['NAO_CONFIRMADO',u.get(e.sku),null,null,null]:['SEM_INFORMACAO',null,null,null,null];
-    });
-  }
+  const skuHistory=comparison.entries&&comparison.entries.length?skuHistoryOf(plan.history.map(h=>info.get(h.key)),comparison.entries.map(e=>e.sku)):{};
   return {status:'OK',platform,mode,basis:'UNIDADES',today:today||null,last_complete_day:last,
     equivalent:plan.equivalent,note:plan.note||null,
     current:view(cur),previous:prv?view(prv):null,history:plan.history.map(h=>view(info.get(h.key))),comparison,

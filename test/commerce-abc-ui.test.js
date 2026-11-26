@@ -63,3 +63,26 @@ test('a tela diz "entrou/saiu da curva" e nunca afirma produto novo ou perdido; 
   assert.ok(!/produto novo|produto perdido|Não afirma produto|Sem venda antes|Sem venda agora/.test(src),'sem afirmar produto novo/perdido');
   assert.match(src,/duração diferente/);
 });
+
+// ---- GA-P01: histórico sob demanda ----
+test('GA-P01 tela: indicadores não pedem histórico; histórico só por clique, com estado próprio e rota própria',()=>{
+  const c=code(ui);
+  assert.ok(c.includes('/api/admin/commerce/abc-evolution/history?'));
+  assert.ok(c.includes('history-load')&&c.includes('history-loading')&&c.includes('history-error')&&c.includes('history-retry'));
+  // a chamada do histórico só existe dentro de loadHistory (nunca no efeito que carrega os indicadores)
+  const eff=c.slice(c.indexOf('useEffect(()=>{'),c.indexOf('},[key,tick]);'));
+  assert.ok(!eff.includes('/history'),'efeito dos indicadores não pode pedir histórico');
+  assert.ok(c.includes('histBusy.current===histKey'),'sem requisição duplicada');
+});
+test('GA-P01 tela: descarta resposta de outra conta, comparação, mês, dia ou versão; versão alterada nunca mistura',()=>{
+  const c=code(ui);
+  for(const t of ['d.platform===platform','d.mode===mode','d.last_complete_day===okData.last_complete_day','d.data_version===okData.data_version','VERSAO_ALTERADA','VERSAO_INDISPONIVEL','signal.aborted'])assert.ok(c.includes(t),t);
+  assert.ok(c.includes('histCtl.current?.abort()'),'cancela o histórico do filtro anterior');
+  assert.ok(c.includes('versionRetry.current.n<2'),'repetição limitada');
+});
+test('GA-P01 tela: seletor de mês vem dos indicadores (history_months) e o histórico é só leitura',()=>{
+  const c=code(ui);
+  assert.ok(c.includes('history_months'));
+  assert.doesNotMatch(c,/method:\s*['"](POST|PUT|PATCH|DELETE)/i);
+  assert.doesNotMatch(c,/faturamento|lucro|margem|ticket|R\$|receita|revenue/i);
+});

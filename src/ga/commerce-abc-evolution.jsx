@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import {fetchCommercialManager} from './commerce-manager-fetch.js';
 import {scopeKey,isCurrentScope,matchesPlatform} from './commerce-platform-scope-logic.js';
 import './commerce-abc-evolution.css';
@@ -72,8 +72,11 @@ function Cards({v,cmp,view,setView}){
 function Name({r}){return <>{r.name&&<small className="nae-name" data-testid={'name-'+r.sku}>{r.name}{r.name_source==='VENDA'&&' · nome do anúncio vendido'}</small>}{r.linked_from&&<small>inclui código antigo {r.linked_from.join(', ')} (vínculo comprovado)</small>}</>;}
 function Flags({r}){return <>{r.tie_affected&&<em className="nae-low" data-testid={'tie-'+r.sku}>Afetada por empate na fronteira</em>} {r.tie_at_cut&&<em className="nae-low">Empate na 10ª posição/corte</em>} {r.identity_uncertain&&<em className="nae-low">Identidade não comprovada</em>} {r.partial&&<em className="nae-low">Mês até aqui</em>}</>;}
 
-function Table({cmp,view,hist,onSku,selected}){
-  const HistBtn=({sku})=>hist&&hist[sku]?<button type="button" className="nae-link" data-testid={'hist-btn-'+sku} aria-pressed={selected===sku} onClick={()=>onSku(selected===sku?null:sku)}>Histórico</button>:<small>sem histórico carregado</small>;
+function Table({cmp,view,hist,histState,onSku,selected}){
+  const HistBtn=({sku})=>hist&&hist[sku]?<button type="button" className="nae-link" data-testid={'hist-btn-'+sku} aria-pressed={selected===sku} onClick={()=>onSku(selected===sku?null:sku)}>Histórico</button>
+    :histState==='loading'?<small data-testid={'hist-loading-'+sku}>carregando…</small>
+    :hist?<small>sem histórico carregado</small>
+    :<button type="button" className="nae-link" data-testid={'hist-btn-'+sku} onClick={()=>onSku(sku)}>{histState==='error'?'Tentar o histórico de novo':'Histórico'}</button>;
   const ok=cmp.state==='CONFIRMADA'||cmp.state==='MES_ATE_AQUI',partial=cmp.state==='MES_ATE_AQUI';
   let rows;
   if(view==='top10')rows=cmp.new_top10;else if(view==='classeA')rows=cmp.new_class_a;else if(view==='migracoes')rows=partial?cmp.partial_changes:cmp.migrations;else rows=cmp.entries;
@@ -164,17 +167,27 @@ export default function CommerceAbcEvolution(){
   const [tick,setTick]=useState(0);
   const [view,setView]=useState('migracoes');
   const [skuSel,setSkuSel]=useState(null);
+  // GA-P01 — histórico mensal e individual: pedido só quando o usuário pede, com estado próprio e ligado à versão dos dados dos indicadores.
+  const [hist,setHist]=useState({status:'idle',key:null,data:null,error:''});
+  const [pendingSku,setPendingSku]=useState(null);
+  const histCtl=useRef(null),histBusy=useRef(null),resumeHist=useRef(false),versionRetry=useRef({key:'',n:0});
   const monthOn=mode==='mensal'||mode==='anual';
   const key=scopeKey({platform,days:mode,month:monthOn?month:''});
   useEffect(()=>{
-    setEntry(null);setError('');setLoading(true);setSkuSel(null);
+    setEntry(null);setError('');setLoading(true);setSkuSel(null);setPendingSku(null);
+    histCtl.current?.abort();histBusy.current=null;setHist({status:'idle',key:null,data:null,error:''});
+    if(versionRetry.current.key!==key){versionRetry.current={key,n:0};resumeHist.current=false;}
     const c=new AbortController();
     const q='platform='+platform+'&mode='+mode+(monthOn&&month?'&month='+month:'');
     fetchCommercialManager('/api/admin/commerce/abc-evolution?'+q,{signal:c.signal})
-      .then(d=>{if(!c.signal.aborted)setEntry({key,data:d});})
-      .catch(e=>{if(!c.signal.aborted)setError(e.message||'Não foi possível carregar a Evolução ABC.');})
-      .finally(()=>{if(!c.signal.aborted)setLoading(false);});
-    return()=>c.abort();
+      .then(d=>{
+        if(c.signal.aborted)return;
+        // importação durante a consulta: a resposta foi descartada pelo servidor; pede de novo (no máximo 2 vezes seguidas)
+        if(d&&d.status==='VERSAO_ALTERADA'&&versionRetry.current.n<2){versionRetry.current.n++;setTick(x=>x+1);return;}
+        setEntry({key,data:d});setLoading(false);
+      })
+      .catch(e=>{if(!c.signal.aborted){setError(e.message||'Não foi possível carregar a Evolução ABC.');setLoading(false);}});
+    return()=>{c.abort();histCtl.current?.abort();};
   },[key,tick]);
   const cur=isCurrentScope(entry,key)?entry.data:null;
   const monthOk=!(monthOn&&month)||(cur?.current?.start||'').startsWith(month);
@@ -183,6 +196,47 @@ export default function CommerceAbcEvolution(){
   const cmp=v?.comparison;
   const confirmed=cmp?.state==='CONFIRMADA'||cmp?.state==='MES_ATE_AQUI';
   const activeView=confirmed?view:'todos';
+  const okData=v&&v.status==='OK'?v:null;
+  const histKey=okData&&okData.data_version?key+'|'+okData.data_version:null;
+  const histData=hist.status==='ok'&&hist.key===histKey?hist.data:null;
+  const histState=hist.key===histKey?hist.status:'idle';
+  function loadHistory(sku,auto){
+    if(!okData||!histKey)return;
+    if(!auto)versionRetry.current.n=0;                          // pedido do usuário: novo limite de repetições
+    if(sku)setPendingSku(sku);
+    if(histBusy.current===histKey||histData)return;           // já em andamento ou já carregado: nenhuma consulta repetida
+    histBusy.current=histKey;histCtl.current?.abort();
+    const c=new AbortController();histCtl.current=c;
+    setHist({status:'loading',key:histKey,data:null,error:''});
+    const skus=[...new Set((okData.comparison?.entries||[]).map(e=>e.sku))];
+    const q='platform='+platform+'&mode='+mode+(monthOn&&month?'&month='+month:'')+'&last='+okData.last_complete_day+'&version='+encodeURIComponent(okData.data_version)+'&skus='+encodeURIComponent(JSON.stringify(skus));
+    const fail=msg=>{if(!c.signal.aborted){histBusy.current=null;setPendingSku(null);setHist({status:'error',key:histKey,data:null,error:msg});}};
+    fetchCommercialManager('/api/admin/commerce/abc-evolution/history?'+q,{signal:c.signal}).then(d=>{
+      if(c.signal.aborted)return;
+      if(d&&d.status==='VERSAO_ALTERADA'){ // houve importação entre os indicadores e o histórico: nunca mistura; recarrega os indicadores
+        histBusy.current=null;
+        if(versionRetry.current.n<2){versionRetry.current.n++;resumeHist.current=true;setTick(x=>x+1);return;}
+        return fail('Os dados foram atualizados por uma importação enquanto o histórico carregava. Recarregue os indicadores e tente de novo.');
+      }
+      if(d&&d.status==='VERSAO_INDISPONIVEL')return fail('Não foi possível confirmar a versão dos dados agora; o histórico não é mostrado sem essa conferência.');
+      const same=d&&d.status==='OK'&&d.platform===platform&&d.mode===mode&&(d.month||'')===(monthOn?month:'')&&d.last_complete_day===okData.last_complete_day&&d.data_version===okData.data_version;
+      if(!same)return fail('A resposta do histórico não é da conta, da comparação ou da versão dos dados escolhidas e foi descartada.');
+      versionRetry.current.n=0;setHist({status:'ok',key:histKey,data:d,error:''});
+    }).catch(e=>fail(e.message||'Não foi possível carregar o histórico.'));
+  }
+  useEffect(()=>{ // indicadores refeitos depois de uma importação: pede o histórico da nova versão (nunca reaproveita o da anterior)
+    if(resumeHist.current&&okData&&histState==='idle'){resumeHist.current=false;loadHistory(null,true);}
+  },[okData]);
+  useEffect(()=>{ // quando o histórico chega, abre o produto que o usuário tinha pedido
+    if(histData&&pendingSku){setSkuSel(pendingSku);setPendingSku(null);}
+  },[histData,pendingSku]);
+  const onSku=sku=>{
+    if(sku==null){setSkuSel(null);return;}
+    if(histData){setSkuSel(sku);return;}
+    loadHistory(sku);
+  };
+  const withHist=histData&&okData?{...okData,history:histData.history,sku_history:histData.sku_history}:null;
+  const months=okData?(okData.history_months||okData.history||[]):[];
   return <div className="nae" data-testid="abc-evolution">
     <header className="nae-head">
       <div><h1>Evolução ABC por produto</h1><p>Curva ABC por <b>unidades vendidas</b> em cada conta, por SKU. Somente leitura. A Curva ABC do Dashboard continua como está.</p></div>
@@ -190,13 +244,13 @@ export default function CommerceAbcEvolution(){
         <div className="nae-seg" role="group" aria-label="Conta">{PLATFORMS.map(p=><button key={p.id} type="button" aria-pressed={platform===p.id} className={platform===p.id?'is-active':''} onClick={()=>setPlatform(p.id)}>{p.label}</button>)}</div>
         <div className="nae-seg" role="group" aria-label="Comparação">{MODES.map(m=><button key={m.id} type="button" aria-pressed={mode===m.id} className={mode===m.id?'is-active':''} onClick={()=>setMode(m.id)}>{m.label}</button>)}</div>
         {monthOn&&<label className="nae-month">Mês <select value={month} aria-label="Mês" onChange={e=>setMonth(e.target.value)}><option value="">Mês corrente</option>
-          {(v?.history||[]).slice().reverse().map(h=><option key={h.key} value={h.key}>{mesPt(h.key)}{h.incomplete?' (incompleto)':''}</option>)}</select></label>}
+          {months.slice().reverse().map(h=><option key={h.key} value={h.key}>{mesPt(h.key)}{h.incomplete?' (incompleto)':''}</option>)}</select></label>}
       </div>
     </header>
     {loading&&!v&&<p className="nae-loading" role="status">Carregando…</p>}
     {error&&<p className="nae-error" role="alert">{error} <button type="button" className="nae-link" onClick={()=>setTick(x=>x+1)}>Tentar de novo</button></p>}
     {wrong&&<p className="nae-error" role="alert">A resposta recebida não é da conta ou da comparação escolhidas e foi descartada.</p>}
-    {v&&v.status!=='OK'&&<p className="nae-error" role="status" data-testid="unavailable">Evolução indisponível agora ({v.reason==='SEM_ULTIMO_DIA_COMPLETO'?'não há dia completo comprovado pela cobertura de vendas':v.reason==='JANELA_INDISPONIVEL'?'a cobertura de vendas não respondeu':v.reason==='MES_SEM_DADOS_COMPLETOS'?'esse mês ainda não tem dias completos':v.reason}). Isto não significa que não houve vendas.</p>}
+    {v&&v.status!=='OK'&&<p className="nae-error" role="status" data-testid="unavailable">Evolução indisponível agora ({v.reason==='SEM_ULTIMO_DIA_COMPLETO'?'não há dia completo comprovado pela cobertura de vendas':v.reason==='JANELA_INDISPONIVEL'?'a cobertura de vendas não respondeu':v.reason==='MES_SEM_DADOS_COMPLETOS'?'esse mês ainda não tem dias completos':v.reason==='IMPORTACAO_DURANTE_CONSULTA'?'houve uma importação durante a consulta e a resposta foi descartada para não misturar versões dos dados; tente de novo':v.reason}). Isto não significa que não houve vendas.</p>}
     {v&&v.status==='OK'&&<>
       <div className="nae-periods" data-testid="periods">
         <p data-testid="window-dates">Último dia completo comprovado: <b>{br(v.last_complete_day)}</b>{v.window?.last_import_day&&<> · última data importada: {br(v.window.last_import_day)}</>}
@@ -205,9 +259,8 @@ export default function CommerceAbcEvolution(){
         {v.note&&<p className="nae-notice" role="status" data-testid="plan-note">{v.note}</p>}
         <p className="nae-muted" data-testid="coverage-note">Só os períodos com cobertura de vendas comprovada (GA-018) e conciliados (GA-019/GA-021) têm classe confirmada. Histórico sem essa prova é histórico importado, não verificado: nunca vira classe C nem "zero vendas".</p>
       </div>
-      {v.failed?.filter(f=>f!=='names').length>0&&<p className="nae-error" role="status" data-testid="parts-down">Consulta indisponível: {v.failed.filter(f=>f!=='names').map(f=>({units:'unidades por SKU',source:'fonte diária de vendas',quality:'cobertura de vendas',split:'divisão por SKU',window:'último dia completo'}[f]||f)).join(', ')}. Isto não significa que não existam vendas.</p>}
+      {v.failed?.filter(f=>f!=='names').length>0&&<p className="nae-error" role="status" data-testid="parts-down">Consulta indisponível: {v.failed.filter(f=>f!=='names').map(f=>({units:'unidades por SKU',source:'fonte diária de vendas',quality:'cobertura de vendas',split:'divisão por SKU',window:'último dia completo',version:'versão dos dados'}[f]||f)).join(', ')}. Isto não significa que não existam vendas.</p>}
       {v.names_state==='INDISPONIVEL'&&<p className="nae-muted" role="status" data-testid="names-down">Nomes dos produtos indisponíveis agora: aparecem só os códigos. Nada foi inventado.</p>}
-      {v.budget?.history_skipped>0&&<p className="nae-muted" role="status" data-testid="budget-note">{v.budget.history_skipped} mês(es) mais antigo(s) do histórico não foram verificados nesta consulta (limite de consultas ao banco): aparecem como não verificados, nunca como confirmados.</p>}
       {STATE_TEXT[cmp.state]&&<p className="nae-notice" role="status" data-testid={'state-'+cmp.state}>{STATE_TEXT[cmp.state]}</p>}
       {cmp.entries&&!cmp.state.startsWith('BLOQUEADA')&&<>
         <BaseNote p={v.current}/>
@@ -216,11 +269,19 @@ export default function CommerceAbcEvolution(){
         {confirmed&&cmp.relevance&&!cmp.relevance.relevant&&<p className="nae-notice" role="status" data-testid="low-volume">Volume baixo na conta (menos de {cmp.relevance.min_units} unidades em um dos períodos): as classes são calculadas, mas as mudanças têm baixa relevância comercial.</p>}
         <Cards v={v} cmp={cmp} view={activeView} setView={setView}/>
         <div className="nae-tabs" role="tablist" aria-label="Listas">{VIEWS.map(t=><button key={t.id} type="button" role="tab" aria-selected={activeView===t.id} className={activeView===t.id?'is-active':''} disabled={!confirmed&&t.id!=='todos'} onClick={()=>setView(t.id)}>{t.label}</button>)}</div>
-        <Table cmp={cmp} view={activeView} hist={v.sku_history?.rows} onSku={setSkuSel} selected={skuSel}/>
-        {skuSel&&<SkuHistory v={v} sku={skuSel} onClose={()=>setSkuSel(null)}/>}
+        <Table cmp={cmp} view={activeView} hist={withHist?.sku_history?.rows||null} histState={histState} onSku={onSku} selected={skuSel}/>
+        {skuSel&&withHist&&<SkuHistory v={withHist} sku={skuSel} onClose={()=>setSkuSel(null)}/>}
       </>}
       <h2 className="nae-h2">Histórico mensal</h2>
-      <History history={v.history}/>
+      {histState==='idle'&&<div data-testid="history-idle">
+        <p className="nae-muted">O histórico dos últimos meses (classes e concentração por mês, e o histórico de cada produto) é carregado só quando você pede, para os indicadores aparecerem mais rápido. Ele usa a mesma versão dos dados dos indicadores acima.</p>
+        <button type="button" className="nae-link" data-testid="history-load" onClick={()=>loadHistory()}>Carregar histórico mensal</button></div>}
+      {histState==='loading'&&<p className="nae-loading" role="status" data-testid="history-loading">Carregando histórico mensal…</p>}
+      {histState==='error'&&<p className="nae-error" role="alert" data-testid="history-error">{hist.error} <button type="button" className="nae-link" data-testid="history-retry" onClick={()=>{histBusy.current=null;loadHistory();}}>Tentar de novo</button></p>}
+      {histData&&<>
+        {histData.failed?.length>0&&<p className="nae-error" role="status" data-testid="history-parts-down">Consulta indisponível no histórico: {histData.failed.map(f=>({units:'unidades por SKU',source:'fonte diária de vendas',quality:'cobertura de vendas',split:'divisão por SKU',version:'versão dos dados'}[f]||f)).join(', ')}. Os meses afetados ficam bloqueados ou não verificados, nunca confirmados.</p>}
+        {histData.budget?.history_skipped>0&&<p className="nae-muted" role="status" data-testid="budget-note">{histData.budget.history_skipped} mês(es) mais antigo(s) do histórico não foram verificados nesta consulta (limite de consultas ao banco): aparecem como não verificados, nunca como confirmados.</p>}
+        <History history={histData.history}/></>}
     </>}
   </div>;
 }

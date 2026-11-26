@@ -110,7 +110,8 @@ import {
   commerceCatalogYearDecision,
   commerceResolveReconciliationListing
 } from './commerce-supabase-store.js';
-import { commerceAbcEvolutionV1 } from './commerce-abc-store.js';
+import { commerceAbcEvolutionV1, commerceAbcHistoryV1 } from './commerce-abc-store.js';
+import { parseAbcHistoryQuery, abcJsonResponse } from './commerce-abc-http.js';
 
 const BASE_PATH = '/api/admin/commerce';
 const MONTH_RE=/^20[0-9]{2}-(0[1-9]|1[0-2])$/;
@@ -774,7 +775,13 @@ async function handleCommerceAdminRequestUncached(request, env) {
       const month=query(url,'month')||null;
       if(!['SHOPEE','ML_ANTIGO','ML_NOVO'].includes(platform)||!['7d','30d','mensal','anual'].includes(mode)||(month!=null&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))
         return json({error:'Filtro da Evolução ABC inválido.'},400);
-      return json(await commerceAbcEvolutionV1(env,{platform,mode,month}));
+      return abcJsonResponse(await commerceAbcEvolutionV1(env,{platform,mode,month}),'indicators');
+    }
+    // GA-P01 — histórico mensal e individual da Evolução ABC, pedido pela tela só quando precisa. Mesma regra: só GET, nunca no cache de borda.
+    if(method==='GET'&&pathname===BASE_PATH+'/abc-evolution/history'){
+      const parsed=parseAbcHistoryQuery(url);
+      if(parsed.error)return json({error:parsed.error},400);
+      return abcJsonResponse(await commerceAbcHistoryV1(env,parsed.value),'history');
     }
     if(method==='GET'&&pathname===BASE_PATH+'/data-quality'){
       const platform=String(query(url,'platform')||'').toUpperCase();

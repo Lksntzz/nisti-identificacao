@@ -1,7 +1,7 @@
 // GA-015 — regras puras da evolução da Curva ABC por produto (dados FICTÍCIOS).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {sumDailyRange,classifyPeriod,comparePeriods,reconcilePeriod,planPeriods,buildAbcEvolution,ABC_THRESHOLDS,RELEVANCE_MIN_UNITS,dayAdd,daysBetween} from '../src/ga/commerce-abc-logic.js';
+import {sumDailyRange,classifyPeriod,comparePeriods,reconcilePeriod,planPeriods,buildAbcEvolution,buildAbcHistory,historyMonthsOf,ABC_THRESHOLDS,RELEVANCE_MIN_UNITS,dayAdd,daysBetween} from '../src/ga/commerce-abc-logic.js';
 
 const P=(...pairs)=>pairs.map(([sku,units])=>({sku,units}));
 const bySku=(c,s)=>c.rows.find(r=>r.sku===s);
@@ -221,4 +221,33 @@ test('soma da GA-019 nas mesmas datas; formato inválido, data repetida ou negat
   assert.equal(sumDailyRange(rows,'2026-11-01','2026-11-07'),7); assert.equal(sumDailyRange([],'2026-11-01','2026-11-07'),0);
   for(const bad of [[{sale_date:'2026-11-01',units:1},{sale_date:'2026-11-01',units:1}],[{sale_date:'x',units:1}],[{sale_date:'2026-11-01',units:-1}],[{sale_date:'2026-11-01',units:'3'}],[null]]) assert.equal(sumDailyRange(bad,'2026-11-01','2026-11-07'),null);
   assert.equal(sumDailyRange(null,'2026-11-01','2026-11-07'),null); assert.equal(sumDailyRange(rows,'2026-11-07','2026-11-01'),null);
+});
+
+// ---- GA-P01: indicadores sem histórico; histórico calculado à parte com as MESMAS regras ----
+const noHist=f=>({...f,plan:{...f.plan,history:[]}});
+test('GA-P01: sem histórico no plano, a resposta traz o mesmo atual/anterior/comparação e nenhum mês nem histórico por SKU',()=>{
+  const f=fixture({units:U,totals:{j7_atual:50}});
+  const full=buildAbcEvolution(f),lean=buildAbcEvolution(noHist(f));
+  assert.deepEqual(lean.history,[]); assert.deepEqual(lean.sku_history.months,[]); assert.deepEqual(lean.sku_history.rows,{});
+  for(const k of ['current','previous','comparison','status','last_complete_day','equivalent','note'])assert.deepEqual(lean[k],full[k],k);
+});
+test('GA-P01: buildAbcHistory = histórico e histórico por SKU do cálculo completo, mês a mês (confirmado, não comprovado e bloqueado)',()=>{
+  const cover=k=>k<'2026-10'&&/^\d{4}-\d{2}$/.test(k)?'NAO_COMPROVADA':'COMPLETA';
+  const f=fixture({units:U,cover,ga019:null,totals:{j7_atual:50}});
+  f.ga019={...f.ga019,'2026-03':1}; // diverge: março fica bloqueado
+  const full=buildAbcEvolution(f);
+  const skus=full.comparison.entries.map(e=>e.sku);
+  const h=buildAbcHistory({platform:f.platform,history:f.plan.history,data:f.data,ga019:f.ga019,coverage:f.coverage,splits:f.splits,skus});
+  assert.deepEqual(h.history,full.history); assert.deepEqual(h.sku_history,full.sku_history);
+  assert.equal(h.history.find(x=>x.key==='2026-03').status,'BLOQUEADO_DIVERGENTE');
+});
+test('GA-P01: histórico por SKU só para os SKUs pedidos; SKU desconhecido recebe "sem venda" só em mês comprovado',()=>{
+  const f=fixture({units:U});
+  const h=buildAbcHistory({platform:f.platform,history:f.plan.history,data:f.data,ga019:f.ga019,coverage:f.coverage,splits:f.splits,skus:['AAA','ZZZ']});
+  assert.deepEqual(Object.keys(h.sku_history.rows).sort(),['AAA','ZZZ']);
+  assert.equal(h.sku_history.rows.ZZZ[h.sku_history.months.indexOf('2026-10')][0],'SEM_VENDA');
+});
+test('GA-P01: historyMonthsOf lista os meses do plano (chave e se é incompleto) sem nenhuma consulta',()=>{
+  const m=historyMonthsOf(plan7); assert.equal(m.length,plan7.history.length); assert.deepEqual(m[m.length-1],{key:'2026-11',incomplete:true}); assert.deepEqual(Object.keys(m[0]).sort(),['incomplete','key']);
+  assert.deepEqual(historyMonthsOf(null),[]);
 });

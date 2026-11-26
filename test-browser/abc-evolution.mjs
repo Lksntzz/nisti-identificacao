@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 import {chromium} from 'playwright';
-import {planPeriods,buildAbcEvolution,daysBetween,attachNames} from '../src/ga/commerce-abc-logic.js';
+import {planPeriods,buildAbcEvolution,daysBetween,attachNames,historyMonthsOf} from '../src/ga/commerce-abc-logic.js';
 
 const BASE=process.env.NISTI_HARNESS_BASE||'http://127.0.0.1:4173';
 const URL_VIEW=BASE+'/test-browser/harness/abc-evolution.html';
@@ -14,7 +14,7 @@ const tests=[];const test=(name,fn)=>tests.push({name,fn});
 const LAST='2026-11-23',TODAY='2026-11-25';
 
 // Produtos FICTÍCIOS: "PROD-01".."PROD-14". O 1º cai de classe e o último sobe no período atual.
-function payload(platform,mode,{month=null,cover='COMPLETA',diverge=false,noUnits=false,provenFrom='2026-10-01',lastNull=false,gapMonths=[],unprovenKeys=[],extra=[],last=LAST,skippedHistory=0}={}){
+function fullPayload(platform,mode,{month=null,cover='COMPLETA',diverge=false,noUnits=false,provenFrom='2026-10-01',lastNull=false,gapMonths=[],unprovenKeys=[],extra=[],last=LAST,skippedHistory=0}={}){
   if(lastNull)return buildAbcEvolution({platform,mode,today:TODAY,last:null,plan:{error:'SEM_ULTIMO_DIA_COMPLETO'}});
   const plan=planPeriods({mode,last,firstDay:platform==='SHOPEE'?'2025-01-01':'2026-01-01',month});
   const all=[...plan.history,plan.current,...(plan.previous?[plan.previous]:[])];
@@ -32,11 +32,22 @@ function payload(platform,mode,{month=null,cover='COMPLETA',diverge=false,noUnit
   const splits=platform==='SHOPEE'?Object.fromEntries(periods.map(p=>[p.key,{start:p.start,end:p.end,total_units:p.total_units,unlinked_units:0,reconciliation:{status:'EXPLICADA',identity_ok:true,source_units_match:true},difference:{residual_units:0}}])):{};
   const out=buildAbcEvolution({platform,mode,today:TODAY,last,plan,data,ga019,coverage,splits,skipped});
   attachNames(out,[{sku:'PROD-01',name:'Caderno fictício Alfa',source:'CADASTRO'},{sku:'PROD-14',name:'Agenda fictícia Ômega',source:'VENDA'}]);
-  return {...out,names_state:'DISPONIVEL',budget:{limit:40,used:30,history_checked:12-skippedHistory,history_skipped:skippedHistory},window:{last_import_day:'2026-11-24',last_import_at:'2026-11-24T13:00:00+00:00',skipped:[{day:'2026-11-24',state:'PARCIAL'}],probes:2},failed:noUnits?['units']:[],elapsed_ms:120};
+  return {...out,history_months:historyMonthsOf(plan),data_version:'vtest-'+platform+'-'+mode,history_state:'SOB_DEMANDA',names_state:'DISPONIVEL',budget:{limit:40,used:30,history_checked:12-skippedHistory,history_skipped:skippedHistory},window:{last_import_day:'2026-11-24',last_import_at:'2026-11-24T13:00:00+00:00',skipped:[{day:'2026-11-24',state:'PARCIAL'}],probes:2},failed:noUnits?['units']:[],elapsed_ms:120};
+}
+
+// GA-P01: os indicadores chegam sem histórico; o histórico mensal e o individual vêm de outra rota, sob demanda.
+function payload(platform,mode,opts={}){
+  const f=fullPayload(platform,mode,opts);
+  if(f.status!=='OK')return f;
+  return {...f,history:[],sku_history:{columns:f.sku_history?.columns,states:f.sku_history?.states,months:[],rows:{}},budget:{limit:40,used:12,max_parallel:3}};
+}
+function historyPayload(platform,mode,opts={}){
+  const f=fullPayload(platform,mode,opts);
+  return {status:'OK',platform,mode,month:opts.month||null,last_complete_day:f.last_complete_day,data_version:f.data_version,history:f.history,sku_history:f.sku_history,failed:f.failed&&f.failed.includes('units')?['units']:[],budget:{limit:40,used:20,max_parallel:3,history_checked:f.budget.history_checked,history_skipped:f.budget.history_skipped},elapsed_ms:300};
 }
 
 function createSimulator(){
-  const calls=[];const holds=new Map();const opts={mode:{},fail:{}};
+  const calls=[];const holds=new Map();const opts={mode:{},fail:{},histFail:false,histVersionChanged:false};
   const key=(p,m)=>p+'|'+m;
   const hold=(p,m='7d')=>{let release;const gate=new Promise(r=>{release=r;});holds.set(key(p,m),{gate,release});};
   const release=(p,m='7d')=>holds.get(key(p,m))?.release();
@@ -45,12 +56,20 @@ function createSimulator(){
     calls.push({path:url.pathname,method:req.method(),query:Object.fromEntries(url.searchParams)});
     const json=(b,s=200)=>route.fulfill({status:s,contentType:'application/json',body:JSON.stringify(b)});
     if(req.method()!=='GET')return json({error:'Escrita bloqueada no teste'},403);
-    if(url.pathname!=='/api/admin/commerce/abc-evolution')return json({});
+    const isHist=url.pathname==='/api/admin/commerce/abc-evolution/history';
+    if(url.pathname!=='/api/admin/commerce/abc-evolution'&&!isHist)return json({});
     const platform=url.searchParams.get('platform'),mode=url.searchParams.get('mode'),month=url.searchParams.get('month')||null;
     if(!NAME[platform]||!['7d','30d','mensal','anual'].includes(mode))return json({error:'Filtro da Evolução ABC inválido.'},400);
-    const h=holds.get(key(platform,mode));if(h)await h.gate;
+    const h=isHist?null:holds.get(key(platform,mode));if(h)await h.gate;
+    const h2=isHist?holds.get('hist|'+key(platform,mode)):null;
     const m=opts.mode[key(platform,mode)]||opts.mode[platform]||{};
     if(opts.fail[platform])return json({error:'falha simulada'},500);
+    if(isHist){
+      if(opts.histFail)return json({error:'falha simulada do histórico'},500);
+      if(opts.histVersionChanged){return json({status:'VERSAO_ALTERADA',reason:'IMPORTACAO_DURANTE_CONSULTA',platform,mode});}
+      if(h2?.gate)await h2.gate;
+      return json(historyPayload(platform,mode,{month,...m}));
+    }
     if(m.wrongPlatform)return json(payload('ML_NOVO',mode,{month}));
     if(m.wrongMode)return json(payload(platform,mode==='7d'?'30d':'7d'));
     return json(payload(platform,mode,{month,...m}));
@@ -69,6 +88,7 @@ const pick=(page,id)=>page.locator('[aria-label="Conta"] button',{hasText:NAME[i
 const mode=(page,t)=>page.locator('[aria-label="Comparação"] button',{hasText:t});
 const body=page=>page.locator('[data-testid="abc-evolution"]').evaluate(e=>e.textContent);
 const ready=page=>page.waitForFunction(()=>document.querySelector('[data-testid="periods"]'));
+const loadHist=async page=>{await page.locator('[data-testid="history-load"]').click();await page.waitForFunction(()=>document.querySelector('[data-testid="history-table"]'));};
 
 test('três contas, 7 dias: períodos, base, classes, concentração, só GET, sem termos financeiros',async b=>{
   const {page,sim,context,errors}=await open(b);
@@ -184,7 +204,7 @@ test('empate na fronteira: migração marcada e sem relevância confirmada',asyn
 
 test('gráfico de concentração: mês sem dado confirmado interrompe a linha (duas linhas, nenhuma ponte)',async b=>{
   const sim=createSimulator();sim.opts.mode.SHOPEE={provenFrom:'2026-01-01',gapMonths:['2026-08']};
-  const {page,context}=await open(b,{sim});await ready(page);
+  const {page,context}=await open(b,{sim});await ready(page);await loadHist(page);
   assert.equal(await page.locator('[data-testid="seg-top1"]').count(),2,'Jan-Jul e Set-Nov: duas linhas separadas');
   const pts=await page.locator('[data-testid="seg-top1"]').evaluateAll(l=>l.map(e=>e.getAttribute('points').split(' ').length));
   assert.deepEqual(pts,[7,3]);
@@ -193,7 +213,7 @@ test('gráfico de concentração: mês sem dado confirmado interrompe a linha (d
 
 test('histórico não verificado nesta consulta (limite): aviso e meses sem classe',async b=>{
   const sim=createSimulator();sim.opts.mode.SHOPEE={provenFrom:'2026-01-01',skippedHistory:3};
-  const {page,context}=await open(b,{sim});await ready(page);
+  const {page,context}=await open(b,{sim});await ready(page);await loadHist(page);
   assert.match(await page.locator('[data-testid="budget-note"]').innerText(),/3 mês\(es\) mais antigo\(s\).*não foram verificados nesta consulta/);
   await context.close();
 });
@@ -225,6 +245,7 @@ test('mensal: mês corrente incompleto contra os mesmos dias do mês anterior; h
   await page.waitForFunction(()=>document.querySelector('[data-testid="period-current"]')?.textContent.includes('01/11/2026 a 23/11/2026'));
   assert.match(await page.locator('[data-testid="period-current"]').innerText(),/mês incompleto/);
   assert.match(await page.locator('[data-testid="period-previous"]').innerText(),/01\/10\/2026 a 23\/10\/2026/);
+  await loadHist(page);
   const h=await page.locator('[data-testid="history-table"]').evaluate(e=>e.textContent);
   assert.match(h,/nov\/26 \(incompleto\)/);assert.match(h,/set\/26.*cobertura não comprovada/);assert.match(h,/out\/26.*confirmado/);
   assert.equal(await page.locator('[data-testid="line-top1"]').count(),1);assert.ok(await page.locator('[data-testid^="bar-"]').count()>=10);
@@ -264,6 +285,59 @@ test('resposta de outra conta ou de outra comparação é descartada',async b=>{
   await page.waitForFunction(()=>document.querySelector('[role=alert]')?.textContent.includes('foi descartada'));
   assert.equal(await page.locator('[data-testid="periods"]').count(),0);
   await pick(page,'ML_NOVO').click();await page.waitForFunction(()=>document.querySelector('[role=alert]')?.textContent.includes('foi descartada'));await context.close();
+});
+
+// ---- GA-P01: histórico sob demanda ----
+const histCalls=sim=>sim.calls.filter(c=>c.path.endsWith('/history'));
+test('GA-P01: indicadores aparecem sem pedir histórico; histórico só por clique, uma única requisição mesmo com cliques repetidos',async b=>{
+  const {page,sim,context}=await open(b);await ready(page);
+  assert.equal(histCalls(sim).length,0,'nenhum pedido de histórico ao abrir');
+  assert.equal(await page.locator('[data-testid="history-idle"]').count(),1);
+  assert.equal(await page.locator('[data-testid="history-table"]').count(),0);
+  assert.match(await page.locator('[data-testid="periods"]').innerText(),/17\/11\/2026 a 23\/11\/2026/);
+  await page.locator('[data-testid="history-load"]').dblclick();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="history-table"]'));
+  assert.equal(histCalls(sim).length,1,'sem requisição duplicada');
+  const q=histCalls(sim)[0].query;assert.equal(q.platform,'SHOPEE');assert.equal(q.last,'2026-11-23');assert.match(q.version,/^vtest-SHOPEE-7d$/);
+  assert.ok(sim.calls.every(c=>c.method==='GET'));
+  await context.close();
+});
+test('GA-P01: troca de conta durante o carregamento do histórico descarta a resposta da conta anterior',async b=>{
+  const sim=createSimulator();sim.hold('hist|SHOPEE','7d');
+  const {page,context}=await open(b,{sim});await ready(page);
+  await page.locator('[data-testid="history-load"]').click();
+  await page.waitForSelector('[data-testid="history-loading"]');
+  await pick(page,'ML_NOVO').click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="abc-evolution"]')?.textContent.includes('Atual 17/11/2026 a 23/11/2026')&&document.querySelector('[aria-label="Conta"] [aria-pressed="true"]')?.textContent.includes('ML Novo'));
+  sim.release('hist|SHOPEE','7d');await page.waitForTimeout(300);
+  assert.equal(await page.locator('[data-testid="history-table"]').count(),0,'histórico da Shopee não aparece na tela do ML Novo');
+  assert.equal(await page.locator('[data-testid="history-idle"]').count(),1);
+  await page.locator('[data-testid="history-load"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="history-table"]'));
+  assert.equal(histCalls(sim).at(-1).query.platform,'ML_NOVO');
+  await context.close();
+});
+test('GA-P01: falha do histórico tem estado próprio, não derruba os indicadores e a nova tentativa funciona',async b=>{
+  const sim=createSimulator();sim.opts.histFail=true;
+  const {page,context}=await open(b,{sim});await ready(page);
+  await page.locator('[data-testid="history-load"]').click();
+  await page.waitForSelector('[data-testid="history-error"]');
+  assert.equal(await page.locator('[data-testid="periods"]').count(),1,'indicadores continuam na tela');
+  sim.opts.histFail=false;await page.locator('[data-testid="history-retry"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="history-table"]'));
+  await context.close();
+});
+test('GA-P01: importação durante o carregamento (versão alterada): não mistura versões, refaz os indicadores e para no limite',async b=>{
+  const sim=createSimulator();sim.opts.histVersionChanged=true;
+  const {page,context}=await open(b,{sim});await ready(page);
+  const before=sim.calls.filter(c=>!c.path.endsWith('/history')).length;
+  await page.locator('[data-testid="history-load"]').click();
+  await page.waitForSelector('[data-testid="history-error"]');
+  assert.match(await page.locator('[data-testid="history-error"]').innerText(),/importação/);
+  assert.equal(await page.locator('[data-testid="history-table"]').count(),0);
+  assert.ok(sim.calls.filter(c=>!c.path.endsWith('/history')).length>before,'indicadores foram pedidos de novo');
+  assert.ok(histCalls(sim).length<=3,'nova tentativa automática é limitada');
+  await context.close();
 });
 
 test('erro do servidor: mensagem clara e botão recupera',async b=>{
