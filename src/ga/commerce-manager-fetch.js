@@ -36,11 +36,11 @@ export async function fetchCommercialManager(url,opts={}){
   try{return await fetchNow(url,opts);}finally{releaseSlot();}
 }
 
-async function fetchNow(url,{signal,fetchImpl=fetch}={}){
+async function fetchNow(url,{signal,fetchImpl=fetch,method,body}={}){
   url=withFresh(url);
   for(let attempt=0;attempt<2;attempt++){
     try{
-      const response=await fetchImpl(url,{credentials:'same-origin',cache:'no-store',signal});
+      const response=await fetchImpl(url,{credentials:'same-origin',cache:'no-store',signal,...(method?{method,headers:{'Content-Type':'application/json'},body}:{})});
       const payload=await response.json().catch(()=>({}));
       if(response.ok)return payload;
       const error=new Error(payload?.error||'Não foi possível consultar os anúncios.');

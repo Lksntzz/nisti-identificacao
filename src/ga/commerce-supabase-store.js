@@ -1504,22 +1504,38 @@ const dayAdd=(d,n)=>new Date(Date.parse(d)+n*86400000).toISOString().slice(0,10)
 
 // Último dia COMPLETO comprovado pela GA-018 desta conta. A GA-018 só devolve contagens, então cada dia é consultado sozinho, de ontem para
 // trás, até achar um completo (ou esgotar PROBE_MAX_DAYS). Dia parcial, só com registros ou sem informação não conta como completo.
-export async function findLastCompleteDay(env,{platform,today,quality}) {
+export async function findLastCompleteDay(env,{platform,today,quality,concurrency=1}) {
   const skipped=[];let lastImportDay=null,lastImportAt=null,probes=0;
-  for(let i=1;i<=PROBE_MAX_DAYS;i++){
-    const day=dayAdd(today,-i);
-    const q=await quality(env,{platform,start:day,end:day});
-    probes++;
-    const sales=q&&q.platform===platform?q.sales:null;
-    if(!sales||Number(sales.requested_days)!==1)throw new Error('resposta de cobertura inválida');
-    // As datas devolvidas têm de ser exatamente as pedidas (este dia, e o "hoje" que a GA-018 usou para decidir o que é completo).
-    if(q.period?.start!==day||q.period?.end!==day||q.period?.today!==today)throw new Error('a cobertura respondeu para outras datas');
-    if(i===1){lastImportDay=typeof sales.last_sale_day==='string'?sales.last_sale_day.slice(0,10):null;lastImportAt=sales.last_import_at??null;}
-    if(Number(sales.complete_days)===1)return {today,last_import_day:lastImportDay,last_import_at:lastImportAt,last_complete_day:day,skipped,probes};
-    skipped.push({day,state:Number(sales.partial_days)===1?'PARCIAL':Number(sales.days_with_records_unverified)===1?'COM_REGISTROS':'SEM_INFORMACAO'});
-    if(lastImportDay==null)break; // conta sem nenhuma venda importada: não há o que procurar
+  // concurrency>1 (só a Evolução ABC pede): consulta alguns dias seguidos ao mesmo tempo, mas LÊ OS RESULTADOS NA MESMA ORDEM de ontem para trás;
+  // o resultado é idêntico ao da busca em série. "probes" conta as consultas feitas de verdade.
+  const width=Number.isInteger(concurrency)&&concurrency>=1?concurrency:1;
+  for(let i=1;i<=PROBE_MAX_DAYS;){
+    const batch=[];for(let k=i;k<i+width&&k<=PROBE_MAX_DAYS;k++)batch.push(k);
+    const settled=await Promise.allSettled(batch.map(n=>quality(env,{platform,start:dayAdd(today,-n),end:dayAdd(today,-n)})));
+    probes+=batch.length;
+    for(let b=0;b<batch.length;b++){
+      const day=dayAdd(today,-batch[b]);
+      if(settled[b].status==='rejected')throw settled[b].reason; // o erro só vale se esse dia seria lido (nunca esconde um dia completo mais novo)
+      const q=settled[b].value;
+      const sales=q&&q.platform===platform?q.sales:null;
+      if(!sales||Number(sales.requested_days)!==1)throw new Error('resposta de cobertura inválida');
+      // As datas devolvidas têm de ser exatamente as pedidas (este dia, e o "hoje" que a GA-018 usou para decidir o que é completo).
+      if(q.period?.start!==day||q.period?.end!==day||q.period?.today!==today)throw new Error('a cobertura respondeu para outras datas');
+      if(batch[b]===1){lastImportDay=typeof sales.last_sale_day==='string'?sales.last_sale_day.slice(0,10):null;lastImportAt=sales.last_import_at??null;}
+      if(Number(sales.complete_days)===1)return {today,last_import_day:lastImportDay,last_import_at:lastImportAt,last_complete_day:day,skipped,probes};
+      skipped.push({day,state:Number(sales.partial_days)===1?'PARCIAL':Number(sales.days_with_records_unverified)===1?'COM_REGISTROS':'SEM_INFORMACAO'});
+      if(lastImportDay==null)return {today,last_import_day:lastImportDay,last_import_at:lastImportAt,last_complete_day:null,skipped,probes}; // conta sem nenhuma venda importada: não há o que procurar
+    }
+    i+=batch.length;
   }
   return {today,last_import_day:lastImportDay,last_import_at:lastImportAt,last_complete_day:null,skipped,probes};
+}
+
+// Versão dos dados comerciais (última importação confirmada + dia + vínculos): a mesma que invalida o cache do banco. Função global, sem prefixo de sandbox.
+export async function commerceDataVersion(env) {
+  const v=await directSupabaseRpc(env,'commerce_data_version_v1',{},{timeoutMs:8000});
+  if(typeof v!=='string'||!v||v.length>200)throw new Error('versão dos dados inválida');
+  return v;
 }
 
 export async function commerceDecisionCenterV1(env,{platform,days}={},deps=null) {
