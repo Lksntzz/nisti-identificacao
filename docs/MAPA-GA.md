@@ -479,7 +479,24 @@ Rascunho de PR. **Não publicar antes de a função SQL (PR de migração) ser a
   4. As tabelas são pequenas (maior: `commerce_sales_rows`, 244 mil linhas, 80 MB; vendas por SKU/dia 32 mil) e os índices dos filtros por SKU existem e são usados (confirmado por EXPLAIN simples). Hipótese de varredura completa por SKU em `commerce_sku_name_v1` **descartada**. Não há evidência para criar índice.
   5. Suspeitas, ainda não medidas: `commerce_categories_v2` consulta a view `commerce_shopee_current_sku_daily_v1` até 3 vezes (duas dentro de `commerce_period_v1`) e o filtro de datas é aplicado depois de montar a view inteira (~25 mil linhas) em cada vez; `commerce_data_quality_v1` varre o histórico inteiro de `commerce_sales_daily_source_v2` só para achar a última data, chama conciliação mensal e de pedidos para até 12 meses (cresce com o período) e calcula `commerce_shopee_reconciliation_v1`, que a divisão GA-021 recalcula para o mesmo período; a Visão estratégica faz de 4 a 5 chamadas da GA-018 por abertura.
   6. Fila x execução: `phases_ms` são instantes de término desde o início da operação e incluem a espera na fila do limitador; o Worker não registra a execução SQL separadamente. Como o banco corta em 8 s, uma fase que termina perto de 16 s inclui no mínimo cerca de 8 s de espera/competição. Falta instrumentar (mudança só no Worker, não feita).
-- **Não feito (sem aprovação do Atlas):** migração, índice, alteração de função SQL, aumento de timeout, alteração de dados, EXPLAIN ANALYZE.
+- **Medições EXPLAIN (ANALYZE, BUFFERS), 26/11/2026 ~16h30 (Shopee, 30 d, 1 execução por vez, 30 s de intervalo, `statement_timeout` 5 s confirmado na mesma transação, sem importação em andamento, só leitura, nenhuma foi cancelada):**
+
+| Trecho (executado sozinho) | Tempo | Páginas (hit) |
+|---|---|---|
+| `commerce_categories_v2` completa | 3,2 s (rodada parcial anterior: 4,2 s) | 26,6 mil (+ disco temporário 4,2 mil) |
+| `commerce_data_quality_v1` completa | 1,6 s | 62,5 mil |
+| `commerce_shopee_sales_link_split_v1` completa | 0,2 s | 19,1 mil |
+| conciliação Shopee (núcleo, 1.500 linhas SKU/dia e 1.497 de anúncio) | 0,5 s | 14,4 mil |
+| última data de venda (histórico inteiro, 693 dias) | 0,2 s | 8,5 mil |
+| `commerce_sales_reconcile_v2` (calcula 23 meses, usa 2) | 0,2 s | 9,1 mil |
+| `commerce_sales_month_orders_v2` (por mês) | 0,09 s | 3,4 mil |
+| `commerce_sales_day_winners_v2` | 0,008 s | 4,7 mil |
+| bloco catálogo/preço/estoque | 0,09 s | 64 |
+
+- **Achados nas categorias (3,2–4,2 s):** (a) `commerce_period_v1` sozinha leva ~1,6 s e 7,2 mil páginas, porque avalia duas vezes a view de vendas por SKU (cerca de 32 mil linhas, com ordenação em disco); (b) a view é montada de novo pela consulta principal (cerca de 0,1 s) e filtrada depois: 28.763 de 31.738 linhas descartadas; (c) 303 SKUs chamam `commerce_sku_col_v1(commerce_sku_name_v1(...))`: ~2,4 s no total (~8 ms por SKU), sem repetir no mesmo SKU mas crescendo com o número de SKUs (182 em 7 d, 337 em 90 d); (d) o filtro de data não chega ao trecho de montagem da view.
+- **Achados na qualidade/divisão:** nenhum trecho isolado é grande (todos ≤ 0,5 s); a soma explica ~1,6 s. A conciliação, que a qualidade e a divisão calculam separadamente, custa ~0,2–0,5 s: compartilhá-la economizaria pouco. A view `commerce_current_sales_listing_daily_v1` monta todas as datas da Shopee/ML e filtra depois (11.070 linhas montadas, 0 usadas no núcleo da base, ~0,33 s).
+- **Conclusão provisória:** sozinhas, as três funções somam ~5 s para a Shopee em 30 d (categorias 3,2 s + qualidade 1,6 s + divisão 0,2 s) e nenhuma passou de 5 s; em produção elas falham por estourar 8 s. A diferença (de 2 a 5 vezes) aponta para competição por CPU entre consultas simultâneas (limite atual de 3 por operação, mais outras aberturas), não para uma consulta isolada ruim. Ainda é hipótese: falta teste com 1 e 2 consultas simultâneas, que só exige mudança no Worker.
+- **Não feito (sem aprovação do Atlas):** migração, índice, alteração de função SQL, aumento de timeout, alteração de dados, ampliação de cache, execução em 60/90 d, execução nas contas ML.
 
 
 ### Pendência técnica separada — check "Supabase Preview" vermelho
