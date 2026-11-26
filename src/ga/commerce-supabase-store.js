@@ -1,5 +1,6 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
 import { supabaseRpc as directSupabaseRpc } from '../core/supabase-read-store.js';
+import { makeLimiter, MAX_PARALLEL_DB } from './commerce-concurrency.js';
 import { isStrategicPlatform, STRATEGIC_DAYS, strategicPeriods, buildStrategicView } from './commerce-strategic-logic.js';
 import { isDecisionDays, buildDecisionCenter, analysisWindow, sumDailySource, PROBE_MAX_DAYS } from './commerce-decision-logic.js';
 
@@ -1450,38 +1451,50 @@ export async function commerceStrategicViewV1(env,{platform,days}={},deps=null) 
     series:commerceSalesDashboardSeriesV1,categories:commerceCategories,shopeePerf:commerceShopeePerformanceLatest,
     mlPerf:commerceMlPerformanceLatest,quality:commerceDataQuality,split:commerceShopeeSalesLinkSplit
   };
+  // GA-P02 — toda consulta ao banco desta operação passa por um limitador (no máximo 3 ao mesmo tempo, fila em ordem) e é contada.
+  // Ordem: o Dashboard (períodos) sai primeiro junto com overview e série; assim que ele responde, entram na fila as consultas lentas que
+  // dependem dos períodos (cobertura GA-018 e divisão GA-021), antes das partes que o cache do banco costuma entregar rápido.
+  // Consultas idênticas (mesma conta, início e fim) são feitas uma vez só.
   const t0=Date.now();
-  const n=Number(days),failed=[];
+  const n=Number(days),failed=[],meter={used:0,shared:0},phases={},run=makeLimiter(MAX_PARALLEL_DB);
   const settle=async(name,fn)=>{try{return await fn();}catch{if(!failed.includes(name))failed.push(name);return null;}};
-  const [dash,overview,monthly,series,categories,shopeePerf,mlPerf]=await Promise.all([
-    settle('dashboard',()=>d.dashboard(env,{platform,days:n})),
-    settle('overview',()=>d.overview(env,{platform,days:n})),
-    settle('monthly',()=>d.monthly(env,{platform})),
-    settle('series',()=>d.series(env,{platform,days:n})),
-    settle('categories',()=>d.categories(env,{platform,mode:'days',days:n})),
-    platform==='SHOPEE'?settle('performance',()=>d.shopeePerf(env)):Promise.resolve(null),
-    platform!=='SHOPEE'?settle('performance',()=>d.mlPerf(env)):Promise.resolve(null)
-  ]);
+  const part=(name,fn)=>settle(name,async()=>{const s0=Date.now();try{meter.used++;return await run(fn);}finally{phases[name]=Math.max(phases[name]||0,Date.now()-s0);}});
+  const qMemo=new Map();
+  const q=period=>{
+    if(!period)return Promise.resolve(null);
+    const k=platform+'|'+period.start+'|'+period.end;
+    if(qMemo.has(k)){meter.shared++;return qMemo.get(k);}
+    const pr=part('quality',()=>d.quality(env,{platform,start:period.start,end:period.end}));
+    qMemo.set(k,pr);return pr;
+  };
+  const dashP=part('dashboard',()=>d.dashboard(env,{platform,days:n}));
+  const overviewP=part('overview',()=>d.overview(env,{platform,days:n}));
+  const seriesP=part('series',()=>d.series(env,{platform,days:n}));
+  const dash=await dashP;
   const periods=strategicPeriods(dash);
   const iso=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)?v:null;
+  const sameRange=(a,b)=>Boolean(a&&b&&a.start===b.start&&a.end===b.end);
+  const categoriesP=part('categories',()=>d.categories(env,{platform,mode:'days',days:n}));
+  const spanDays=periods?(Date.parse(periods.history.end)-Date.parse(periods.history.start))/86400000+1:0;
+  const dqCurrentP=periods?q(periods.current):Promise.resolve(null);
+  const dqPreviousP=periods?q(periods.previous):Promise.resolve(null);
+  const splitP=periods&&platform==='SHOPEE'?part('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null);
+  const dqHistoryP=periods&&spanDays<=STRATEGIC_MAX_HISTORY_DAYS?q(periods.history):Promise.resolve(null);
+  const monthlyP=part('monthly',()=>d.monthly(env,{platform}));
+  const shopeePerfP=platform==='SHOPEE'?part('performance',()=>d.shopeePerf(env)):Promise.resolve(null);
+  const mlPerfP=platform!=='SHOPEE'?part('performance',()=>d.mlPerf(env)):Promise.resolve(null);
+  // Categorias usam as próprias datas (até a última venda do ano; base = mesmo período do ano anterior): a cobertura delas entra assim que se sabe quais são.
+  const categories=await categoriesP;
   const catCur=iso(categories?.cur_from)&&iso(categories?.cur_to)?{start:categories.cur_from,end:categories.cur_to}:null;
   const catBase=iso(categories?.base_from)&&iso(categories?.base_to)?{start:categories.base_from,end:categories.base_to}:null;
-  const sameRange=(a,b)=>Boolean(a&&b&&a.start===b.start&&a.end===b.end);
-  let dqCurrent=null,dqPrevious=null,dqHistory=null,split=null,dqCatCurrent=null,dqCatBase=null;
-  if(periods){
-    const q=period=>period?settle('quality',()=>d.quality(env,{platform,start:period.start,end:period.end})):Promise.resolve(null);
-    const spanDays=(Date.parse(periods.history.end)-Date.parse(periods.history.start))/86400000+1;
-    [dqCurrent,dqPrevious,dqHistory,split,dqCatCurrent,dqCatBase]=await Promise.all([
-      q(periods.current),q(periods.previous),
-      spanDays<=STRATEGIC_MAX_HISTORY_DAYS?q(periods.history):Promise.resolve(null),
-      platform==='SHOPEE'?settle('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null),
-      // Categorias usam as próprias datas (até a última venda do ano; base = mesmo período do ano anterior).
-      catCur&&!sameRange(catCur,periods.current)?q(catCur):Promise.resolve(null),
-      q(catBase)
-    ]);
-  }
-  return buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,dqCatCurrent,dqCatBase,
+  const dqCatCurrentP=periods&&catCur&&!sameRange(catCur,periods.current)?q(catCur):Promise.resolve(null);
+  const dqCatBaseP=periods?q(catBase):Promise.resolve(null);
+  const [overview,series,monthly,shopeePerf,mlPerf,dqCurrent,dqPrevious,dqHistory,split,dqCatCurrent,dqCatBase]=await Promise.all([
+    overviewP,seriesP,monthlyP,shopeePerfP,mlPerfP,dqCurrentP,dqPreviousP,dqHistoryP,splitP,dqCatCurrentP,dqCatBaseP]);
+  const view=buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,dqCatCurrent,dqCatBase,
     perf:{shopee:shopeePerf,ml:mlPerf},failed,periods,elapsed_ms:Date.now()-t0});
+  // Métricas da operação (tempo, consultas feitas, repetidas evitadas, falhas, fases mais lentas). Sem dados de venda.
+  return {...view,metrics:{elapsed_ms:Date.now()-t0,queries:meter.used,shared_queries:meter.shared,max_parallel:MAX_PARALLEL_DB,failed:failed.slice(),failed_count:failed.length,phases_ms:{...phases}}};
 }
 
 // GA-014 — Central de decisões comerciais (somente leitura, só unidades). A função SQL commerce_decision_units_v1 traz as unidades por anúncio;

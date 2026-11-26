@@ -95,3 +95,51 @@ test('store: resposta de outra conta devolvida por uma consulta é rejeitada',as
   const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
   assert.equal(v.parts.overview,'RESPOSTA_INVALIDA'); assert.equal(v.movements.growth.available,false);
 });
+
+// ---- GA-P02: concorrência limitada, consultas repetidas evitadas, ordem e métricas ----
+const withPeak=deps=>{const st={active:0,peak:0,order:[],total:0};
+  const wrap=(name,fn)=>async(...a)=>{st.active++;st.total++;st.order.push(name);st.peak=Math.max(st.peak,st.active);try{await new Promise(r=>setTimeout(r,5));return await fn(...a);}finally{st.active--;}};
+  const out={};for(const [k,fn] of Object.entries(deps))out[k]=wrap(k,fn);return {deps:out,st};};
+test('GA-P02: nunca mais de 3 consultas ao banco ao mesmo tempo, em todas as contas e janelas',async()=>{
+  for(const platform of ['SHOPEE','ML_ANTIGO','ML_NOVO'])for(const days of [7,30,60,90]){
+    const {deps}=mk();const {deps:w,st}=withPeak(deps);
+    const v=await commerceStrategicViewV1({},{platform,days},w);
+    assert.ok(st.peak<=3,platform+' '+days+': pico '+st.peak);assert.ok(st.peak>=2,'ainda usa paralelismo');
+    assert.equal(v.metrics.max_parallel,3);assert.equal(v.metrics.queries,st.total);
+  }
+});
+test('GA-P02: o Dashboard sai primeiro e as consultas lentas (cobertura/divisão) entram antes das partes em cache',async()=>{
+  const {deps}=mk();const {deps:w,st}=withPeak(deps);
+  await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},w);
+  assert.equal(st.order[0],'dashboard');
+  const first=st.order.indexOf('quality'),mon=st.order.indexOf('monthly');
+  assert.ok(first>0&&first<mon,'cobertura entra na fila antes do mensal: '+st.order.join(','));
+});
+test('GA-P02: consulta de cobertura idêntica (mesma conta, início e fim) é feita uma vez só',async()=>{
+  // categorias com as mesmas datas do período atual e base igual ao período anterior => nenhuma repetição
+  const {deps,calls}=mk({categories:async(_e,a)=>({platform:a.platform,cur_from:'2026-11-17',cur_to:'2026-11-23',base_from:'2026-11-10',base_to:'2026-11-16',total:{cur:1,base:1},categories:[]})});
+  const v=await commerceStrategicViewV1({},{platform:'ML_NOVO',days:7},deps);
+  const keys=calls.filter(c=>c[0]==='quality').map(c=>c[1].start+'|'+c[1].end);
+  assert.equal(new Set(keys).size,keys.length,'nenhuma cobertura repetida');
+  assert.ok(v.metrics.shared_queries>=1,'a base de categorias reaproveitou a cobertura do período anterior');
+  assert.equal(v.categories.verified.base,true);
+});
+test('GA-P02: métricas — tempo, consultas, falhas e fases; falha de uma parte não derruba as outras',async()=>{
+  const {deps}=mk({series:async()=>{throw new Error('x');},split:async()=>{throw new Error('y');}});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  assert.deepEqual(v.metrics.failed.sort(),['series','split']);assert.equal(v.metrics.failed_count,2);
+  assert.ok(v.metrics.queries>=8&&v.metrics.elapsed_ms>=0&&typeof v.metrics.phases_ms.dashboard==='number');
+  assert.equal(v.parts.series,'INDISPONIVEL');assert.equal(v.parts.dashboard,'OK');
+  assert.ok(!JSON.stringify(v.metrics).match(/PROD|SKU|sku/));
+});
+test('GA-P02: conta indisponível no Dashboard não dispara cobertura nem divisão (nada é inventado)',async()=>{
+  const {deps,calls}=mk({dashboard:async()=>{throw new Error('x');}});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  assert.equal(calls.filter(c=>c[0]==='quality'||c[0]==='split').length,0);assert.equal(v.parts.dashboard,'INDISPONIVEL');
+});
+test('GA-P02: duas contas ao mesmo tempo não misturam respostas (limitador por operação)',async()=>{
+  const a=mk(),b=mk();
+  const [va,vb]=await Promise.all([commerceStrategicViewV1({},{platform:'SHOPEE',days:7},withPeak(a.deps).deps),commerceStrategicViewV1({},{platform:'ML_NOVO',days:7},withPeak(b.deps).deps)]);
+  assert.equal(va.platform,'SHOPEE');assert.equal(vb.platform,'ML_NOVO');
+  assert.ok(a.calls.every(c=>c[1].platform==null||c[1].platform==='SHOPEE'));assert.ok(b.calls.every(c=>c[1].platform==null||c[1].platform==='ML_NOVO'));
+});
