@@ -13,7 +13,7 @@ const read = (p) => fs.readFileSync(path.join(here, p), 'utf8');
 const GA021 = read('../../supabase/migrations/20261124150000_commerce_shopee_current_sku_source_v1.sql');
 const GA011 = read('../../supabase/migrations/20261123200000_commerce_shopee_reconciliation_v1.sql');
 const COLLECTION = (read('../../supabase/migrations/20261029250000_commerce_categories_collections_v1.sql').match(/create or replace function public\.commerce_collection_v1[\s\S]*?\$f\$;/i) || [])[0];
-const CANDIDATE = read('fixtures/candidates/commerce_categories_v3.sql');
+const CANDIDATE = read('../../supabase/migrations/20261126210000_commerce_categories_v3.sql');
 
 before(async () => { await startServer(); });
 after(async () => { await stopServer(); });
@@ -226,5 +226,73 @@ test('medição local v2 x v3 e concorrência 1/2/3', { skip: !REPORT }, async (
       out.planos.v3 = (await c.query(`explain (analyze, buffers) ${body}`)).rows.map((r) => r['QUERY PLAN']);
     }
     fs.writeFileSync(REPORT, JSON.stringify(out, null, 2));
+  } finally { await db.close(); }
+});
+
+// ---- GA-P02C: a migração real (e não só a candidata) ----
+const CACHE = read('../../supabase/migrations/20261105120000_commerce_read_cache_v1.sql');
+const DOWN = read('../../supabase/rollback/20261126210000_commerce_categories_v3.down.sql');
+const FN3 = 'public.commerce_categories_v3(text,integer,text,integer,integer)';
+const same = async (db, args, msg) => {
+  const a = (await db.one(`select public.commerce_categories_v2(${args})::text j`)).j, b = (await db.one(`select public.commerce_categories_v3(${args})::text j`)).j;
+  assert.equal(b, a, msg); return JSON.parse(b);
+};
+
+test('GA-P02C: v3 é SECURITY INVOKER, search_path fixo, execução só do service_role; v2 igual', async () => {
+  const db = await mkDb();
+  try {
+    for (const f of ['commerce_categories_v3', 'commerce_categories_v2']) {
+      const r = await db.one(`select prosecdef, proconfig::text cfg from pg_proc where proname='${f}'`);
+      assert.equal(r.prosecdef, false, f + ' não pode ser SECURITY DEFINER');
+      assert.match(r.cfg, /search_path=public/, f + ' com search_path fixo');
+    }
+    const p = await db.one(`select has_function_privilege('anon','${FN3}','execute') a, has_function_privilege('authenticated','${FN3}','execute') u,
+      has_function_privilege('service_role','${FN3}','execute') s, has_function_privilege('public','${FN3}','execute') p`);
+    assert.deepEqual([p.a, p.u, p.s, p.p], [false, false, true, false]);
+  } finally { await db.close(); }
+});
+
+test('GA-P02C: lotes do mesmo snapshot somam; resumos diários duplicados não duplicam; receita arredondada como na v2', async () => {
+  const db = await mkDb();
+  try {
+    const dia = (await db.one(`select max(period_start)::text d from commerce_sales_import_stage_summary s join commerce_sales_import_batches b on b.id=s.batch_id where b.platform_code='ML_NOVO' and b.status='COMMITTED'`)).d;
+    // (a) duas partes do MESMO snapshot novo no mesmo dia: somam (v3 = v2) e o total sobe exatamente o que foi inserido
+    const antes = await same(db, `'ML_NOVO', null, 'days', null, 7`, 'antes');
+    for (const [id, u, rv] of [[7001, 3, '10.005'], [7002, 4, '20.004']]) {
+      await db.q(`insert into commerce_sales_import_batches(id,platform_code,source_filename,status,snapshot_id,committed_at) values (${id},'ML_NOVO','parte${id}.xlsx','COMMITTED',99,now())`);
+      await db.q(`insert into commerce_sales_import_stage_summary(batch_id,period_key,period_start,period_end,units,product_revenue) values (${id},'${dia}',date '${dia}',date '${dia}',${u},1)`);
+      await db.q(`insert into commerce_sales_listing_daily_v1(batch_id,sale_date,external_listing_id,sku_norm,units,orders_with_item,product_revenue) values (${id},date '${dia}','MLBX','K1-001',${u},1,${rv})`);
+    }
+    const dep = await same(db, `'ML_NOVO', null, 'days', null, 7`, 'duas partes do mesmo snapshot');
+    // o snapshot 99 é o mais novo do dia: só ele vence; as partes somam 7 un. e 30,01 (10.005+20.004 arredondado por linha como na view)
+    assert.ok(dep.total.cur !== antes.total.cur, 'o snapshot novo substitui o antigo do dia');
+    // (b) resumo diário DUPLICADO para o mesmo lote/dia: nada muda (nem v2 nem v3)
+    await db.q(`insert into commerce_sales_import_stage_summary(batch_id,period_key,period_start,period_end,units,product_revenue) values (7001,'${dia}-dup',date '${dia}',date '${dia}',3,1)`);
+    const dup = await same(db, `'ML_NOVO', null, 'days', null, 7`, 'resumo duplicado');
+    assert.deepEqual(dup.total, dep.total);
+    // (c) arredondamento: receitas com 3 casas por linha, v3 = v2 no jsonb inteiro, em todos os modos
+    for (const a of [`'ML_NOVO', null, 'days', null, 30`, `'TODAS', null, 'days', null, 30`, `'ML_NOVO', 2026, 'ytd', null, null`, `'TODAS', 2026, 'month', 11, null`]) await same(db, a, 'arredondamento ' + a);
+  } finally { await db.close(); }
+});
+
+test('GA-P02C: cache — chaves separadas por função; v3 fora da lista permitida até migração própria; rollback remove só a v3', async () => {
+  const db = await mkDb();
+  try {
+    await db.main.query(CACHE);
+    const args = `'{"p_platform":"SHOPEE","p_mode":"days","p_days":30}'::jsonb`;
+    await db.q(`select public.commerce_cached_read_v1('commerce_categories_v2', ${args})`);
+    await assert.rejects(db.q(`select public.commerce_cached_read_v1('commerce_categories_v3', ${args})`), /funcao_nao_permitida/);
+    // com a lista ampliada (simulação do passo futuro, NÃO faz parte desta migração): duas linhas de cache, payloads idênticos
+    await db.main.query(CACHE.replace("'commerce_categories_v2'];", "'commerce_categories_v2','commerce_categories_v3'];"));
+    await db.q(`select public.commerce_cached_read_v1('commerce_categories_v3', ${args})`);
+    const k = (await db.main.query(`select cache_key, md5(payload::text) h from commerce_read_cache_v1 where cache_key like 'commerce_categories_%' order by 1`)).rows;
+    assert.equal(k.length, 2); assert.match(k[0].cache_key, /^commerce_categories_v2\|/); assert.match(k[1].cache_key, /^commerce_categories_v3\|/); assert.equal(k[0].h, k[1].h);
+    // rollback: some só a v3 e as linhas de cache dela; v2 e a linha da v2 continuam
+    await db.main.query(DOWN);
+    assert.equal((await db.one(`select count(*)::int n from pg_proc where proname='commerce_categories_v3'`)).n, 0);
+    assert.equal((await db.one(`select count(*)::int n from pg_proc where proname='commerce_categories_v2'`)).n, 1);
+    assert.equal((await db.one(`select count(*)::int n from commerce_read_cache_v1 where cache_key like 'commerce_categories_v2|%'`)).n, 1);
+    assert.equal((await db.one(`select count(*)::int n from commerce_read_cache_v1 where cache_key like 'commerce_categories_v3|%'`)).n, 0);
+    await db.q(`select public.commerce_categories_v2('SHOPEE',null,'days',null,30)`);
   } finally { await db.close(); }
 });
