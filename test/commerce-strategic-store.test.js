@@ -272,3 +272,44 @@ test('GA-P02D: coverageUnprovenCause é null exatamente quando coverageProven é
   }
   assert.ok(causes.size>=8,'motivos distintos: '+[...causes]);
 });
+
+// ---- GA-P02D (correção do Atlas): janelas compartilhadas herdam falha/erro/estado sem duplicar contagem nem tempo ----
+const catSame=(over={})=>async(_e,a)=>({platform:a.platform,cur_from:'2026-11-17',cur_to:'2026-11-23',base_from:'2026-11-10',base_to:'2026-11-16',total:{cur:1,base:1},categories:[],...over});
+const dqDays=a=>Math.round((Date.parse(a.end)-Date.parse(a.start))/86400000)+1;
+test('GA-P02D: janela compartilhada que reutilizou consulta malsucedida herda falha e código do erro, sem duplicar contagem nem tempo',async()=>{
+  let t=0;
+  const {deps}=mk({categories:catSame(),quality:async(_e,a)=>{t+=10;if(a.start==='2026-11-10'){const e=new Error('57014 x');e.status=500;throw e;}return dq(a.platform,a.start,a.end,dqDays(a));}});
+  deps.now=()=>t;
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7,parallel:1},deps);
+  const w=v.metrics.quality_windows,m=v.metrics;
+  assert.equal(w.previous.failed,true);assert.equal(w.previous.error,'TIMEOUT_BANCO');
+  assert.equal(w.category_base.shared_with,'previous');assert.equal(w.category_base.failed,true);assert.equal(w.category_base.error,'TIMEOUT_BANCO');
+  assert.equal(w.category_base.state,'INDISPONIVEL');assert.equal(w.category_base.reason,'SEM_RESPOSTA');
+  assert.ok(!('wait_ms' in w.category_base)&&!('call_ms' in w.category_base),'a janela compartilhada não repete os tempos');
+  assert.deepEqual(m.failed_windows,['previous','category_base']);
+  assert.deepEqual(m.failed,['quality']);assert.equal(m.failed_count,1);assert.equal(m.shared_queries,1);assert.equal(m.parts.quality.n,3);
+  const own=Object.values(w).filter(x=>!x.shared_with&&x.call_ms!=null);
+  assert.equal(own.reduce((a,x)=>a+x.call_ms,0),m.parts.quality.call_ms,'soma das janelas próprias = tempo acumulado de qualidade (sem duplicar)');
+  assert.equal(own.reduce((a,x)=>a+x.wait_ms,0),m.parts.quality.wait_ms);
+});
+test('GA-P02D: category_current que reutiliza a cobertura atual informa estado e motivo (não comprovada e falha)',async()=>{
+  const part=async(_e,a)=>dq(a.platform,a.start,a.end,dqDays(a),a.start!=='2026-11-17');
+  const {deps}=mk({quality:part});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  const cur=v.metrics.quality_windows.current,cc=v.metrics.quality_windows.category_current;
+  assert.equal(cc.skipped,'IGUAL_AO_ATUAL');assert.equal(cc.shared_with,'current');assert.equal(cc.failed,false);
+  assert.equal(cc.state,'NAO_COMPROVADA');assert.equal(cc.reason,'DIAS_SEM_INFORMACAO');assert.deepEqual(cc.detail,cur.detail);
+  assert.deepEqual([cc.start,cc.end],['2026-11-17','2026-11-23']);assert.ok(!('call_ms' in cc));
+  const f=mk({quality:async(_e,a)=>{if(a.start==='2026-11-17'){const e=new Error('x');e.status=503;throw e;}return dq(a.platform,a.start,a.end,dqDays(a));}});
+  const v2=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},f.deps);
+  const c2=v2.metrics.quality_windows.category_current;
+  assert.equal(c2.failed,true);assert.equal(c2.error,'HTTP_503');assert.equal(c2.state,'INDISPONIVEL');assert.equal(c2.reason,'SEM_RESPOSTA');
+  assert.deepEqual(v2.metrics.failed_windows,['current','category_current']);assert.equal(v2.metrics.parts.quality.n,4,'4 consultas próprias; category_current não conta consulta duplicada');
+  const ok=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},mk().deps);
+  assert.equal(ok.metrics.quality_windows.category_current.state,'COMPROVADA');assert.equal(ok.metrics.quality_windows.category_current.reason,null);
+});
+test('GA-P02D: o resultado da visão não muda com as janelas compartilhadas (equivalente a antes)',async()=>{
+  const bad=mk({categories:catSame(),quality:async(_e,a)=>{if(a.start==='2026-11-10')throw new Error('x');return dq(a.platform,a.start,a.end,dqDays(a));}});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},bad.deps);
+  assert.deepEqual(v.metrics.failed,['quality']);assert.equal(v.units.verified.previous,false);assert.equal(v.units.verified.current,true);
+});

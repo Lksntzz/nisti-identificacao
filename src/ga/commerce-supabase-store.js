@@ -1484,7 +1484,9 @@ export async function commerceStrategicViewV1(env,{platform,days,parallel}={},de
     if(!period)return Promise.resolve(null);
     const k=platform+'|'+period.start+'|'+period.end;
     const w=qWin[label]={start:period.start,end:period.end};
-    if(qMemo.has(k)){meter.shared++;const hit=qMemo.get(k);w.shared_with=hit.label;return hit.p;}
+    if(qMemo.has(k)){meter.shared++;const hit=qMemo.get(k);w.shared_with=hit.label;
+      // herda falha e código do erro da consulta reutilizada, SEM copiar fila/chamada (já contados na janela de origem)
+      return hit.p.then(r=>{const o=qWin[hit.label];w.failed=o?.failed===true;if(o?.error)w.error=o.error;return r;});}
     const s0=clock();let st=null,en=null,err=null;
     const pr=part('quality',async()=>{st=clock();try{return await d.quality(env,{platform,start:period.start,end:period.end});}catch(e){err=qErr(e);throw e;}finally{en=clock();}});
     const p=pr.then(r=>{w.wait_ms=(st==null?clock():st)-s0;w.call_ms=st==null?0:(en==null?clock():en)-st;w.failed=err!=null;if(err)w.error=err;return r;});
@@ -1527,11 +1529,14 @@ export async function commerceStrategicViewV1(env,{platform,days,parallel}={},de
   const quality_windows={};
   for(const name of ['current','previous','history','category_current','category_base']){
     const w=qWin[name];
-    if(!w){const why=!periods?'SEM_PERIODOS':skip[name];if(why){quality_windows[name]={skipped:why};}continue;}
-    const dqx=dqBy[name],per=platP[name],sl=dqx?.sales;
+    // category_current igual ao atual não faz consulta própria: usa a cobertura da janela atual (estado e motivo avaliados sobre as datas das categorias)
+    const reuse=!w&&periods&&skip[name]==='IGUAL_AO_ATUAL'&&qWin.current;
+    if(!w&&!reuse){const why=!periods?'SEM_PERIODOS':skip[name];if(why){quality_windows[name]={skipped:why};}continue;}
+    const base=reuse?{start:catCur.start,end:catCur.end,skipped:'IGUAL_AO_ATUAL',shared_with:'current',failed:qWin.current.failed===true,...(qWin.current.error?{error:qWin.current.error}:{})}:w;
+    const dqx=reuse?dqCurrent:dqBy[name],per=platP[name],sl=dqx?.sales;
     const proven=coverageProven(dqx,platform,per);
     const cnt=v=>{const n=Number(v);return v==null||v===''||!Number.isFinite(n)?null:n;};
-    quality_windows[name]={...w,
+    quality_windows[name]={...base,
       state:proven?'COMPROVADA':!dqx?'INDISPONIVEL':(dqx.platform===platform&&sl?.status==='SEM_INFORMACAO')?'SEM_INFORMACAO':'NAO_COMPROVADA',
       reason:coverageUnprovenCause(dqx,platform,per),
       detail:sl?{status:typeof sl.status==='string'?sl.status.slice(0,24):null,requested_days:cnt(sl.requested_days),complete_days:cnt(sl.complete_days),partial_days:cnt(sl.partial_days),
