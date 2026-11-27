@@ -36,7 +36,7 @@ Em caso de DIVERGE, comparar `jsonb` por chave (total, categorias, coleções) e
 
 Total: **24 combinações** (12 contas × períodos em dias + 3 mensais + 3 anuais + 3 ano anterior + 3 de TODAS).
 
-Critério de aprovação: todos IDÊNTICO (ou INCONCLUSIVO justificado e coberto pela soma direta), sem DIVERGE.
+Critério de aprovação: **as 24 combinações IDÊNTICO** (jsonb inteiro e cada categoria/coleção), sem DIVERGE. Resultado INCONCLUSIVO (consulta cancelada, versão/datas diferentes) **não é equivalente** e **não é coberto pela soma direta das vendas**: precisa ser repetido até virar IDÊNTICO (comparação individual, mesma versão e mesmos períodos). Enquanto restar qualquer caso inconclusivo, a conciliação NÃO está aprovada.
 
 ## Após aprovada a troca do Worker (passo futuro, separado)
 - Incluir `commerce_categories_v3` na lista permitida de `commerce_cached_read_v1` (migração própria; a chave de cache já é `função|argumentos`, então v2 e v3 não se misturam) e trocar a chamada em `commerce-supabase-store.js` (único consumidor de `commerce_categories_v2`).
