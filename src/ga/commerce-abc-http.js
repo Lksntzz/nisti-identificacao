@@ -24,9 +24,12 @@ export const MAX_BODY_CHARS=MAX_SKUS_PARAM;
 
 // Resposta JSON com o volume (bytes do corpo, sem o próprio campo) em metrics.response_bytes e no cabeçalho x-ga-response-bytes.
 // Um log curto por chamada (tempo, consultas, falhas, volume): só números e a conta/modo, nunca SKU nem venda.
+// GA-P02D: resumo por janela para o log (nome → estado/motivo/espera/chamada); só rótulos fixos e milissegundos.
+const cw=w=>{if(!w||typeof w!=='object')return null;const o={};for(const [k,v] of Object.entries(w))o[k]=v?.skipped?'skip:'+v.skipped:[v?.state??null,v?.reason??null,v?.wait_ms??null,v?.call_ms??null,v?.error??null].join('|');return o;};
+
 export function abcJsonResponse(data,kind,ev='ga_abc'){
   const bytes=new TextEncoder().encode(JSON.stringify(data)).length;
   if(data&&data.metrics)data.metrics.response_bytes=bytes;
-  try{console.log(JSON.stringify({ev,kind,platform:data?.platform??null,mode:data?.mode??(data?.days!=null?data.days+'d':null),status:data?.status??null,ms:data?.metrics?.elapsed_ms??null,queries:data?.metrics?.queries??null,failed_count:data?.metrics?.failed_count??null,parallel:data?.metrics?.max_parallel??null,wait_ms:data?.metrics?.queue_wait_ms??null,call_ms:data?.metrics?.call_ms??null,bytes}));}catch{/* log nunca derruba a resposta */}
+  try{console.log(JSON.stringify({ev,kind,platform:data?.platform??null,mode:data?.mode??(data?.days!=null?data.days+'d':null),status:data?.status??null,ms:data?.metrics?.elapsed_ms??null,queries:data?.metrics?.queries??null,failed_count:data?.metrics?.failed_count??null,parallel:data?.metrics?.max_parallel??null,wait_ms:data?.metrics?.queue_wait_ms??null,call_ms:data?.metrics?.call_ms??null,failed_windows:data?.metrics?.failed_windows??null,coverage:cw(data?.metrics?.quality_windows),bytes}));}catch{/* log nunca derruba a resposta */}
   return new Response(JSON.stringify(data),{status:200,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-ga-response-bytes':String(bytes)}});
 }

@@ -75,6 +75,27 @@ export function coverageProven(dq,platform,period){
     &&Array.isArray(s.missing_ranges)&&s.missing_ranges.length===0;
 }
 
+// GA-P02D — DIAGNÓSTICO (não decide nada): por que a cobertura NÃO foi comprovada. Devolve null exatamente quando coverageProven é true
+// (teste de equivalência); caso contrário, o primeiro critério que falhou. Só nomes fixos; nunca texto de erro nem dado comercial.
+export function coverageUnprovenCause(dq,platform,period){
+  if(!dq)return 'SEM_RESPOSTA';
+  if(!dq.sales)return 'SEM_BLOCO_VENDAS';
+  if(!period)return 'PERIODO_AUSENTE';
+  if(dq.platform!==platform)return 'CONTA_DIFERENTE';
+  if(dq.period?.start!==period.start||dq.period?.end!==period.end)return 'PERIODO_DIFERENTE';
+  const s=dq.sales,span=spanDays(period.start,period.end);
+  const eq=(v,n)=>v!=null&&v!==''&&Number(v)===n;
+  if(!(span>0))return 'PERIODO_INVALIDO';
+  if(!eq(s.requested_days,span))return 'DIAS_PEDIDOS_DIFERENTE_DO_PERIODO';
+  if(!eq(s.partial_days,0))return 'DIAS_PARCIAIS';
+  if(!eq(s.days_without_information,0))return 'DIAS_SEM_INFORMACAO';
+  if(!eq(s.days_with_records_unverified,0))return 'DIAS_COM_REGISTROS_NAO_VERIFICADOS';
+  if(!eq(s.complete_days,span))return 'DIAS_COMPLETOS_DIFERENTE_DO_PERIODO';
+  if(s.status!=='COMPLETA')return 'STATUS_NAO_COMPLETA';
+  if(!Array.isArray(s.missing_ranges)||s.missing_ranges.length!==0)return 'FALTANTES_LISTADOS_OU_AUSENTES';
+  return null;
+}
+
 // Ausência de informação (nada importado) ≠ ausência de vendas importadas (cobertura não comprovada) ≠ zero vendas (cobertura comprovada).
 export function salesNotice({platform,coverage,data,period,dq}){
   if(!data)return null;

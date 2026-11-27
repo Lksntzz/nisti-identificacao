@@ -213,3 +213,103 @@ test('GA-P02A: Evolução ABC continua com MAX_PARALLEL_DB fixo (não lê GA_STR
   assert.ok(/makeLimiter\(MAX_PARALLEL_DB\)/.test(abc));assert.ok(!/GA_STRATEGIC_PARALLEL|strategicParallel/.test(abc));
   assert.ok(!/GA_STRATEGIC_PARALLEL/.test(read('src/ga/commerce-concurrency.js')));
 });
+
+// ---- GA-P02D: diagnóstico individual da cobertura (uma entrada por janela de qualidade) ----
+import {coverageProven,coverageUnprovenCause} from '../src/ga/commerce-platform-scope-logic.js';
+const LABELS=['current','previous','history','category_current','category_base'];
+test('GA-P02D: cada janela de qualidade tem nome, datas, fila, chamada e estado; métricas antigas preservadas',async()=>{
+  const {deps}=mk();
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7,parallel:2},deps);
+  const w=v.metrics.quality_windows;
+  assert.deepEqual(Object.keys(w),LABELS);
+  assert.deepEqual([w.current.start,w.current.end],['2026-11-17','2026-11-23']);
+  assert.deepEqual([w.previous.start,w.previous.end],['2026-11-10','2026-11-16']);
+  assert.deepEqual([w.history.start,w.history.end],['2025-01-01','2026-11-23']);
+  assert.equal(w.category_current.skipped,'IGUAL_AO_ATUAL');
+  assert.deepEqual([w.category_base.start,w.category_base.end],['2025-11-17','2025-11-23']);
+  for(const k of ['current','previous','history','category_base']){
+    assert.ok(w[k].wait_ms>=0&&w[k].call_ms>=0,k);assert.equal(w[k].failed,false);assert.equal(w[k].state,'COMPROVADA');assert.equal(w[k].reason,null);
+  }
+  const m=v.metrics;
+  assert.equal(m.queries,m.parts.quality.n+m.parts.dashboard.n+m.parts.overview.n+m.parts.series.n+m.parts.categories.n+m.parts.split.n+m.parts.monthly.n+m.parts.performance.n);
+  assert.equal(m.parts.quality.n,4);assert.deepEqual(m.failed,[]);assert.equal(m.failed_count,0);assert.deepEqual(m.failed_windows,[]);
+});
+test('GA-P02D: falha só na janela histórica: failed continua ["quality"], failed_windows aponta a janela e a causa vem sem texto de erro',async()=>{
+  const {deps}=mk({quality:async(_e,a)=>{if(a.start==='2025-01-01'){const e=new Error('57014 segredo-interno');e.status=500;throw e;}
+    return dq(a.platform,a.start,a.end,Math.round((Date.parse(a.end)-Date.parse(a.start))/86400000)+1);}});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  assert.deepEqual(v.metrics.failed,['quality']);assert.equal(v.metrics.failed_count,1);assert.deepEqual(v.metrics.failed_windows,['history']);
+  const h=v.metrics.quality_windows.history;
+  assert.equal(h.failed,true);assert.equal(h.error,'TIMEOUT_BANCO');assert.equal(h.state,'INDISPONIVEL');assert.equal(h.reason,'SEM_RESPOSTA');
+  assert.equal(v.metrics.quality_windows.current.failed,false);assert.equal(v.metrics.quality_windows.current.state,'COMPROVADA');
+  assert.doesNotMatch(JSON.stringify(v.metrics),/segredo-interno/);
+});
+test('GA-P02D: janela idêntica reaproveitada aparece como shared_with e continua contando shared_queries',async()=>{
+  const {deps}=mk({categories:async(_e,a)=>({platform:a.platform,cur_from:'2026-11-17',cur_to:'2026-11-23',base_from:'2026-11-10',base_to:'2026-11-16',total:{cur:1,base:1},categories:[]})});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  assert.equal(v.metrics.shared_queries,1);assert.equal(v.metrics.quality_windows.category_base.shared_with,'previous');
+  assert.equal(v.metrics.parts.quality.n,3);
+});
+test('GA-P02D: cobertura não comprovada informa o motivo e só contagens de dias (sem dados comerciais)',async()=>{
+  const {deps}=mk({quality:async(_e,a)=>dq(a.platform,a.start,a.end,Math.round((Date.parse(a.end)-Date.parse(a.start))/86400000)+1,a.start!=='2026-11-17')});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  const c=v.metrics.quality_windows.current;
+  assert.equal(c.state,'NAO_COMPROVADA');assert.equal(c.reason,'DIAS_SEM_INFORMACAO');
+  assert.deepEqual(Object.keys(c.detail).sort(),['complete_days','days_with_records_unverified','days_without_information','missing_ranges','partial_days','requested_days','status'].sort());
+  assert.equal(c.detail.days_without_information,1);assert.equal(c.detail.missing_ranges,1);
+  assert.equal(v.units.verified.current,false,'o resultado da visão não muda');
+});
+test('GA-P02D: coverageUnprovenCause é null exatamente quando coverageProven é true (todos os critérios preservados)',()=>{
+  const per={start:'2026-11-01',end:'2026-11-10'};const base={platform:'SHOPEE',period:per,sales:{status:'COMPLETA',requested_days:10,complete_days:10,partial_days:0,days_without_information:0,days_with_records_unverified:0,missing_ranges:[]}};
+  const mut=[b=>b,b=>({...b,platform:'ML_NOVO'}),b=>({...b,period:{start:'2026-11-02',end:'2026-11-10'}}),b=>({...b,period:{start:'2026-11-01',end:'2026-11-11'}}),
+    b=>({...b,sales:{...b.sales,status:'PARCIAL'}}),b=>({...b,sales:{...b.sales,requested_days:9}}),b=>({...b,sales:{...b.sales,complete_days:9}}),b=>({...b,sales:{...b.sales,partial_days:1}}),
+    b=>({...b,sales:{...b.sales,days_without_information:1}}),b=>({...b,sales:{...b.sales,days_with_records_unverified:1}}),b=>({...b,sales:{...b.sales,missing_ranges:[{start:'2026-11-03',end:'2026-11-03',days:1}]}}),
+    b=>({...b,sales:{...b.sales,missing_ranges:null}}),b=>({...b,sales:{...b.sales,complete_days:null}}),b=>({...b,sales:{...b.sales,requested_days:''}}),b=>({...b,sales:null}),b=>null,b=>({})];
+  const causes=new Set();
+  for(const m of mut)for(const plat of ['SHOPEE','ML_NOVO'])for(const p of [per,{start:'2026-11-01',end:'2026-10-01'},null]){
+    const dqx=m(base),proven=coverageProven(dqx,plat,p),cause=coverageUnprovenCause(dqx,plat,p);
+    assert.equal(cause===null,proven,JSON.stringify([dqx&&dqx.platform,plat,p,cause]));if(cause)causes.add(cause);
+  }
+  assert.ok(causes.size>=8,'motivos distintos: '+[...causes]);
+});
+
+// ---- GA-P02D (correção do Atlas): janelas compartilhadas herdam falha/erro/estado sem duplicar contagem nem tempo ----
+const catSame=(over={})=>async(_e,a)=>({platform:a.platform,cur_from:'2026-11-17',cur_to:'2026-11-23',base_from:'2026-11-10',base_to:'2026-11-16',total:{cur:1,base:1},categories:[],...over});
+const dqDays=a=>Math.round((Date.parse(a.end)-Date.parse(a.start))/86400000)+1;
+test('GA-P02D: janela compartilhada que reutilizou consulta malsucedida herda falha e código do erro, sem duplicar contagem nem tempo',async()=>{
+  let t=0;
+  const {deps}=mk({categories:catSame(),quality:async(_e,a)=>{t+=10;if(a.start==='2026-11-10'){const e=new Error('57014 x');e.status=500;throw e;}return dq(a.platform,a.start,a.end,dqDays(a));}});
+  deps.now=()=>t;
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7,parallel:1},deps);
+  const w=v.metrics.quality_windows,m=v.metrics;
+  assert.equal(w.previous.failed,true);assert.equal(w.previous.error,'TIMEOUT_BANCO');
+  assert.equal(w.category_base.shared_with,'previous');assert.equal(w.category_base.failed,true);assert.equal(w.category_base.error,'TIMEOUT_BANCO');
+  assert.equal(w.category_base.state,'INDISPONIVEL');assert.equal(w.category_base.reason,'SEM_RESPOSTA');
+  assert.ok(!('wait_ms' in w.category_base)&&!('call_ms' in w.category_base),'a janela compartilhada não repete os tempos');
+  assert.deepEqual(m.failed_windows,['previous','category_base']);
+  assert.deepEqual(m.failed,['quality']);assert.equal(m.failed_count,1);assert.equal(m.shared_queries,1);assert.equal(m.parts.quality.n,3);
+  const own=Object.values(w).filter(x=>!x.shared_with&&x.call_ms!=null);
+  assert.equal(own.reduce((a,x)=>a+x.call_ms,0),m.parts.quality.call_ms,'soma das janelas próprias = tempo acumulado de qualidade (sem duplicar)');
+  assert.equal(own.reduce((a,x)=>a+x.wait_ms,0),m.parts.quality.wait_ms);
+});
+test('GA-P02D: category_current que reutiliza a cobertura atual informa estado e motivo (não comprovada e falha)',async()=>{
+  const part=async(_e,a)=>dq(a.platform,a.start,a.end,dqDays(a),a.start!=='2026-11-17');
+  const {deps}=mk({quality:part});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},deps);
+  const cur=v.metrics.quality_windows.current,cc=v.metrics.quality_windows.category_current;
+  assert.equal(cc.skipped,'IGUAL_AO_ATUAL');assert.equal(cc.shared_with,'current');assert.equal(cc.failed,false);
+  assert.equal(cc.state,'NAO_COMPROVADA');assert.equal(cc.reason,'DIAS_SEM_INFORMACAO');assert.deepEqual(cc.detail,cur.detail);
+  assert.deepEqual([cc.start,cc.end],['2026-11-17','2026-11-23']);assert.ok(!('call_ms' in cc));
+  const f=mk({quality:async(_e,a)=>{if(a.start==='2026-11-17'){const e=new Error('x');e.status=503;throw e;}return dq(a.platform,a.start,a.end,dqDays(a));}});
+  const v2=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},f.deps);
+  const c2=v2.metrics.quality_windows.category_current;
+  assert.equal(c2.failed,true);assert.equal(c2.error,'HTTP_503');assert.equal(c2.state,'INDISPONIVEL');assert.equal(c2.reason,'SEM_RESPOSTA');
+  assert.deepEqual(v2.metrics.failed_windows,['current','category_current']);assert.equal(v2.metrics.parts.quality.n,4,'4 consultas próprias; category_current não conta consulta duplicada');
+  const ok=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},mk().deps);
+  assert.equal(ok.metrics.quality_windows.category_current.state,'COMPROVADA');assert.equal(ok.metrics.quality_windows.category_current.reason,null);
+});
+test('GA-P02D: o resultado da visão não muda com as janelas compartilhadas (equivalente a antes)',async()=>{
+  const bad=mk({categories:catSame(),quality:async(_e,a)=>{if(a.start==='2026-11-10')throw new Error('x');return dq(a.platform,a.start,a.end,dqDays(a));}});
+  const v=await commerceStrategicViewV1({},{platform:'SHOPEE',days:7},bad.deps);
+  assert.deepEqual(v.metrics.failed,['quality']);assert.equal(v.units.verified.previous,false);assert.equal(v.units.verified.current,true);
+});
