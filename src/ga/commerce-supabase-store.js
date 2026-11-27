@@ -1,6 +1,7 @@
 import { commerceRpc as supabaseRpc } from './commerce-rpc.js';
 import { supabaseRpc as directSupabaseRpc } from '../core/supabase-read-store.js';
 import { makeLimiter, MAX_PARALLEL_DB } from './commerce-concurrency.js';
+import { coverageProven, coverageUnprovenCause } from './commerce-platform-scope-logic.js';
 import { isStrategicPlatform, STRATEGIC_DAYS, strategicPeriods, buildStrategicView } from './commerce-strategic-logic.js';
 import { isDecisionDays, buildDecisionCenter, analysisWindow, sumDailySource, PROBE_MAX_DAYS } from './commerce-decision-logic.js';
 
@@ -1472,13 +1473,22 @@ export async function commerceStrategicViewV1(env,{platform,days,parallel}={},de
     try{meter.used++;rec.n++;return await run(async()=>{started=clock();try{return await fn();}finally{rec.call_ms+=clock()-started;}});}
     finally{rec.wait_ms+=(started==null?clock():started)-s0;phases[name]=Math.max(phases[name]||0,clock()-s0);}
   });
+  // GA-P02D: uma entrada por janela de qualidade (datas, fila, chamada, falha). Só nomes fixos e números; nunca texto de erro.
+  const qWin={};
+  const qErr=e=>{const m=String(e?.message||''),st=Number(e?.status);
+    if(/57014|statement timeout/i.test(m))return 'TIMEOUT_BANCO';
+    if(e?.name==='AbortError'||/supabase-read-timeout|timeout|abort/i.test(m))return 'TIMEOUT_WORKER';
+    return Number.isInteger(st)&&st>0?'HTTP_'+st:'ERRO';};
   const qMemo=new Map();
-  const q=period=>{
+  const q=(label,period)=>{
     if(!period)return Promise.resolve(null);
     const k=platform+'|'+period.start+'|'+period.end;
-    if(qMemo.has(k)){meter.shared++;return qMemo.get(k);}
-    const pr=part('quality',()=>d.quality(env,{platform,start:period.start,end:period.end}));
-    qMemo.set(k,pr);return pr;
+    const w=qWin[label]={start:period.start,end:period.end};
+    if(qMemo.has(k)){meter.shared++;const hit=qMemo.get(k);w.shared_with=hit.label;return hit.p;}
+    const s0=clock();let st=null,en=null,err=null;
+    const pr=part('quality',async()=>{st=clock();try{return await d.quality(env,{platform,start:period.start,end:period.end});}catch(e){err=qErr(e);throw e;}finally{en=clock();}});
+    const p=pr.then(r=>{w.wait_ms=(st==null?clock():st)-s0;w.call_ms=st==null?0:(en==null?clock():en)-st;w.failed=err!=null;if(err)w.error=err;return r;});
+    qMemo.set(k,{label,p});return p;
   };
   const dashP=part('dashboard',()=>d.dashboard(env,{platform,days:n}));
   const overviewP=part('overview',()=>d.overview(env,{platform,days:n}));
@@ -1489,10 +1499,10 @@ export async function commerceStrategicViewV1(env,{platform,days,parallel}={},de
   const sameRange=(a,b)=>Boolean(a&&b&&a.start===b.start&&a.end===b.end);
   const categoriesP=part('categories',()=>d.categories(env,{platform,mode:'days',days:n}));
   const spanDays=periods?(Date.parse(periods.history.end)-Date.parse(periods.history.start))/86400000+1:0;
-  const dqCurrentP=periods?q(periods.current):Promise.resolve(null);
-  const dqPreviousP=periods?q(periods.previous):Promise.resolve(null);
+  const dqCurrentP=periods?q('current',periods.current):Promise.resolve(null);
+  const dqPreviousP=periods?q('previous',periods.previous):Promise.resolve(null);
   const splitP=periods&&platform==='SHOPEE'?part('split',()=>d.split(env,{start:periods.current.start,end:periods.current.end})):Promise.resolve(null);
-  const dqHistoryP=periods&&spanDays<=STRATEGIC_MAX_HISTORY_DAYS?q(periods.history):Promise.resolve(null);
+  const dqHistoryP=periods&&spanDays<=STRATEGIC_MAX_HISTORY_DAYS?q('history',periods.history):Promise.resolve(null);
   const monthlyP=part('monthly',()=>d.monthly(env,{platform}));
   const shopeePerfP=platform==='SHOPEE'?part('performance',()=>d.shopeePerf(env)):Promise.resolve(null);
   const mlPerfP=platform!=='SHOPEE'?part('performance',()=>d.mlPerf(env)):Promise.resolve(null);
@@ -1500,16 +1510,37 @@ export async function commerceStrategicViewV1(env,{platform,days,parallel}={},de
   const categories=await categoriesP;
   const catCur=iso(categories?.cur_from)&&iso(categories?.cur_to)?{start:categories.cur_from,end:categories.cur_to}:null;
   const catBase=iso(categories?.base_from)&&iso(categories?.base_to)?{start:categories.base_from,end:categories.base_to}:null;
-  const dqCatCurrentP=periods&&catCur&&!sameRange(catCur,periods.current)?q(catCur):Promise.resolve(null);
-  const dqCatBaseP=periods?q(catBase):Promise.resolve(null);
+  const dqCatCurrentP=periods&&catCur&&!sameRange(catCur,periods.current)?q('category_current',catCur):Promise.resolve(null);
+  const dqCatBaseP=periods?q('category_base',catBase):Promise.resolve(null);
   const [overview,series,monthly,shopeePerf,mlPerf,dqCurrent,dqPrevious,dqHistory,split,dqCatCurrent,dqCatBase]=await Promise.all([
     overviewP,seriesP,monthlyP,shopeePerfP,mlPerfP,dqCurrentP,dqPreviousP,dqHistoryP,splitP,dqCatCurrentP,dqCatBaseP]);
   const view=buildStrategicView({platform,days:n,dash,overview,monthly,series,categories,split,dqCurrent,dqPrevious,dqHistory,dqCatCurrent,dqCatBase,
     perf:{shopee:shopeePerf,ml:mlPerf},failed,periods,elapsed_ms:Date.now()-t0});
   // Métricas da operação (tempo, consultas feitas, repetidas evitadas, falhas, fases mais lentas). Sem dados de venda.
   const waitTotal=Object.values(parts).reduce((a,x)=>a+x.wait_ms,0),callTotal=Object.values(parts).reduce((a,x)=>a+x.call_ms,0);
+  // GA-P02D: estado e motivo de cada janela (só leitura do que já veio; não altera a visão).
+  const platP={current:periods?.current,previous:periods?.previous,history:periods?.history,category_current:catCur,category_base:catBase?.start?catBase:null};
+  const dqBy={current:dqCurrent,previous:dqPrevious,history:dqHistory,category_current:dqCatCurrent,category_base:dqCatBase};
+  const skip={history:periods&&!(spanDays<=STRATEGIC_MAX_HISTORY_DAYS)?'JANELA_MAIOR_QUE_LIMITE':null,
+    category_current:periods&&catCur&&sameRange(catCur,periods.current)?'IGUAL_AO_ATUAL':(!catCur?'SEM_DATAS_DAS_CATEGORIAS':null),
+    category_base:periods&&!catBase?'SEM_DATAS_DAS_CATEGORIAS':null};
+  const quality_windows={};
+  for(const name of ['current','previous','history','category_current','category_base']){
+    const w=qWin[name];
+    if(!w){const why=!periods?'SEM_PERIODOS':skip[name];if(why){quality_windows[name]={skipped:why};}continue;}
+    const dqx=dqBy[name],per=platP[name],sl=dqx?.sales;
+    const proven=coverageProven(dqx,platform,per);
+    const cnt=v=>{const n=Number(v);return v==null||v===''||!Number.isFinite(n)?null:n;};
+    quality_windows[name]={...w,
+      state:proven?'COMPROVADA':!dqx?'INDISPONIVEL':(dqx.platform===platform&&sl?.status==='SEM_INFORMACAO')?'SEM_INFORMACAO':'NAO_COMPROVADA',
+      reason:coverageUnprovenCause(dqx,platform,per),
+      detail:sl?{status:typeof sl.status==='string'?sl.status.slice(0,24):null,requested_days:cnt(sl.requested_days),complete_days:cnt(sl.complete_days),partial_days:cnt(sl.partial_days),
+        days_without_information:cnt(sl.days_without_information),days_with_records_unverified:cnt(sl.days_with_records_unverified),
+        missing_ranges:Array.isArray(sl.missing_ranges)?sl.missing_ranges.length:null}:null};
+  }
+  const failed_windows=Object.keys(quality_windows).filter(k=>quality_windows[k].failed===true);
   return {...view,metrics:{elapsed_ms:Date.now()-t0,queries:meter.used,shared_queries:meter.shared,max_parallel:width,failed:failed.slice(),failed_count:failed.length,phases_ms:{...phases},
-    queue_wait_ms:waitTotal,call_ms:callTotal,parts:Object.fromEntries(Object.entries(parts).map(([k,x])=>[k,{...x}]))}};
+    queue_wait_ms:waitTotal,call_ms:callTotal,quality_windows,failed_windows,parts:Object.fromEntries(Object.entries(parts).map(([k,x])=>[k,{...x}]))}};
 }
 
 // GA-014 — Central de decisões comerciais (somente leitura, só unidades). A função SQL commerce_decision_units_v1 traz as unidades por anúncio;
