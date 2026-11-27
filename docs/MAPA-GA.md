@@ -507,3 +507,5 @@ Rascunho de PR. **Não publicar antes de a função SQL (PR de migração) ser a
 
 ### Pendência técnica separada — check "Supabase Preview" vermelho
 O check falha no `main` (e já falhava antes da GA-P01) com "Remote migration versions not found in local migrations directory": versões de migração aplicadas no banco remoto não existem na pasta local (já registrada acima como anterior à GA-019). Não bloqueia merge nem deploy (não é check obrigatório), não é causada pela GA-P01/GA-P02 e **não foi corrigida** (exige reconciliar versões, mexe em histórico de migração). Tratar em etapa própria.
+
+Medição 1 (27/11/2026, Shopee 30 d, concorrência 1): 12685 ms totais, 11 consultas, falha em `quality` (cobertura não comprovada), categorias e divisão OK; feita após um pedido de 7 d cancelado pelo navegador (sem isolamento garantido). Próximo: `GA_STRATEGIC_PARALLEL=2` (PR temporária).

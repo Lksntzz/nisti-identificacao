@@ -95,3 +95,5 @@ Limitador de 3 consultas por operação, Dashboard primeiro e cobertura/divisão
 
 ## GA-P02A — Etapas 1 e 2 (PR rascunho; aguardando Atlas)
 Etapa 1: largura da fila da Visão estratégica configurável (1/2/3, padrão 3, env `GA_STRATEGIC_PARALLEL`); `MAX_PARALLEL_DB` e ABC intactos; métricas separam `queue_wait_ms` e `call_ms`. Etapa 2: `commerce_categories_v3` só como candidata de teste (`test/db/fixtures/candidates/`), idêntica à v2 em 3 contas × 4 períodos + bordas; local 0,07–0,21 s contra 0,8–1,3 s da v2 e 5–40× menos páginas. v2 intacta. Dados do teste são fictícios (não cópia de produção). Nada aplicado em produção; migração, publicação e medição de concorrência dependem de aprovação do Atlas.
+
+Medição 1 (27/11/2026, Shopee 30 d, concorrência 1): 12685 ms totais, 11 consultas, falha em `quality` (cobertura não comprovada), categorias e divisão OK; feita após um pedido de 7 d cancelado pelo navegador (sem isolamento garantido). Próximo: `GA_STRATEGIC_PARALLEL=2` (PR temporária).
