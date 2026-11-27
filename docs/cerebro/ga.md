@@ -99,3 +99,6 @@ Etapa 1: largura da fila da Visão estratégica configurável (1/2/3, padrão 3,
 Medição 1 (27/11/2026, Shopee 30 d, concorrência 1): 12685 ms totais, 11 consultas, falha em `quality` (cobertura não comprovada), categorias e divisão OK; feita após um pedido de 7 d cancelado pelo navegador (sem isolamento garantido). Próximo: `GA_STRATEGIC_PARALLEL=2` (PR temporária).
 
 Medição 2 (27/11/2026, Shopee 30 d, concorrência 2): `max_parallel` 2, 12047 ms totais (12685 com 1), `call_ms` 20952, `queue_wait_ms` 24531, 11 consultas, falha em `quality`; categorias e divisão OK. Atlas decidiu manter `GA_STRATEGIC_PARALLEL=2` provisoriamente. Investigação (logs + código, só leitura): o estouro de 8 s é dentro de `commerce_shopee_reconciliation_v1`, chamada por `commerce_data_quality_v1` (linha 128); pela ordem da fila a janela que falha é a HISTÓRICA (forte indício; o log não guarda parâmetros); atual e anterior devolveram 200. Falha determinística, independente da concorrência. Como tratar a cobertura histórica fica com o Atlas (ver MAPA-GA).
+
+## GA-P02D — migração da função leve de cobertura (PR separada, não aplicada)
+Migração + rollback + testes + roteiro de conciliação preparados; GA-011 e `commerce_data_quality_v1` intactas; Worker não usa. Aguarda Atlas e novo backup.
